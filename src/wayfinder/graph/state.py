@@ -5,10 +5,29 @@ from typing import Annotated, Literal, TypedDict
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
+from wayfinder.ingestion.models import RepoHandle
+
+AgentName = Literal["architect_mapper", "entry_explainer", "verifier", "final_writer"]
+RoutingSource = Literal["rule", "llm", "user_correction", "safe_default"]
 Intent = Literal["architectural", "runtime", "behavioral", "debug", "mixed"]
 RiskLevel = Literal["low", "medium", "high"]
 TestStrategy = Literal["existing_test", "generate_test", "skip"]
 ClaimStatus = Literal["pending", "verified", "unverified", "contradicted"]
+
+
+class RouteDecision(TypedDict):
+    intent: Intent
+    next_agent: AgentName
+    source: RoutingSource
+    reason: str
+    needs_human_review: bool
+
+
+class GraphError(TypedDict):
+    node: str
+    error_type: str
+    message: str
+    retryable: bool
 
 
 class Claim(TypedDict, total=False):
@@ -31,22 +50,29 @@ class TestResult(TypedDict, total=False):
 
 
 class WayfinderState(TypedDict, total=False):
-    """Shared state passed through the Supervisor workflow."""
-
     query: str
     repo_url: str
+    repo_handle: RepoHandle
+    thread_id: str
+
     intent: Intent
+    route_decision: RouteDecision
+    next_agent: AgentName | None
+
     repo_metadata: dict[str, object]
     module_dep_graph: dict[str, object] | None
     entry_points: list[str] | None
     ast_index: dict[str, object] | None
+
     pending_claims: list[Claim]
     verified_claims: list[Claim]
     unverified_claims: list[Claim]
     contradicted_claims: list[Claim]
-    test_results: dict[str, TestResult] | None
+
+    test_results: dict[str, TestResult]
     partial_summaries: dict[str, str]
-    next_agent: str | None
     user_corrections: list[str]
+    errors: list[GraphError]
     final_output: str | None
+
     messages: Annotated[list[BaseMessage], add_messages]

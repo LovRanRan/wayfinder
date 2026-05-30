@@ -3,5 +3,6 @@
   "venv": ".venv",
   "extraPaths": ["src"],
   "pythonVersion": "3.12",
-  "typeCheckingMode": "strict"
+  "typeCheckingMode": "strict",
+  "reportMissingTypeStubs": "none"
 }

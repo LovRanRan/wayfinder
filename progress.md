@@ -126,7 +126,7 @@ Ownership 边界:
 | 系统架构、模块边界、State schema、agent routing、Claim / verification 逻辑、test case 设计、README / 面试解释 | Haichuan |
 | FastAPI boilerplate、Pydantic 初稿、LangGraph node 局部 TODO、Docker / CI、debug 建议、review gates | Codex 可辅助,但 Haichuan 审 |
 
-当前小步暂停:`MCP retry / timeout / structured error normalization`。恢复前 Haichuan 先写该模块的 design note + minimal skeleton,Codex 再 review / 补局部 TODO。
+当前小步暂停:`Commit 3 kickoff gate`。恢复前先按四步法确认 Commit 3 materials / design boundary,不要直接进入 production architecture mapper code。
 
 Guided design mode:
 
@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | ⏭ **Commit 2** — Supervisor graph + state machine kickoff pending |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **2 / 11 done** · ship **0 / 8 done** |
+| **Current Commit** | ⏭ **Commit 3** — Architecture path kickoff pending |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **3 / 11 done** · ship **0 / 8 done** |
 | **Blocker** | none |
-| **Last Activity** | 2026-05-29 · Commit 1 closed with LEARNINGS updated and all quality gates green. |
+| **Last Activity** | 2026-05-30 · Commit 2 closed with LEARNINGS updated and gates green. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Start Commit 2 only after the kickoff gate:materials first, then Haichuan-owned design/skeleton. |
-| **Next Action** | Commit 2 kickoff gate:ask "材料看完了吗?" before any Supervisor/state implementation. |
+| **Today's North Star** | Start Commit 3 only after the kickoff gate:materials first, then Haichuan-owned architecture mapper design/skeleton. |
+| **Next Action** | Commit 3 kickoff gate:ask "材料看完了吗?" before any architecture mapper implementation. |
 
 ---
 
@@ -204,13 +204,13 @@ Guided design mode:
   - [x] 所有 MCP tool calls 加 tenacity exponential backoff, timeout, structured error normalization ✅ 2026-05-29
   - [x] Contract tests prove each MCP can list tools and return one happy-path response through adapter layer ✅ 2026-05-29
 
-- [ ] **Commit 2 — Supervisor graph + state machine**
-  - [ ] 实现 `WayfinderState` TypedDict:query, repo_url, intent, repo_metadata, module_dep_graph, entry_points, ast_index, claims, test_results, summaries, next_agent, user_corrections, final_output, messages
-  - [ ] 实现 `Claim` schema:text, source_agent, risk_level(low/medium/high), test_strategy, test_id
-  - [ ] LangGraph Supervisor coordinates `architect_mapper`, `entry_explainer`, `verifier` placeholder nodes
-  - [ ] Intent routing:deterministic rule first, LLM fallback second;覆盖 architectural / runtime / behavioral / debug / mixed
-  - [ ] SQLite checkpointer supports resumable runs and status recovery after process restart
-  - [ ] Routing tests cover rule hits, LLM fallback JSON validation, invalid intent recovery, mixed-intent routing
+- [x] **Commit 2 — Supervisor graph + state machine** ✅ 2026-05-30
+  - [x] 实现 `WayfinderState` TypedDict:query, repo_url, intent, repo_metadata, module_dep_graph, entry_points, ast_index, claims, test_results, summaries, next_agent, user_corrections, final_output, messages ✅ 2026-05-30
+  - [x] 实现 `Claim` schema:text, source_agent, risk_level(low/medium/high), test_strategy, test_id ✅ 2026-05-30
+  - [x] LangGraph Supervisor coordinates `architect_mapper`, `entry_explainer`, `verifier` placeholder nodes ✅ 2026-05-30
+  - [x] Intent routing:deterministic rule first, LLM fallback second;覆盖 architectural / runtime / behavioral / debug / mixed — rule routing + mocked LLM parser/validator accepted as Commit 2 boundary;real LLM call deferred ✅ 2026-05-30
+  - [x] SQLite checkpointer supports resumable runs and status recovery after process restart ✅ 2026-05-30
+  - [x] Routing tests cover rule hits, LLM fallback JSON validation, invalid intent recovery, mixed-intent routing ✅ 2026-05-30
 
 - [ ] **Commit 3 — Architecture path end-to-end (`architect_mapper`)**
   - [ ] `architect_mapper` uses `mcp-repo-mapper` to produce module layers, dependency graph, language breakdown, frameworks, entry points
@@ -303,6 +303,114 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-05-30 — Commit 2 — `closed`
+
+- **做了什么**:Closed Commit 2 after accepting mocked LLM parser/validator as the commit's LLM fallback boundary. `LEARNINGS.md` now captures the state contract, Supervisor routing, safe defaults, thread/checkpoint relationship, SQLite persistence, and typing gotchas.
+- **自己设计了什么**:Commit 2 is intentionally a graph/state contract commit:real MCP-backed agent behavior begins in Commit 3+, while real LLM routing is deferred until prompt/model/runtime boundaries exist.
+- **Codex 帮了哪里**:Codex updated tracker/LEARNINGS after Haichuan confirmed there were no remaining close-out questions.
+- **验证方式**:`uv run ruff check src tests`;`uv run mypy src tests`;`uv run pytest`(64 passed,5 skipped);`git diff --check`.
+- **问题记录**:Do not start Commit 3 production code directly. Commit 3 must begin with materials and Haichuan-owned architecture mapper design/skeleton.
+- **明天计划**:Run Commit 3 kickoff gate:ask "材料看完了吗?", capture sources, then design architecture mapper boundaries before implementation.
+
+### 2026-05-30 — Commit 2 — `sqlite checkpoint persistence verified`
+
+- **做了什么**:Added `langgraph-checkpoint-sqlite` and a SQLite graph contract test proving state persists across fresh graph/checkpointer instances when the same SQLite file and `thread_id` are reused.
+- **自己设计了什么**:The test verifies process-restart semantics at the Commit 2 boundary:the persisted `repo_url` and `intent` are recovered from SQLite rather than from the original in-memory graph object.
+- **Codex 帮了哪里**:Codex rewrote the test helper to isolate LangGraph SQLite's incomplete typing behind `_sqlite_checkpointer()`, then ran focused and full verification.
+- **验证方式**:`uv run ruff check tests/test_graph_contract.py`;`uv run mypy tests/test_graph_contract.py`;`uv run pytest tests/test_graph_contract.py`(4 passed);`uv run ruff check src tests`;`uv run mypy src tests`;`uv run pytest`(64 passed,5 skipped);`git diff --check`.
+- **问题记录**:`SqliteSaver` typing is incomplete in Pylance, so tests cast the dynamically loaded saver factory to `BaseCheckpointSaver[Any]` at one helper boundary instead of leaking Unknown through test code.
+- **明天计划**:Decide whether mocked LLM parser/validator is enough for Commit 2's LLM fallback scope, then run the Commit 2 close gate.
+
+### 2026-05-30 — Commit 2 — `supervisor error-path tests added`
+
+- **做了什么**:Haichuan added graph contract coverage for mixed / missing-query Supervisor error paths. The graph now proves mixed or empty input routes safely to `architect_mapper`, marks `needs_human_review`, and still produces placeholder final output instead of crashing.
+- **自己设计了什么**:The error-path contract is conservative:bad or ambiguous routing state should degrade to architecture overview plus human review, not invent a confident specialized path.
+- **Codex 帮了哪里**:Codex reviewed the assertions, fixed whitespace / indentation only in the test file, and ran focused plus full verification.
+- **验证方式**:`uv run ruff check tests/test_graph_contract.py`;`uv run mypy tests/test_graph_contract.py`;`uv run pytest tests/test_graph_contract.py`(3 passed);`uv run ruff check src tests`;`uv run mypy src tests`;`uv run pytest`(63 passed,5 skipped);`git diff --check`.
+- **问题记录**:Commit 2 still cannot close until SQLite checkpointer support is either implemented or explicitly re-scoped from this commit.
+- **明天计划**:Decide the SQLite checkpointer boundary, then run close-out gates and LEARNINGS update if Commit 2 is ready.
+
+### 2026-05-30 — Commit 2 — `llm fallback parser tests added`
+
+- **做了什么**:Added the LLM fallback routing boundary as a mocked parser / validator:valid JSON becomes a typed `RouteDecision`;invalid JSON, non-object JSON, or unsupported intent falls back to `safe_default`.
+- **自己设计了什么**:The fallback boundary does not call a real LLM yet. It only defines what Wayfinder will accept from an LLM later and how invalid model output degrades safely.
+- **Codex 帮了哪里**:Codex filled the local parser helper and added focused routing tests around the existing Haichuan-owned routing skeleton.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/routing.py tests/test_routing.py`;`uv run mypy src/wayfinder/graph/routing.py tests/test_routing.py`;`uv run pytest tests/test_routing.py`(21 passed);`uv run ruff check src tests`;`uv run mypy src tests`;`uv run pytest`(62 passed,5 skipped);`git diff --check`.
+- **问题记录**:Intent routing is still partially open because the real LLM fallback call is intentionally not wired into production routing yet.
+- **明天计划**:Add remaining Supervisor error-path tests, then decide whether SQLite checkpointer support is implemented in Commit 2 or explicitly re-scoped before close-out.
+
+### 2026-05-30 — Commit 2 — `state skeleton reviewed`
+
+- **做了什么**:Haichuan updated `src/wayfinder/graph/state.py` with the Commit 2 state contract skeleton:typed agent names, routing source, route decision, graph error, `RepoHandle`, `thread_id`, typed `next_agent`, and structured error list.
+- **自己设计了什么**:`WayfinderState` now reflects the design note priority:state contract first, routing as a decision attached to state, and repo ingestion consumed through `RepoHandle` instead of redoing clone/cache work.
+- **Codex 帮了哪里**:Codex reviewed the skeleton, removed an unused `type: ignore`, and ran focused verification.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/state.py`;`uv run mypy src/wayfinder/graph/state.py`;`uv run pytest tests/test_graph_contract.py`(1 passed).
+- **问题记录**:`typings/` appears to be IDE-generated Pyright stubs for LangGraph;decide whether to delete or ignore before commit.
+- **明天计划**:Write the next minimal skeleton for routing boundaries: `classify_intent()` and `choose_next_agent()` signatures plus TODOs, without implementing LLM fallback yet.
+
+### 2026-05-30 — Commit 2 — `routing skeleton reviewed`
+
+- **做了什么**:Haichuan added `src/wayfinder/graph/routing.py` with `classify_intent()`, `choose_next_agent()`, and `build_route_decision()` skeletons.
+- **自己设计了什么**:Routing stays deterministic and state-attached for this slice:query keywords produce an `Intent`, intent maps to a placeholder `AgentName`, and the result becomes a `RouteDecision`.
+- **Codex 帮了哪里**:Codex reviewed that no LLM fallback, graph wiring, or real agent work leaked into the skeleton, then ran focused checks.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/routing.py src/wayfinder/graph/state.py`;`uv run mypy src/wayfinder/graph/routing.py src/wayfinder/graph/state.py`;`uv run pytest tests/test_graph_contract.py`(1 passed).
+- **问题记录**:Runtime intent currently maps to `entry_explainer` as a placeholder;the final runtime policy can change after tests make the intended behavior explicit.
+- **明天计划**:Write placeholder node skeletons for supervisor, architect mapper, entry explainer, verifier, and final writer without real MCP calls.
+
+### 2026-05-30 — Commit 2 — `placeholder nodes reviewed`
+
+- **做了什么**:Haichuan added `src/wayfinder/graph/nodes.py` with placeholder nodes for supervisor, architect mapper, entry explainer, verifier, and final writer.
+- **自己设计了什么**:The supervisor node attaches `RouteDecision` to state, while each placeholder worker only writes a small `partial_summaries` entry and routes to `final_writer`;no MCP calls or real explanations are included.
+- **Codex 帮了哪里**:Codex reviewed the TypedDict required-key fix for `RouteDecision`, confirmed the node skeleton stays within Commit 2 boundaries, and ran focused checks.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/state.py src/wayfinder/graph/routing.py src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/state.py src/wayfinder/graph/routing.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(1 passed).
+- **问题记录**:Current graph app still uses the old `bootstrap_node`;next slice should wire these placeholders into `build_graph()` with conditional edges.
+- **明天计划**:Update `app.py` skeleton to build the supervisor graph around `supervisor_node`, placeholder agents, and `final_writer_node`.
+
+### 2026-05-30 — Commit 2 — `placeholder graph wired`
+
+- **做了什么**:Wired `app.py` from the old Commit 0 `bootstrap_node` into the Commit 2 placeholder Supervisor graph:START -> supervisor -> conditional placeholder agent -> final_writer -> END.
+- **自己设计了什么**:The graph skeleton now routes from `RouteDecision` instead of hardcoded scaffold output;missing or invalid `next_agent` falls back to the architecture path.
+- **Codex 帮了哪里**:Codex isolated LangGraph's incomplete static typing at the graph-builder boundary with one explicit `Any`, typed the checkpointer parameter with LangGraph's `Checkpointer`, removed IDE-generated `typings/` stubs, and updated the graph contract test to Commit 2 behavior.
+- **验证方式**:`uv run ruff check src tests`;`uv run mypy src tests`;`uv run pytest`(40 passed, 5 skipped);`git diff --check`.
+- **问题记录**:Pylance warnings came from LangGraph's incomplete generic/stub surface, not from Wayfinder's graph logic. The fix is to isolate LangGraph uncertainty at the graph-builder boundary and keep project-owned state/nodes strict.
+- **明天计划**:Add routing-specific tests for architectural/runtime/behavioral/debug/mixed and safe-default graph routing.
+
+### 2026-05-30 — Commit 2 — `routing tests added`
+
+- **做了什么**:Added `tests/test_routing.py` covering deterministic intent classification, intent-to-agent mapping, mixed-query human-review flag, and safe-default supervisor routing.
+- **自己设计了什么**:Routing tests now lock the current placeholder policy without adding LLM fallback:architectural routes to `architect_mapper`;runtime/behavioral/debug route to `entry_explainer`;mixed defaults to architecture and marks human review.
+- **Codex 帮了哪里**:Codex wrote focused tests around Haichuan's routing skeleton and kept the scope away from production LLM fallback.
+- **验证方式**:`uv run ruff check tests/test_routing.py src/wayfinder/graph`;`uv run mypy tests/test_routing.py src/wayfinder/graph`;`uv run pytest tests/test_routing.py tests/test_graph_contract.py`(17 passed).
+- **问题记录**:The routing policy is intentionally keyword-based for Commit 2; later LLM fallback tests should be added only after the fallback boundary is designed.
+- **明天计划**:Run full quality gates, then start the checkpointer skeleton / resume-state test boundary.
+
+### 2026-05-30 — Commit 2 — `checkpoint boundary clarified`
+
+- **做了什么**:Defined the minimum checkpoint boundary for Commit 2:same `thread_id` should persist/resume graph state;different `thread_id` values must not share state.
+- **自己设计了什么**:Checkpointing is tested as run isolation and resume semantics first, not as a full persistence product. SQLite can be added after the contract is green.
+- **Codex 帮了哪里**:Codex checked the installed LangGraph checkpoint modules and confirmed the current environment has `InMemorySaver` but not the SQLite checkpoint package.
+- **验证方式**:Design/tracker update only;no code verification required.
+- **问题记录**:Need to decide whether Commit 2 accepts an in-memory checkpoint contract first or adds the SQLite checkpoint dependency now.
+- **明天计划**:Write the first checkpointer contract test with `InMemorySaver`, then decide whether to add SQLite support in the next slice.
+
+### 2026-05-30 — Commit 2 — `checkpoint contract test added`
+
+- **做了什么**:Extended the graph protocol and contract tests so `build_graph(checkpointer=InMemorySaver())` supports `invoke(..., config=thread_id)` and `get_state(config)`.
+- **自己设计了什么**:The first checkpoint contract proves run isolation:thread A and thread B persist separate `repo_url` values and do not share state.
+- **Codex 帮了哪里**:Codex updated the `WayfinderGraph` protocol to expose `config` and `get_state()` instead of leaving tests with Pylance red lines, then added the in-memory checkpointer test.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/app.py tests/test_graph_contract.py`;`uv run mypy src/wayfinder/graph/app.py tests/test_graph_contract.py`;`uv run pytest tests/test_graph_contract.py`(2 passed).
+- **问题记录**:This proves checkpoint semantics with `InMemorySaver`;SQLite persistence is deliberately deferred within Commit 2 until after routing fallback / error-path tests are stable. Do not close Commit 2 until the roadmap's SQLite checkpointer line is either implemented or explicitly re-scoped.
+- **明天计划**:Define LLM fallback routing as mocked parser/validator tests first;do not add a real LLM call yet.
+
+### 2026-05-29 — Commit 2 — `materials captured`
+
+- **做了什么**:Haichuan confirmed the Commit 2 materials are read. Captured the Graph API, persistence/checkpointer, multi-agent, supervisor example, and local contract docs into `LEARNINGS.md` Sources.
+- **自己设计了什么**:Completed `docs/design_notes/004_supervisor_state_machine.md`:Commit 2 prioritizes the unified `WayfinderState` contract, then routing as a state-based next-agent decision;real MCP-backed agent work stays out of this commit.
+- **Codex 帮了哪里**:Codex asked one guided design question at a time, formatted Haichuan's answers into the design note, and updated tracker state.
+- **验证方式**:Tracker-only update;no code verification required.
+- **问题记录**:The main risk is over-building Supervisor before the `WayfinderState` / `Claim` contract is clear.
+- **明天计划**:Answer guided design questions one at a time, then write the minimal skeleton only after the design note is complete.
 
 ### 2026-05-29 — Commit 1 — `closed`
 

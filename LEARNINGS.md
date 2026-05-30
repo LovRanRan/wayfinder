@@ -72,3 +72,45 @@
 - "The adapter owns retry, timeout, and error normalization because MCP calls are external execution boundaries;graph nodes should not handle raw tool exceptions."
 - "Project 5 MCP servers are the grounding layer for repo facts, while Tavily and GitHub MCP provide supporting external context."
 - "I kept real external-service tests env-gated and skip-safe so normal development stays fast, but the project can still prove real Tavily, GitHub, and Project 5 MCP calls when credentials and commands are available."
+
+---
+
+## Commit 2 — Supervisor Graph + State Machine
+
+### 📚 Sources
+
+- [x] [LangGraph Graph API overview](https://docs.langchain.com/oss/python/langgraph/graph-api) — `StateGraph`, state schema, reducers, nodes, conditional edges, compile ✅ 2026-05-29
+- [x] [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence) — checkpointer, thread id, resume, state history ✅ 2026-05-29
+- [x] [LangGraph Checkpointer integrations](https://docs.langchain.com/oss/python/integrations/checkpointers) — SQLite / in-memory checkpointer options ✅ 2026-05-29
+- [x] [LangChain multi-agent overview](https://docs.langchain.com/oss/python/langchain/multi-agent) — multi-agent workflow and router boundary ✅ 2026-05-29
+- [x] [Subagents supervisor example](https://docs.langchain.com/oss/python/langchain/multi-agent/subagents-personal-assistant) — supervisor/subagent coordination pattern ✅ 2026-05-29
+- [x] Project-local contract files: `DESIGN.md` and `progress.md` Commit 2 roadmap ✅ 2026-05-29
+
+### 🧠 Concepts Internalized
+
+- `WayfinderState` is the shared contract that makes the Supervisor graph coherent. Routing, partial summaries, claims, checkpoint state, and final output should all attach to this state instead of being passed around as ad hoc node-local data.
+- The Supervisor node should decide the next agent from normalized state, not from scattered conditionals inside each worker. In Commit 2, `route_decision` stores the intent, source, reason, next agent, and human-review flag.
+- Deterministic routing and LLM fallback are separate layers. Commit 2 owns keyword-rule routing plus a mocked LLM-output parser/validator;the real LLM call is intentionally deferred until prompt/model/runtime boundaries exist.
+- Safe defaults are part of the routing contract. Ambiguous, missing, invalid, or unsupported routing output should degrade to `architect_mapper` plus `needs_human_review`, not invent a confident specialized route.
+- `thread_id` is the key LangGraph uses to select a saved graph run. The checkpointer stores state;the `thread_id` tells it which run to read or write.
+- SQLite checkpointing proves resumability when a fresh graph/checkpointer instance can recover state from the same SQLite file and same `thread_id`.
+- `yield` inside a `@contextmanager` helper means "lend this resource to the `with` block, then resume cleanup afterward." It is useful for SQLite because the connection must always be closed.
+
+### ⚠️ Gotchas Debugged
+
+- `TypedDict(total=False)` keeps state fields optional, but Pylance needs key-existence assertions like `"intent" in result` before direct indexing in tests.
+- A `RouteDecision` should use required keys. If it is `total=False`, Pylance correctly warns that `route_decision["intent"]` may be unsafe.
+- LangGraph's builder and checkpoint types expose incomplete static typing. Keep `Any` / `cast` at the graph-builder or test-helper boundary rather than leaking Unknown types through project-owned code.
+- `json.loads()` returns an untyped value to static checkers. Assign it to `object`, validate with `isinstance`, then cast to `dict[str, object]` before calling `.get()`.
+- `langgraph-checkpoint-sqlite` is a separate dependency from `langgraph`;having `langgraph` installed does not provide `langgraph.checkpoint.sqlite`.
+- `SqliteSaver` works at runtime but has incomplete Pylance typing. A small `_sqlite_checkpointer()` helper can hide the untyped factory and return `BaseCheckpointSaver[Any]` to the test body.
+- Checkpoint tests must pass `config={"configurable": {"thread_id": ...}}`;without a thread id, persistence semantics are not being tested.
+- `tmp_path / "checkpoints.sqlite"` is `pathlib.Path` path joining, not division. It gives each pytest run an isolated temporary SQLite file.
+
+### 💼 Interview Soundbites
+
+- "I treated the graph state as the system contract first, then made routing a state-attached decision rather than a loose control-flow branch."
+- "The Supervisor graph initially uses placeholder agents, but the state, routing, and persistence contracts are already testable before real MCP-backed agent work begins."
+- "For LLM fallback, I first validated the boundary:LLM output must parse into a typed route decision, and invalid output goes to a safe default with human review."
+- "I tested checkpointing at two levels:in-memory isolation by `thread_id`, and SQLite persistence across fresh graph/checkpointer instances."
+- "I isolated third-party LangGraph typing gaps at narrow boundaries so project-owned state, nodes, and tests remain strict under mypy and Pylance."
