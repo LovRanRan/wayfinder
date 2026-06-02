@@ -1,5 +1,14 @@
 """Placeholder nodes for the Commit 2 Supervisor graph."""
 
+from collections.abc import Callable
+
+from wayfinder.graph.architecture import (
+    ArchitectureScanner,
+    architect_mapper_missing_repo_path,
+    architecture_state_from_scan_result,
+    repo_path_from_state,
+    scan_repo_for_architecture,
+)
 from wayfinder.graph.routing import build_route_decision
 from wayfinder.graph.state import WayfinderState
 
@@ -13,13 +22,23 @@ def supervisor_node(state: WayfinderState) -> WayfinderState:
     }
 
 
+def build_architect_mapper_node(
+    scanner: ArchitectureScanner | None = None,
+) -> Callable[[WayfinderState], WayfinderState]:
+    def _node(state: WayfinderState) -> WayfinderState:
+        repo_path = repo_path_from_state(state)
+
+        if repo_path is None:
+            return architect_mapper_missing_repo_path()
+
+        scan_result = scan_repo_for_architecture(repo_path, scanner=scanner)
+        return architecture_state_from_scan_result(scan_result)
+
+    return _node
+
+
 def architect_mapper_node(state: WayfinderState) -> WayfinderState:
-    return {
-        "partial_summaries": {
-            "architect_mapper": "Placeholder architecture summary; real MCP mapping comes later."
-        },
-        "next_agent": "final_writer",
-    }
+    return build_architect_mapper_node()(state)
 
 
 def entry_explainer_node(state: WayfinderState) -> WayfinderState:

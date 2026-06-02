@@ -5,8 +5,9 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import StateSnapshot
 
+from wayfinder.graph.architecture import ArchitectureScanner
 from wayfinder.graph.nodes import (
-    architect_mapper_node,
+    build_architect_mapper_node,
     entry_explainer_node,
     final_writer_node,
     supervisor_node,
@@ -39,14 +40,21 @@ def route_from_supervisor(state: WayfinderState) -> AgentName:
     return "architect_mapper"
 
 
-def build_graph(checkpointer: GraphCheckpointer = None) -> WayfinderGraph:
+def build_graph(
+    checkpointer: GraphCheckpointer = None,
+    *,
+    architecture_scanner: ArchitectureScanner | None = None,
+) -> WayfinderGraph:
     """Build the Commit 2 Supervisor graph skeleton."""
     # LangGraph's builder exposes incomplete type information to static checkers.
     # Keep that uncertainty at this boundary instead of leaking it into nodes/state.
     graph: Any = StateGraph(WayfinderState)
 
     graph.add_node("supervisor", supervisor_node)
-    graph.add_node("architect_mapper", architect_mapper_node)
+    graph.add_node(
+        "architect_mapper",
+        build_architect_mapper_node(architecture_scanner),
+    )
     graph.add_node("entry_explainer", entry_explainer_node)
     graph.add_node("verifier", verifier_node)
     graph.add_node("final_writer", final_writer_node)

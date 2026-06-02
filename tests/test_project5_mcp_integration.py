@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from wayfinder.graph.architecture import architecture_state_from_scan_result
+from wayfinder.graph.runtime import build_project5_architecture_scanner
 from wayfinder.mcp.adapter import MCPAdapter, build_mcp_client
 from wayfinder.mcp.models import MCPServerConfig, MCPToolCall
 from wayfinder.mcp.project5 import build_project5_mcp_configs
@@ -124,3 +126,22 @@ def test_project5_mcp_server_lists_and_calls_happy_path_tool(
 
     assert result.tool_name == expected_tool
     assert result.content is not None
+
+
+def test_project5_architecture_scanner_scans_fixture_repo(tmp_path: Path) -> None:
+    _skip_if_integration_disabled()
+
+    config = _config_by_name("repo_mapper")
+    _skip_if_command_missing(config)
+
+    repo_path = _write_fixture_repo(tmp_path)
+    scanner = build_project5_architecture_scanner()
+
+    scan_result = scanner.scan_repo(str(repo_path))
+    state = architecture_state_from_scan_result(scan_result)
+
+    assert "repo_metadata" in state
+    assert "module_dep_graph" in state
+    assert "entry_points" in state
+    assert "partial_summaries" in state
+    assert "Repository root:" in state["partial_summaries"]["architect_mapper"]

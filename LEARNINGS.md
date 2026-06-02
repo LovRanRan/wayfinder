@@ -114,3 +114,37 @@
 - "For LLM fallback, I first validated the boundary:LLM output must parse into a typed route decision, and invalid output goes to a safe default with human review."
 - "I tested checkpointing at two levels:in-memory isolation by `thread_id`, and SQLite persistence across fresh graph/checkpointer instances."
 - "I isolated third-party LangGraph typing gaps at narrow boundaries so project-owned state, nodes, and tests remain strict under mypy and Pylance."
+
+---
+
+## Commit 3 — Architecture Path End-to-End (`architect_mapper`)
+
+### 📚 Sources
+
+- [x] [LangChain MCP docs](https://docs.langchain.com/oss/python/langchain/mcp) — `MultiServerMCPClient`, stdio transport, tool loading, and structured MCP response boundary ✅ 2026-05-30
+- [x] [langchain-mcp-adapters README](https://github.com/langchain-ai/langchain-mcp-adapters) — MCP tools inside LangGraph / API-server boundary ✅ 2026-05-30
+- [x] Project-local contract files: `progress.md` Commit 3 roadmap and `docs/design_notes/004_supervisor_state_machine.md` ✅ 2026-05-30
+- [x] Project 5 `mcp-repo-mapper` files: `README.md`, `src/mcp_repo_mapper/models.py`, and `src/mcp_repo_mapper/server.py` ✅ 2026-05-30
+
+### 🧠 Concepts Internalized
+
+- `architect_mapper` should orchestrate architecture evidence, not know how MCP stdio, async calls, or Project 5 server construction works.
+- `ArchitectureScanner` is the narrow seam:the graph node only needs `scan_repo(repo_path) -> dict[str, object]`, so placeholder, fake test scanners, and real MCP scanners share one contract.
+- Scanner injection belongs at graph/runtime wiring time. `build_graph(architecture_scanner=...)` chooses the scanner once, then the node uses the scanner closed over by `build_architect_mapper_node()`.
+- The real MCP scanner is env-gated. Default mode returns `None`, which preserves the placeholder scanner;`WAYFINDER_ARCHITECTURE_SCANNER=mcp` builds the real Project 5 `repo_mapper` scanner.
+- `WayfinderState` should only persist Commit 3-owned facts:`repo_metadata`, `module_dep_graph`, `entry_points`, `partial_summaries["architect_mapper"]`, plus `errors` only when a boundary fails.
+
+### ⚠️ Gotchas Debugged
+
+- Pylance treats unchecked `dict` values as partially unknown. Narrowing `object` with `isinstance` before `.get()` or indexing keeps strict typing honest.
+- Importing a private scanner class in tests creates `reportPrivateUsage` noise. The public production test surface is `MCPArchitectureScanner` plus the `ArchitectureScanner` protocol.
+- A sync graph node cannot safely call an async MCP adapter inside an already-running event loop. The scanner owns that guard and raises a clear runtime error instead of leaking async bridge details into graph nodes.
+- Runtime factory tests should prove scanner construction and graph injection without invoking a real MCP subprocess by default.
+- The old roadmap line mixed Commit 3 architecture scanning with later failure-mode work. Oversized repo handling stays in ingestion/resilience, while AST parse flags belong to `entry_explainer`.
+
+### 💼 Interview Soundbites
+
+- "I kept the architecture node as an orchestration boundary:it reads a local repo path, asks a scanner for repo evidence, writes typed state fields, and routes forward."
+- "The MCP-specific work is isolated behind `MCPArchitectureScanner`, so tests can inject fakes and production can select the real Project 5 repo mapper with an env flag."
+- "The default runtime stays safe and deterministic because real MCP mode is opt-in;normal tests use placeholder or fake scanners, while integration tests are env-gated."
+- "Commit 3 deliberately does not claim runtime behavior or AST-level facts. The architecture summary states what it can prove from repo structure and what it cannot prove yet."

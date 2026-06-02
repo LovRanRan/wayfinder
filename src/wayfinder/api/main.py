@@ -1,5 +1,6 @@
 """FastAPI entrypoint for the Wayfinder scaffold."""
 
+import os
 from datetime import UTC, datetime
 from typing import cast
 from uuid import uuid4
@@ -8,6 +9,7 @@ from fastapi import FastAPI, HTTPException, status
 
 from wayfinder.api.schemas import ExplainRequest, RefineRequest, RunSummary
 from wayfinder.graph import build_graph
+from wayfinder.graph.runtime import architecture_scanner_from_env
 from wayfinder.graph.state import WayfinderState
 
 app = FastAPI(
@@ -40,7 +42,8 @@ def explain(request: ExplainRequest) -> RunSummary:
     _RUNS[job_id] = run
 
     try:
-        graph = build_graph()
+        architecture_scanner = architecture_scanner_from_env(os.environ)
+        graph = build_graph(architecture_scanner=architecture_scanner)
         graph_input = cast(
             WayfinderState,
             {"repo_url": request.repo_url, "query": request.query},

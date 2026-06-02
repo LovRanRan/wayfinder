@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | ⏭ **Commit 3** — Architecture path kickoff pending |
+| **Current Commit** | [ ] **Commit 4** — Entry explanation + AST anti-hallucination kickoff |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **3 / 11 done** · ship **0 / 8 done** |
 | **Blocker** | none |
-| **Last Activity** | 2026-05-30 · Commit 2 closed with LEARNINGS updated and gates green. |
+| **Last Activity** | 2026-06-02 · Closed Commit 3 and committed architect mapper MCP scanner path. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Start Commit 3 only after the kickoff gate:materials first, then Haichuan-owned architecture mapper design/skeleton. |
-| **Next Action** | Commit 3 kickoff gate:ask "材料看完了吗?" before any architecture mapper implementation. |
+| **Today's North Star** | Start Commit 4 with the `entry_explainer` material/design boundary; keep AST evidence isolated behind Project 5 `mcp-ast-explorer`. |
+| **Next Action** | Run Commit 4 kickoff gate:capture sources, then write the Haichuan-owned `entry_explainer` design/skeleton before production changes. |
 
 ---
 
@@ -212,12 +212,13 @@ Guided design mode:
   - [x] SQLite checkpointer supports resumable runs and status recovery after process restart ✅ 2026-05-30
   - [x] Routing tests cover rule hits, LLM fallback JSON validation, invalid intent recovery, mixed-intent routing ✅ 2026-05-30
 
-- [ ] **Commit 3 — Architecture path end-to-end (`architect_mapper`)**
-  - [ ] `architect_mapper` uses `mcp-repo-mapper` to produce module layers, dependency graph, language breakdown, frameworks, entry points
-  - [ ] Architecture output includes source evidence, confidence labels, and "what I cannot prove" limitations
-  - [ ] `repo_metadata`, `module_dep_graph`, and `entry_points` are persisted into `WayfinderState`
-  - [ ] Architectural query works through `/explain` with mocked verifier disabled or no-op
-  - [ ] Tests cover supported repo, oversized repo sampling branch, unsupported language fallback, AST parse flag propagation
+- [x] **Commit 3 — Architecture path end-to-end (`architect_mapper`)** ✅ 2026-06-02
+  - [x] `architect_mapper` uses `mcp-repo-mapper` through the `ArchitectureScanner` boundary to produce dependency graph, language breakdown, frameworks, and entry points ✅ 2026-06-02
+  - [x] Architecture summary preserves repo-structure evidence and "what I cannot prove" limitations; richer confidence labels stay in mapper evidence/design notes until a later output schema needs them ✅ 2026-06-02
+  - [x] `repo_metadata`, `module_dep_graph`, and `entry_points` are persisted into `WayfinderState` ✅ 2026-06-02
+  - [x] Architectural query path works through `/explain` with env-selected scanner wiring and default placeholder behavior preserved ✅ 2026-06-02
+  - [x] Tests cover supported repo shaping, missing local path, invalid/non-dict scanner output, scanner injection, API env wiring, runtime scanner factory, and skip-safe real Project 5 MCP integration ✅ 2026-06-02
+  - Deferred by boundary:oversized repo sampling remains ingestion/resilience scope;unsupported-language fallback and AST parse flag propagation move to `entry_explainer` / resilience work.
 
 - [ ] **Commit 4 — Entry explanation + AST anti-hallucination (`entry_explainer`)**
   - [ ] `entry_explainer` uses `mcp-ast-explorer` for definitions, references, signatures, call chains, class hierarchy
@@ -303,6 +304,429 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-02 — Commit 3 — `architect mapper commit closed`
+
+- **做了什么**:Closed Commit 3 with `ArchitectureScanner` injection, `MCPArchitectureScanner`, runtime env selection, `/explain` scanner wiring, and env-gated real Project 5 repo-mapper integration coverage.
+- **自己设计了什么**:The closed boundary keeps production graph nodes scanner-agnostic:runtime wiring chooses placeholder/fake/real scanner, while `architect_mapper` only consumes local repo path evidence and writes architecture state.
+- **Codex 帮了哪里**:Codex aligned the tracker/LEARNINGS close notes and committed the finished Commit 3 changes.
+- **验证方式**:`uv run ruff check .`;`uv run mypy .`;`uv run pytest`(80 passed,6 skipped).
+- **问题记录**:The real Project 5 MCP integration remains env-gated and was not executed in the default suite;unsupported-language fallback and AST parse flag propagation are deferred to later entry/resilience commits.
+- **明天计划**:Start Commit 4 kickoff gate:sources first, then Haichuan-owned `entry_explainer` design and minimal skeleton.
+
+### 2026-06-01 — Commit 3 — `project5 architecture scanner integration test added`
+
+- **做了什么**:Added an env-gated integration test proving `build_project5_architecture_scanner()` can scan a fixture repo through the real Project 5 `repo_mapper` path and feed the result into `architecture_state_from_scan_result()`.
+- **自己设计了什么**:The test reuses the existing Project 5 integration gate, skips by default, checks only the architecture scanner path, and does not involve the API.
+- **Codex 帮了哪里**:Codex implemented the integration test and ran default checks without enabling the real MCP process.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py tests/test_project5_mcp_integration.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py tests/test_project5_mcp_integration.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py tests/test_project5_mcp_integration.py`(23 passed,4 skipped).
+- **问题记录**:The real MCP integration test has not been executed with `WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1`;default suite confirms it is safely skipped.
+- **明天计划**:Explain the integration test boundary, then decide whether to run the real MCP path locally.
+
+### 2026-06-01 — Commit 3 — `api architecture scanner env wiring passed`
+
+- **做了什么**:Wired `/explain` to call `architecture_scanner_from_env(os.environ)` and pass the result into `build_graph(architecture_scanner=...)`.
+- **自己设计了什么**:The API delegates env parsing to `graph/runtime.py`;missing or placeholder mode still yields `None`, preserving the default placeholder scanner path.
+- **Codex 帮了哪里**:Codex implemented the small API wiring change and reran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py`(23 passed).
+- **问题记录**:Real MCP mode is now reachable through env wiring, but no test has invoked `/explain` with real MCP enabled because that would require the actual Project 5 MCP command/process.
+- **明天计划**:Explain the API env scanner wiring, then decide whether to add an env-gated real MCP integration test.
+
+### 2026-05-31 — Commit 3 — `api architecture scanner env wiring red test confirmed`
+
+- **做了什么**:Added a red API test proving `/explain` should use `architecture_scanner_from_env()` and pass the returned scanner into `build_graph(architecture_scanner=...)`.
+- **自己设计了什么**:The API should not parse env strings itself;it should delegate scanner selection to `graph/runtime.py` and preserve placeholder as the default when the helper returns `None`.
+- **Codex 帮了哪里**:Codex fixed test formatting/import issues and confirmed the failure is at the intended API wiring boundary.
+- **验证方式**:`uv run ruff check tests/test_api.py` passed;`uv run pytest tests/test_api.py -q` failed as expected because `captured["scanner"]` was `None` instead of the fake scanner(3 passed,1 failed).
+- **问题记录**:`api/main.py` still calls `build_graph()` directly without env-based scanner selection.
+- **明天计划**:Wire `architecture_scanner_from_env()` into `/explain`, then rerun API and graph checks.
+
+### 2026-05-31 — Commit 3 — `architecture scanner env parser passed`
+
+- **做了什么**:Implemented `architecture_scanner_from_env()` in `graph/runtime.py`.
+- **自己设计了什么**:Missing or `placeholder` mode returns `None` and keeps the default placeholder scanner;`mcp` returns the Project 5 architecture scanner;unknown values fail fast with `ValueError`.
+- **Codex 帮了哪里**:Codex reviewed the implementation and reran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py`(22 passed).
+- **问题记录**:`/explain` still calls `build_graph()` directly and does not yet read the env helper.
+- **明天计划**:Wire API graph construction through `architecture_scanner_from_env()` while preserving default placeholder behavior.
+
+### 2026-05-31 — Commit 3 — `architecture scanner env parser red tests confirmed`
+
+- **做了什么**:Added tests for `architecture_scanner_from_env()` covering default, explicit placeholder, `mcp`, and unknown modes.
+- **自己设计了什么**:The runtime env parser should keep placeholder as default, return a real Project 5 architecture scanner for `mcp`, and fail fast on unsupported modes.
+- **Codex 帮了哪里**:Codex ran the focused test and confirmed the failure is at the intended stubbed parser branch.
+- **验证方式**:`uv run ruff check tests/test_graph_runtime.py` passed;`uv run pytest tests/test_graph_runtime.py -q` failed as expected for `mcp` returning `None` and unknown mode not raising `ValueError`(5 passed,2 failed).
+- **问题记录**:`architecture_scanner_from_env()` exists but is still a stub using `...`.
+- **明天计划**:Implement the small mode parser and rerun focused checks.
+
+### 2026-05-31 — Commit 3 — `real mcp mode activation boundary designed`
+
+- **做了什么**:Captured the explicit real MCP mode activation design for `architect_mapper`.
+- **自己设计了什么**:`WAYFINDER_ARCHITECTURE_SCANNER=mcp` will opt into the real Project 5 repo-mapper scanner;missing or `placeholder` mode keeps the default placeholder path;env parsing belongs in `graph/runtime.py`.
+- **Codex 帮了哪里**:Codex wrote the design boundary into the design note and tracker, without production code changes.
+- **验证方式**:Design/tracker update only;no code verification required.
+- **问题记录**:Next tests should lock the env parser behavior before API wiring:missing/placeholder -> `None`, `mcp` -> scanner, unknown -> `ValueError`.
+- **明天计划**:Add red tests for `architecture_scanner_from_env()`.
+
+### 2026-05-31 — Commit 3 — `real architecture scanner graph injection smoke test passed`
+
+- **做了什么**:Added a smoke test proving `build_project5_architecture_scanner()` returns a scanner object that can be injected into `build_graph(architecture_scanner=...)`.
+- **自己设计了什么**:The test only builds the graph and does not call `graph.invoke()`, so it verifies wiring compatibility without triggering a real MCP `scan_repo` call.
+- **Codex 帮了哪里**:Codex reviewed the test boundary and reran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py`(18 passed).
+- **问题记录**:Real MCP mode is still opt-in by construction only;default `/explain` remains placeholder.
+- **明天计划**:Decide the explicit activation mechanism for real MCP mode, likely an env-gated API/runtime switch.
+
+### 2026-05-31 — Commit 3 — `mcp architecture scanner public api cleanup passed`
+
+- **做了什么**:Renamed `_MCPArchitectureScanner` to public `MCPArchitectureScanner` and updated tests/runtime/design note references.
+- **自己设计了什么**:The real MCP scanner is now a public implementation because `graph/runtime.py` legitimately imports it for runtime construction;`_MCPAdapter` remains private because it is only an internal protocol for adapter shape.
+- **Codex 帮了哪里**:Codex performed the mechanical rename and reran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py`(17 passed).
+- **问题记录**:Historical logs still mention `_MCPArchitectureScanner`;those remain as history and should not be rewritten.
+- **明天计划**:Explain the runtime factory and public scanner boundary, then decide how real MCP mode is activated.
+
+### 2026-05-31 — Commit 3 — `real architecture scanner factory passed`
+
+- **做了什么**:Implemented `build_project5_architecture_scanner()` in `src/wayfinder/graph/runtime.py`.
+- **自己设计了什么**:The runtime factory now assembles the real architecture scanner from the Project 5 `repo_mapper` config, MCP client, `MCPAdapter`, and `_MCPArchitectureScanner`, without calling `scan_repo()` during construction.
+- **Codex 帮了哪里**:Codex reviewed the implementation and ran focused checks across architecture, graph, runtime, and API boundaries.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py`(17 passed).
+- **问题记录**:The real scanner factory exists, but default `build_graph()` and `/explain` still use placeholder unless a caller explicitly injects the real scanner.
+- **明天计划**:Explain the runtime factory, then choose the safe switch for real MCP mode.
+
+### 2026-05-31 — Commit 3 — `real architecture scanner factory red test confirmed`
+
+- **做了什么**:Added a red test for `build_project5_architecture_scanner()` in `wayfinder.graph.runtime`.
+- **自己设计了什么**:The runtime factory should assemble and return an architecture scanner object without the test calling `scan_repo()` or starting a real MCP tool call.
+- **Codex 帮了哪里**:Codex ran the focused test and confirmed the failure is at the intended missing-function boundary.
+- **验证方式**:`uv run ruff check tests/test_graph_runtime.py` passed;`uv run pytest tests/test_graph_runtime.py -q` failed as expected with `ImportError: cannot import name 'build_project5_architecture_scanner'`.
+- **问题记录**:Next implementation should only construct the scanner object from `repo_mapper` config, MCP client, and `MCPAdapter`;do not call the scanner.
+- **明天计划**:Implement the small factory and rerun focused runtime/graph checks.
+
+### 2026-05-31 — Commit 3 — `graph runtime repo mapper helper passed`
+
+- **做了什么**:Created `src/wayfinder/graph/runtime.py` with `project5_repo_mapper_config()`, selecting only the Project 5 `repo_mapper` MCP config.
+- **自己设计了什么**:The architecture runtime factory boundary now starts with the minimal config-selection helper;it does not yet construct `MCPAdapter` or `_MCPArchitectureScanner`.
+- **Codex 帮了哪里**:Codex reviewed the helper and ran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_runtime.py tests/test_graph_contract.py tests/test_api.py`(16 passed).
+- **问题记录**:Real scanner construction is still not wired;the next slice should test a factory that returns an architecture scanner built from `MCPAdapter`.
+- **明天计划**:Explain the current architecture path map, then add the real scanner factory test.
+
+### 2026-05-31 — Commit 3 — `graph runtime repo mapper red test confirmed`
+
+- **做了什么**:Added a red test for `project5_repo_mapper_config()` in the planned `wayfinder.graph.runtime` module.
+- **自己设计了什么**:The runtime factory boundary should select only the Project 5 `repo_mapper` config for the architecture path, not all Project 5 MCP servers.
+- **Codex 帮了哪里**:Codex ran the focused test and confirmed the failure is at the intended missing-module boundary.
+- **验证方式**:`uv run pytest tests/test_graph_runtime.py -q` failed as expected with `ModuleNotFoundError: No module named 'wayfinder.graph.runtime'`.
+- **问题记录**:Next implementation should create only the minimal runtime helper;do not build the full real scanner factory yet.
+- **明天计划**:Create `src/wayfinder/graph/runtime.py` with `project5_repo_mapper_config()`, then rerun focused gates.
+
+### 2026-05-31 — Commit 3 — `real mcp runtime factory boundary designed`
+
+- **做了什么**:Captured the real MCP runtime factory boundary for `architect_mapper`.
+- **自己设计了什么**:`src/wayfinder/graph/runtime.py` will construct the real Project 5 architecture scanner by selecting only the `repo_mapper` config, building the MCP client, wrapping it in `MCPAdapter`, and returning `_MCPArchitectureScanner(adapter)`.
+- **Codex 帮了哪里**:Codex wrote the boundary into the design note and tracker, without production code changes.
+- **验证方式**:Design/tracker update only;no code verification required.
+- **问题记录**:`architecture.py` stays scanner/result-shaping;`nodes.py` stays orchestration;`build_graph()` accepts an already-constructed scanner;runtime factory owns MCP config/client/adapter construction.
+- **明天计划**:Add a red test that the runtime factory selects only `repo_mapper`, not all Project 5 MCP servers.
+
+### 2026-05-31 — Commit 3 — `architecture scanner graph injection passed`
+
+- **做了什么**:Added scanner injection through `build_graph(architecture_scanner=...)` and a `build_architect_mapper_node(scanner)` factory.
+- **自己设计了什么**:Runtime scanner selection now lives in graph construction;the architect mapper node still only does repo-path guard, scanner call, and architecture state shaping.
+- **Codex 帮了哪里**:Codex reviewed the implementation, fixed the test import cleanup, and reran focused gates.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/api/main.py`;`uv run mypy tests/test_architect_mapper.py tests/test_graph_contract.py tests/test_api.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py src/wayfinder/graph/app.py src/wayfinder/api/main.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py tests/test_api.py`(15 passed).
+- **问题记录**:The graph can now inject fake scanners, while default `build_graph()` still uses the placeholder scanner. Real MCP adapter construction remains a separate runtime factory boundary.
+- **明天计划**:Explain the node factory and graph injection path before adding real MCP runtime selection.
+
+### 2026-05-31 — Commit 3 — `runtime scanner selection boundary designed`
+
+- **做了什么**:Captured Haichuan's scanner selection design in `docs/design_notes/005_architect_mapper.md`.
+- **自己设计了什么**:`build_graph()` should receive/select the architecture scanner, default to placeholder, and inject a scanner into a node factory;real MCP adapter construction stays in graph/runtime wiring rather than `architect_mapper_node()`.
+- **Codex 帮了哪里**:Codex wrote the design boundary into the design note and tracker without changing production code.
+- **验证方式**:Design/tracker update only;no code verification required.
+- **问题记录**:The next test should prove a fake scanner can be injected through graph construction before replacing the runtime placeholder.
+- **明天计划**:Add the smallest fake-scanner injection test, then implement the node factory / `build_graph()` parameter slice.
+
+### 2026-05-31 — Commit 3 — `mcp scanner event-loop guard test passed`
+
+- **做了什么**:Added coverage proving `_MCPArchitectureScanner` refuses to run inside an already-active event loop.
+- **自己设计了什么**:The scanner must not call `asyncio.run()` from inside an active loop;it should fail before invoking the adapter, keeping async bridge risk explicit.
+- **Codex 帮了哪里**:Codex reviewed the event-loop guard test and reran focused gates.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(11 passed).
+- **问题记录**:The real scanner has local adapter, shape, and event-loop coverage, but runtime selection still uses `_PlaceholderArchitectureScanner`.
+- **明天计划**:Decide scanner selection/injection so the graph can choose placeholder vs real MCP without hard-coding adapter construction inside `architect_mapper_node()`.
+
+### 2026-05-31 — Commit 3 — `mcp scanner non-dict content test passed`
+
+- **做了什么**:Added failure-path coverage for `_MCPArchitectureScanner` when MCP `scan_repo` returns non-dict content.
+- **自己设计了什么**:The scanner now has tests for both the happy path(dict content returned) and the shape guard(non-dict content rejected before architecture state shaping).
+- **Codex 帮了哪里**:Codex reviewed the test and reran focused gates.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(10 passed).
+- **问题记录**:The runtime path still intentionally uses `_PlaceholderArchitectureScanner`;the real scanner has local unit coverage but is not selected by `scan_repo_for_architecture()` yet.
+- **明天计划**:Add event-loop guard coverage, then decide how runtime scanner selection should be injected.
+
+### 2026-05-31 — Commit 3 — `mcp scanner adapter bridge green`
+
+- **做了什么**:Implemented the minimal `_MCPArchitectureScanner` adapter bridge and removed the obsolete unwired-scanner guard test.
+- **自己设计了什么**:The scanner now accepts an injected adapter, calls `scan_repo` with `{"path": repo_path}`, validates that returned content is a dict, and keeps async adapter mechanics inside the scanner boundary.
+- **Codex 帮了哪里**:Codex removed the obsolete test/import cleanup after the implementation, then reran focused gates.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(9 passed).
+- **问题记录**:`scan_repo_for_architecture()` still intentionally uses the placeholder scanner, so real MCP is not yet the runtime path.
+- **明天计划**:Add failure-path coverage for non-dict MCP content and event-loop guard behavior before selecting the real scanner at runtime.
+
+### 2026-05-31 — Commit 3 — `mcp scanner adapter red test confirmed`
+
+- **做了什么**:Added a red test for `_MCPArchitectureScanner(adapter)` proving the scanner should accept an adapter dependency, call `scan_repo`, and pass `{"path": repo_path}`.
+- **自己设计了什么**:The desired scanner contract is now expressed by test before implementation:adapter injection, `scan_repo` tool name, local path argument, and dict content return.
+- **Codex 帮了哪里**:Codex ran the focused test and confirmed the failure is at the intended production boundary.
+- **验证方式**:`uv run pytest tests/test_architect_mapper.py -q` failed as expected with `TypeError: _MCPArchitectureScanner() takes no arguments`(5 passed,1 failed).
+- **问题记录**:The test file still needs strict-typing cleanup for the `content` fixture annotation and trailing whitespace before the full quality gates.
+- **明天计划**:Implement the smallest scanner adapter bridge, then run ruff, mypy, and focused pytest.
+
+### 2026-05-30 — Commit 3 — `mcp scanner bridge boundary designed`
+
+- **做了什么**:Captured Haichuan's `_MCPArchitectureScanner` bridge design in `docs/design_notes/005_architect_mapper.md`.
+- **自己设计了什么**:`_MCPArchitectureScanner` receives a local repo path, calls Project 5 `repo_mapper.scan_repo`, returns only `dict[str, object]`, owns the async adapter bridge, and converts non-dict/MCP failures into architecture-layer failure boundaries.
+- **Codex 帮了哪里**:Codex wrote the design wording into the existing design note and kept this as docs/tracker work only.
+- **验证方式**:Design/tracker update only;no production code or tests changed.
+- **问题记录**:The next implementation slice should start with a local fake-adapter test for success and non-dict content before wiring a real adapter.
+- **明天计划**:Add the smallest scanner test around adapter result content shape, then implement only the matching local scanner code.
+
+### 2026-05-30 — Commit 3 — `mcp scanner guard test passed`
+
+- **做了什么**:Added a focused guard test for `_MCPArchitectureScanner.scan_repo()`, proving the real MCP scanner slot fails explicitly while it is not wired.
+- **自己设计了什么**:The test locks the current boundary:placeholder scanner remains the runtime path;the MCP scanner is a named future implementation point, not an accidental callable path.
+- **Codex 帮了哪里**:Codex reviewed the test-only change and reran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(9 passed).
+- **问题记录**:The async bridge remains intentionally unresolved;do not call `asyncio.run()` inside the sync graph node until event-loop behavior is designed.
+- **明天计划**:Explain this guard, then design the smallest safe real `mcp-repo-mapper` adapter bridge.
+
+### 2026-05-30 — Commit 3 — `missing repo path test passed`
+
+- **做了什么**:Added a focused test for `architect_mapper_node({})`, covering the missing `repo_handle` / local path branch.
+- **自己设计了什么**:The test locks the degraded behavior:structured `missing_repo_path` error, explanatory architect summary, and route to `final_writer`.
+- **Codex 帮了哪里**:Codex reviewed the test-only change and reran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(8 passed).
+- **问题记录**:Architecture path now has basic coverage for success shaping, invalid scan result, node path propagation, and missing repo path.
+- **明天计划**:Move toward the real MCP wiring boundary in the smallest possible slice.
+
+### 2026-05-30 — Commit 3 — `architecture helper module split passed`
+
+- **做了什么**:Moved architecture-specific scanner/result-shaping helpers from `nodes.py` into `src/wayfinder/graph/architecture.py`, and updated tests to import the public `architecture_state_from_scan_result()` helper.
+- **自己设计了什么**:`nodes.py` now owns graph orchestration only;`architecture.py` owns repo-path extraction, scan boundary, placeholder/MCP scanner slots, scan-result shaping, and architecture summary generation.
+- **Codex 帮了哪里**:Codex performed the requested module split and kept behavior unchanged: no real MCP, no async, no graph/API rewiring.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run mypy src/wayfinder/graph/architecture.py src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(7 passed).
+- **问题记录**:The new `architecture.py` file is still placeholder-scanner based;real MCP integration remains the next explicit boundary.
+- **明天计划**:Explain the module split, then choose the smallest real MCP wiring step.
+
+### 2026-05-30 — Commit 3 — `mcp scanner async guard message passed`
+
+- **做了什么**:Updated `_MCPArchitectureScanner.scan_repo()` to raise a more explicit `NotImplementedError` warning not to bridge async `MCPAdapter.call_tool()` into the sync graph node until event-loop behavior is handled.
+- **自己设计了什么**:The real scanner remains an intentionally non-runtime placeholder;the placeholder scanner still powers the active path.
+- **Codex 帮了哪里**:Codex reviewed that the change was message-only and reran focused checks.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run mypy src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(7 passed).
+- **问题记录**:`nodes.py` now carries scanner protocol,placeholder scanner,result shaping,and graph nodes;before real MCP wiring, consider moving architecture-specific helpers to a separate module.
+- **明天计划**:Decide helper/module organization before adding the real scanner implementation.
+
+### 2026-05-30 — Commit 3 — `mcp architecture scanner skeleton passed`
+
+- **做了什么**:Added `_MCPArchitectureScanner` skeleton with a `scan_repo()` method that documents the future async `MCPAdapter.call_tool("scan_repo")` bridge and deliberately raises `NotImplementedError`.
+- **自己设计了什么**:The real scanner has a named implementation slot but is not wired into `_scan_repo_for_architecture()` yet;the placeholder scanner remains the runtime path.
+- **Codex 帮了哪里**:Codex reviewed that no adapter import,asyncio usage,real MCP call,or graph/API change entered this slice.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run mypy src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(7 passed).
+- **问题记录**:The async bridge remains the main design risk. Do not add `asyncio.run()` blindly inside the scanner without deciding event-loop behavior.
+- **明天计划**:Explain the async bridge risk, then choose whether scanner implementation should move out of `nodes.py`.
+
+### 2026-05-30 — Commit 3 — `sync scanner integration approach chosen`
+
+- **做了什么**:Haichuan chose approach A for real MCP integration:keep `architect_mapper_node()` and the current graph sync, and isolate async/MCP details behind the scanner boundary.
+- **自己设计了什么**:The next real scanner must satisfy `_ArchitectureScanner.scan_repo(repo_path) -> dict[str, object]` while preventing async adapter details from leaking into the graph node.
+- **Codex 帮了哪里**:Codex checked the existing `MCPAdapter.call_tool()` async API and adapter tests before recommending the bounded approach.
+- **验证方式**:Design/tracker update only;no code verification required.
+- **问题记录**:A naive `asyncio.run(adapter.call_tool(...))` inside a node may fail in an already-running event loop, so the real scanner skeleton should document this limitation before implementation.
+- **明天计划**:Add a real-scanner skeleton or design note for how `scan_repo` will bridge to `MCPAdapter`.
+
+### 2026-05-30 — Commit 3 — `scanner protocol reverse explanation passed`
+
+- **做了什么**:Haichuan reverse-explained the scanner Protocol boundary in one sentence.
+- **自己设计了什么**:`_ArchitectureScanner` lets `architect_mapper_node` depend on the `scan_repo(repo_path)` capability rather than concrete placeholder/fake/MCP adapter implementation details.
+- **Codex 帮了哪里**:Codex confirmed the explanation and updated the tracker.
+- **验证方式**:Conceptual ownership check;no code verification required.
+- **问题记录**:Real MCP integration still needs an explicit sync-vs-async decision before implementation.
+- **明天计划**:Choose the real scanner integration approach and keep the implementation slice bounded.
+
+### 2026-05-30 — Commit 3 — `scanner protocol boundary passed`
+
+- **做了什么**:Added `_ArchitectureScanner` Protocol and typed `_scan_repo_for_architecture()` through that protocol while keeping `_PlaceholderArchitectureScanner` as the current implementation.
+- **自己设计了什么**:The future real scanner must satisfy one small sync contract:`scan_repo(repo_path) -> dict[str, object]`;the graph node remains isolated from adapter details.
+- **Codex 帮了哪里**:Codex reviewed that no real MCP call, async adapter, graph/API change, or state schema change entered this slice.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run mypy src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(7 passed).
+- **问题记录**:This is a sync protocol over a fake scanner. Real `MCPAdapter.call_tool()` is async, so the next production decision must explicitly handle that mismatch instead of hiding it inside the node.
+- **明天计划**:Haichuan reverse-explains the Protocol boundary before moving to real MCP integration.
+
+### 2026-05-30 — Commit 3 — `path propagation test passed`
+
+- **做了什么**:Tightened the node-level `architect_mapper_node()` test so it asserts `str(tmp_path)` appears in the architecture summary.
+- **自己设计了什么**:The test now proves `RepoHandle.local_path` flows through `_scan_repo_for_architecture()` into the placeholder scan result and summary.
+- **Codex 帮了哪里**:Codex reviewed the test-only change and ran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(7 passed).
+- **问题记录**:This is still fake-scanner coverage, not real MCP integration.
+- **明天计划**:Choose and implement the smallest safe real `mcp-repo-mapper scan_repo` boundary.
+
+### 2026-05-30 — Commit 3 — `placeholder scanner skeleton passed`
+
+- **做了什么**:Added `_PlaceholderArchitectureScanner` and changed `_scan_repo_for_architecture(repo_path)` to call `scanner.scan_repo(repo_path)` instead of returning the placeholder directly.
+- **自己设计了什么**:The scan boundary now has an object seam for future real scanner/adaptor work while keeping the current node sync and fake-only.
+- **Codex 帮了哪里**:Codex reviewed that no async adapter, real MCP call, API change, or graph change was introduced.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run mypy src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(7 passed).
+- **问题记录**:The scanner is still fake;next test should assert `repo_path` appears in the summary so path propagation is locked.
+- **明天计划**:Tighten the node-level test, then revisit real MCP adapter integration.
+
+### 2026-05-30 — Commit 3 — `architect mapper node boundary test passed`
+
+- **做了什么**:Added a node-level test proving `architect_mapper_node()` can consume `RepoHandle.local_path`, avoid the missing-path fallback, and produce architecture-path state through the placeholder scan boundary.
+- **自己设计了什么**:The test verifies orchestration only, not real MCP integration:path boundary -> placeholder scan -> result shaping -> `final_writer`.
+- **Codex 帮了哪里**:Codex reviewed that the test did not pretend real MCP was connected and ran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(7 passed).
+- **问题记录**:Real `scan_repo` integration is still open;next decision is how to cross the async `MCPAdapter.call_tool()` boundary from the current sync graph node.
+- **明天计划**:Choose the smallest real MCP integration boundary before editing production code.
+
+### 2026-05-30 — Commit 3 — `scan repo boundary helper passed`
+
+- **做了什么**:Added `_scan_repo_for_architecture(repo_path)` as the single placeholder boundary where future `mcp-repo-mapper scan_repo` fetching will live.
+- **自己设计了什么**:The graph node now owns orchestration only:path guard -> scan boundary -> scan-result shaping;it no longer directly knows the scan placeholder source.
+- **Codex 帮了哪里**:Codex reviewed that the helper stayed sync/placeholder-only and did not import adapters, call MCP, or change graph/API behavior.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run mypy src/wayfinder/graph/nodes.py tests/test_architect_mapper.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(6 passed).
+- **问题记录**:`repo_path` is accepted by the helper but still unused until real scan integration;that is acceptable at this boundary because the helper documents the future call site.
+- **明天计划**:Explain the scan boundary helper, then decide whether the next slice should be node-level tests or real MCP adapter wiring.
+
+### 2026-05-30 — Commit 3 — `architect mapper test TypedDict warnings fixed`
+
+- **做了什么**:Added explicit key-presence assertions before indexing optional `WayfinderState` keys in `tests/test_architect_mapper.py`.
+- **自己设计了什么**:Tests now respect `WayfinderState(total=False)`:assert a key exists, then inspect its nested content.
+- **Codex 帮了哪里**:Codex fixed the Pylance warning in the test layer only;production state/schema stayed unchanged.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(6 passed).
+- **问题记录**:Pylance flags direct indexing on optional `TypedDict` keys even when mypy accepts the code;tests should assert key existence for clearer contracts.
+- **明天计划**:Continue with the real `scan_repo` MCP call boundary after the focused shaping tests are clean.
+
+### 2026-05-30 — Commit 3 — `architect mapper shaping tests passed`
+
+- **做了什么**:Added `tests/test_architect_mapper.py` with focused tests for valid scan-result shaping and invalid scan-result fallback.
+- **自己设计了什么**:The tests lock the current helper contract before MCP integration:repo metadata, dependency graph, entry points, summary content, structured invalid-shape error, and `final_writer` routing.
+- **Codex 帮了哪里**:Codex kept the private-helper import local to the test with a pyright ignore, fixed test-side casts for strict typing, and reran focused checks.
+- **验证方式**:`uv run ruff check tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run mypy tests/test_architect_mapper.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_architect_mapper.py tests/test_graph_contract.py`(6 passed).
+- **问题记录**:Testing a private helper is acceptable for this temporary internal contract, but later this may become a public local helper or be tested through `architect_mapper_node()` once MCP injection exists.
+- **明天计划**:Explain the tests, then design the smallest real `scan_repo` MCP call boundary.
+
+### 2026-05-30 — Commit 3 — `architecture summary helper passed`
+
+- **做了什么**:Added `_architecture_summary_from_fields()` to build a simple evidence-only architecture summary from root,languages,frameworks,entry_points,and dependency graph availability.
+- **自己设计了什么**:The summary stays inside Commit 3 boundaries:it reports repo-structure evidence and explicitly says it cannot prove function behavior,runtime behavior,or test-backed claims.
+- **Codex 帮了哪里**:Codex reviewed for scope boundaries and ran focused checks.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:Summary generation is still deterministic and local;real MCP data is not connected yet.
+- **明天计划**:Add focused tests for scan-result shaping so the helper contract is locked before MCP integration.
+
+### 2026-05-30 — Commit 3 — `languages frameworks extraction passed`
+
+- **做了什么**:Extracted `languages` and `frameworks` from `scan_data` into `repo_metadata` using explicit list casts.
+- **自己设计了什么**:Repo metadata now captures root, language evidence, and framework evidence as structured fields before summary generation starts.
+- **Codex 帮了哪里**:Codex reviewed the field extraction and reran focused checks.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:The field values are still stringified placeholders, not Project 5 typed models;real MCP integration can refine this after the boundary is stable.
+- **明天计划**:Start summary shaping from the extracted fields while preserving the evidence-only rule.
+
+### 2026-05-30 — Commit 3 — `entry point extraction passed`
+
+- **做了什么**:Extracted `entry_points` from `scan_data` with explicit list handling and a local `cast(list[object], raw_entry_points)` to avoid Pylance Unknown item types.
+- **自己设计了什么**:For now entry points are stored as readable strings rather than importing Project 5 models;this keeps the result-shaping boundary simple until real MCP integration.
+- **Codex 帮了哪里**:Codex applied the same typed-cast pattern used for dict fields and reran focused checks.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:`isinstance(raw_entry_points, list)` still leaves Pylance with `list[Unknown]`;cast to `list[object]` before iterating.
+- **明天计划**:Decide whether languages/frameworks should be extracted into `repo_metadata` next or whether summary shaping should start from the fields already captured.
+
+### 2026-05-30 — Commit 3 — `dependency graph extraction passed`
+
+- **做了什么**:Extracted `dependency_graph` from typed `scan_data` into `module_dep_graph` with a local `cast(dict[str, object], dependency_graph)` after validating the value is a dict.
+- **自己设计了什么**:This keeps dependency graph handling as a small result-shaping step:read one repo-mapper field, preserve it as structured state, and do not generate architecture interpretation yet.
+- **Codex 帮了哪里**:Codex fixed the Pylance unknown-variable warning using the same local cast pattern as root extraction.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:Pylance treats `dict` after `isinstance(..., dict)` as `dict[Unknown, Unknown]`;cast at the smallest assignment boundary.
+- **明天计划**:Extract `entry_points` next with explicit list handling.
+
+### 2026-05-30 — Commit 3 — `root extraction typing warning fixed`
+
+- **做了什么**:Fixed the Pylance `reportUnknownMemberType` warning on `scan_result.get("root")` by casting the guarded dict to `dict[str, object]` before reading fields.
+- **自己设计了什么**:The helper still accepts `object` at the boundary, validates it is a dict, then creates a typed local `scan_data` for field extraction.
+- **Codex 帮了哪里**:Codex identified this as a static-analysis narrowing issue rather than a runtime bug and applied the smallest local cast.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:`isinstance(x, dict)` can leave Pylance with `dict[Unknown, Unknown]`;a local `cast(dict[str, object], x)` makes `.get()` return a known `object | None` shape.
+- **明天计划**:Continue one-field-at-a-time extraction from the placeholder scan result.
+
+### 2026-05-30 — Commit 3 — `placeholder scan result shape passed`
+
+- **做了什么**:Haichuan replaced the raw `object()` placeholder with `_placeholder_scan_result()`, a minimal dict matching the expected `mcp-repo-mapper` scan shape.
+- **自己设计了什么**:The placeholder shape mirrors the future evidence contract:root,files,languages,entry_points,dependency_graph,and frameworks.
+- **Codex 帮了哪里**:Codex reviewed that this stayed as shape-only work, added a readability blank line between helper functions, and reran focused checks.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:`_architecture_state_from_scan_result()` still does not read the placeholder fields;the next step can be one small extraction at a time.
+- **明天计划**:Explain `_placeholder_scan_result()`, then decide whether to extract `root` / `dependency_graph` / `entry_points` first.
+
+### 2026-05-30 — Commit 3 — `scan result shaping skeleton passed`
+
+- **做了什么**:Haichuan added `_architecture_state_from_scan_result()` as the first result-shaping helper skeleton, and the architecture node now delegates the future scan result conversion to it.
+- **自己设计了什么**:The helper owns the state-write shape after a future `mcp-repo-mapper` scan:repo metadata, dependency graph, entry points, architecture summary, and next graph route.
+- **Codex 帮了哪里**:Codex removed duplicate unused placeholder variables from the caller and preserved the no-real-MCP boundary.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:`object()` is still a deliberate placeholder for the future `scan_repo` result;the helper does not inspect real repo-mapper data yet.
+- **明天计划**:Explain the helper, then decide whether the next small step is a typed local placeholder result or adapter injection boundary.
+
+### 2026-05-30 — Commit 3 — `repo path extraction skeleton passed`
+
+- **做了什么**:Haichuan implemented the next small skeleton step:`_repo_path_from_state()` now returns `str(repo_handle.local_path)` when ingestion has provided a `RepoHandle`.
+- **自己设计了什么**:The boundary stays clean:`architect_mapper` consumes the local path from state and still does not parse URLs, clone repos, call MCP tools, or modify routing.
+- **Codex 帮了哪里**:Codex reviewed the diff and ran focused verification only.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:The success path still uses empty placeholder containers until the next design-approved MCP result boundary is written.
+- **明天计划**:Decide the next smallest implementation slice:adapter injection / fake repo-mapper result shaping / direct MCP call boundary.
+
+### 2026-05-30 — Commit 3 — `architect mapper skeleton cleanup passed`
+
+- **做了什么**:Cleaned up the first `architect_mapper` skeleton by removing the unused placeholder variable, adding explicit types for empty containers, and preserving the old placeholder-summary prefix expected by existing graph contract tests.
+- **自己设计了什么**:The missing-repo-path branch still communicates the real failure condition while staying compatible with existing Commit 2 placeholder contract tests.
+- **Codex 帮了哪里**:Codex made the local cleanup after Haichuan asked to fix the review issues;no MCP implementation, tests, routing, or state schema changes were added.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py`(4 passed).
+- **问题记录**:`_repo_path_from_state()` still intentionally returns `None` until Haichuan chooses the exact `RepoHandle.local_path` extraction skeleton.
+- **明天计划**:Continue code walkthrough, then let Haichuan implement the next small TODO boundary.
+
+### 2026-05-30 — Commit 3 — `architect mapper skeleton reviewed`
+
+- **做了什么**:Reviewed Haichuan's first `architect_mapper_node()` skeleton in `src/wayfinder/graph/nodes.py`.
+- **自己设计了什么**:The skeleton preserves the accepted design boundary:read repo path from state, fail fast when missing, leave MCP calls as TODOs, write only Commit 3-owned architecture state fields, and route to `final_writer`.
+- **Codex 帮了哪里**:Codex checked scope and ran focused quality gates.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/nodes.py` failed on unused `scan_result`;`uv run mypy src/wayfinder/graph/nodes.py` failed on missing annotations for empty `repo_metadata` and `entry_points`.
+- **问题记录**:No architecture/scope problem. Cleanup needed before implementation:remove unused placeholder assignment or turn it into a TODO-only comment, and type empty skeleton containers explicitly.
+- **明天计划**:Haichuan fixes the local skeleton typing/lint items, then Codex reruns focused checks and continues the code walkthrough.
+
+### 2026-05-30 — Commit 3 — `architect mapper design note complete`
+
+- **做了什么**:Completed `docs/design_notes/005_architect_mapper.md` through guided design questions:problem,input,output,rules,failure cases,tests,and interview explanation.
+- **自己设计了什么**:`architect_mapper` is repo-structure first:it consumes existing `WayfinderState` repo context and `mcp-repo-mapper` local-path evidence, then writes only `repo_metadata`,`module_dep_graph`,`entry_points`,`partial_summaries["architect_mapper"]`,failure `errors`,and `next_agent`.
+- **Codex 帮了哪里**:Codex asked one design question at a time and formatted Haichuan's answers into the design note;no production code or tests were changed.
+- **验证方式**:Read-back of the design note and diff review only;no code verification required.
+- **问题记录**:No new `WayfinderState` limitations field for Commit 3. "What I cannot prove" stays in the architect summary text unless later commits prove a structured field is needed.
+- **明天计划**:Haichuan writes the minimal `architect_mapper` skeleton from this design, then Codex reviews signatures, state writes, and scope boundaries before any local TODO fill.
+
+### 2026-05-30 — Commit 3 — `materials captured`
+
+- **做了什么**:Haichuan confirmed Commit 3 materials are read. Captured the `architect_mapper` sources in `LEARNINGS.md` and moved the tracker from kickoff pending to design kickoff.
+- **自己设计了什么**:Commit 3 will be constrained to the architecture path:`architect_mapper` consumes `mcp-repo-mapper` evidence and writes architecture metadata, dependency graph, entry points, confidence/limitations, and partial summary into `WayfinderState`.
+- **Codex 帮了哪里**:Codex provided materials and design boundary only, then updated tracker docs;no production code, tests, or skeleton were changed.
+- **验证方式**:Tracker-only update;no code verification required.
+- **问题记录**:Do not call `mcp-ast-explorer`, `mcp-test-runner`, community MCPs, verifier, or LLM fact generation in this commit's first design slice.
+- **明天计划**:Ask guided design questions one at a time, then let Haichuan write the minimal `architect_mapper` skeleton after the design note is complete.
 
 ### 2026-05-30 — Commit 2 — `closed`
 
