@@ -1,11 +1,7 @@
 import {
   Activity,
-  AlertTriangle,
   CircleDollarSign,
   ExternalLink,
-  GitBranch,
-  ListChecks,
-  RadioTower,
   ShieldCheck,
   TimerReset,
 } from "lucide-react";
@@ -16,7 +12,6 @@ import { StatCard } from "@/components/stat-card";
 import { WorkspaceAccount } from "@/components/workspace-account";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardData } from "@/lib/api";
 import {
   buildDashboardMetrics,
@@ -137,132 +132,24 @@ export default async function DashboardPage() {
           />
         </section>
 
-        <AgentWorkbench runs={runs} source={source} publicApiBaseUrl={publicApiBaseUrl} />
-
-        <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          <MetricList
-            icon={<TimerReset className="h-4 w-4" aria-hidden="true" />}
-            title="Agent latency"
-            rows={latencyRows.map((row) => ({
-              label: row.agent,
-              value: `P50 ${formatSeconds(row.p50)} / P95 ${formatSeconds(row.p95)}`,
-              share: row.runCount / Math.max(1, runs.length),
-            }))}
-          />
-          <MetricList
-            icon={<GitBranch className="h-4 w-4" aria-hidden="true" />}
-            title="Route decisions"
-            rows={routeRows.map((row) => ({
-              label: row.label,
-              value: `${row.count} runs`,
-              share: row.share,
-            }))}
-          />
-          <MetricList
-            icon={<ListChecks className="h-4 w-4" aria-hidden="true" />}
-            title="Verification stats"
-            rows={[
-              { label: "verified", value: metrics.verifiedClaims.toString(), share: metrics.verificationRate },
-              {
-                label: "unverified",
-                value: metrics.unverifiedClaims.toString(),
-                share: share(metrics.unverifiedClaims, metrics),
-              },
-              {
-                label: "contradicted",
-                value: metrics.contradictedClaims.toString(),
-                share: share(metrics.contradictedClaims, metrics),
-              },
-            ]}
-          />
-          <MetricList
-            icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />}
-            title="Failure modes"
-            rows={
-              failureRows.length > 0
-                ? failureRows.map((row) => ({
-                    label: row.label,
-                    value: `${row.count} hits`,
-                    share: row.share,
-                  }))
-                : [{ label: "none", value: "0 hits", share: 0 }]
-            }
-          />
-        </section>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RadioTower className="h-4 w-4" aria-hidden="true" />
-              Routing flow
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
-            {statusRows.map((row) => (
-              <div key={row.label} className="rounded-md border border-border p-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{row.label}</span>
-                  <span className="text-muted-foreground">{row.count}</span>
-                </div>
-                <div className="mt-3 h-2 rounded-full bg-muted">
-                  <div
-                    className="h-2 rounded-full bg-primary"
-                    style={{ width: `${Math.max(4, row.share * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <AgentWorkbench
+          runs={runs}
+          source={source}
+          publicApiBaseUrl={publicApiBaseUrl}
+          metrics={{
+            latencyRows,
+            routeRows,
+            statusRows,
+            failureRows,
+            verification: {
+              verified: metrics.verifiedClaims,
+              unverified: metrics.unverifiedClaims,
+              contradicted: metrics.contradictedClaims,
+              verificationRate: metrics.verificationRate,
+            },
+          }}
+        />
       </div>
     </main>
   );
-}
-
-type MetricRow = {
-  label: string;
-  value: string;
-  share: number;
-};
-
-function MetricList({
-  icon,
-  title,
-  rows,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  rows: MetricRow[];
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {rows.map((row) => (
-          <div key={row.label} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="truncate font-medium">{row.label}</span>
-              <span className="shrink-0 text-muted-foreground">{row.value}</span>
-            </div>
-            <div className="h-2 rounded-full bg-muted">
-              <div
-                className="h-2 rounded-full bg-primary"
-                style={{ width: `${Math.max(4, row.share * 100)}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function share(value: number, metrics: { verifiedClaims: number; unverifiedClaims: number; contradictedClaims: number }) {
-  const total = metrics.verifiedClaims + metrics.unverifiedClaims + metrics.contradictedClaims;
-  return total === 0 ? 0 : value / total;
 }

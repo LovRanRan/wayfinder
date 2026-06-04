@@ -154,10 +154,10 @@ Guided design mode:
 | **Current Commit** | [x] **Commit 17** — User workspaces + persistent run history |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **17 / 17 done** · ship **7 / 8 core artifacts done** |
 | **Blocker** | Demo video is still pending. Public test execution remains disabled until sandbox exists. |
-| **Last Activity** | 2026-06-05 · Added workspace UI polish: live run activity animation and deep-linkable recent-run answer selection. |
+| **Last Activity** | 2026-06-05 · Added workspace UI polish: tabbed Run / Answer / History / Metrics layout with deep-linkable recent-run answers. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Convert Wayfinder from a shared public demo console into a user workspace that can analyze public repo links and preserve per-user history. |
-| **Next Action** | Push Commit 17, set Railway auth/run-store variables, mount a persistent volume if using SQLite on Railway, then redeploy and smoke login/history. |
+| **Next Action** | Push the workspace tabs polish, wait for Railway dashboard redeploy, then smoke Run / Answer / History / Metrics on the public dashboard. |
 
 ---
 
@@ -370,11 +370,11 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
-### 2026-06-05 — Workspace UI polish — `run animation + recent answer links`
+### 2026-06-05 — Workspace UI polish — `workspace tabs + recent answer links`
 
-- **做了什么**:Added a live activity strip for queued/running jobs and made recent runs easier to reopen. Recent-run rows now select the answer panel, and the `Answer` link writes `?job=<job_id>` so a refreshed page or new tab can return to that run when it is still in the recent history.
-- **自己设计了什么**:Use the same right-side console as the answer surface instead of opening a disconnected page. This keeps the workbench focused while still allowing a shareable/reloadable job URL.
-- **验证方式**:`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`.
+- **做了什么**:Added a live activity strip for queued/running jobs and split the workspace into four tabs:Run,Answer,History,and Metrics. Recent-run rows now select the answer surface, and the `Answer` link writes `?job=<job_id>&tab=answer` so a refreshed page or new tab can return to that run when it is still in the recent history.
+- **自己设计了什么**:Keep the run composer, answer console, saved history, and analytics as separate workspace surfaces so each section has more room without adding disconnected pages.
+- **验证方式**:`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;local browser QA with auth-required API verified tab switching, run submit -> Answer tab, History row selection, `Open` answer deep link, and Metrics tab.
 - **下一步**:Push the polish commit and let the dashboard redeploy.
 
 ### 2026-06-05 — Commit 17 closed — `User workspaces + persistent run history`
