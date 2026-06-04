@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [/] **Commit 13** — Project 5 HTTP reader MCP deploy path |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **13 / 13 in progress** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video is still pending. Commit 13 local Docker/sidecar smoke is passing; Railway redeploy + public smoke still need to run after push. |
-| **Last Activity** | 2026-06-04 · Added `mcp_http` runtime mode, in-container FastMCP HTTP sidecar startup, API Docker packaging, final-output evidence aggregation, `src.` symbol fallback, tests, and deploy docs. |
+| **Current Commit** | [x] **Commit 14** — Claude Code-style dashboard workbench |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **14 / 14 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Demo video is still pending. Public API/dashboard smoke now uses real reader MCP evidence; dashboard UI has been polished for manual testing. |
+| **Last Activity** | 2026-06-05 · Reworked the dashboard into a dark code-agent workbench, synced the current-run console to submitted jobs, and rendered final output as transcript/evidence/verification blocks. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Deploy Commit 13 so the public API uses real reader MCP evidence over HTTP, then record the 3-min recursive demo. |
-| **Next Action** | Commit/push Commit 13, set Railway API vars for sidecars, redeploy, and smoke the public dashboard on an allowlisted GitHub repo. |
+| **Today's North Star** | Push the dashboard workbench polish, let Railway redeploy from GitHub, then record the 3-min recursive demo. |
+| **Next Action** | Commit/push Commit 14, confirm the public dashboard shows the new workbench style, then record the demo video. |
 
 ---
 
@@ -307,7 +307,7 @@ Guided design mode:
   - [x] Add API tests for disabled ingestion, allowed GitHub URL, allowlist rejection, and oversized repo rejection ✅ 2026-06-04
   - [x] Add `git` to the API Docker image and expose GitHub ingestion env vars in Compose/deploy docs ✅ 2026-06-04
 
-- [/] **Commit 13 — Project 5 HTTP reader MCP deploy path** 🚧 2026-06-04
+- [x] **Commit 13 — Project 5 HTTP reader MCP deploy path** ✅ 2026-06-05
   - [x] Write deploy design note for replacing placeholder reader scanners with real Project 5 MCP over HTTP ✅ 2026-06-04
   - [x] Add `streamable_http` Project 5 MCP config helpers for repo mapper and AST explorer ✅ 2026-06-04
   - [x] Add runtime factories for `WAYFINDER_ARCHITECTURE_SCANNER=mcp_http` and `WAYFINDER_ENTRY_SCANNER=mcp_http` ✅ 2026-06-04
@@ -318,8 +318,15 @@ Guided design mode:
   - [x] Remove user-visible final placeholder and show collected MCP evidence in `final_output` ✅ 2026-06-04
   - [x] Add `src.` layout fallback for common fully qualified Python symbols ✅ 2026-06-04
   - [x] Build API Docker image with packaged reader MCPs and smoke API-container sidecars locally ✅ 2026-06-04
-  - [ ] Deploy Commit 13 to Railway with sidecars enabled
-  - [ ] Public smoke:dashboard GitHub URL flow uses real reader MCP path instead of placeholder readers
+  - [x] Deploy Commit 13 to Railway with sidecars enabled ✅ 2026-06-05
+  - [x] Public smoke:dashboard GitHub URL flow uses real reader MCP path instead of placeholder readers ✅ 2026-06-05
+
+- [x] **Commit 14 — Claude Code-style dashboard workbench** ✅ 2026-06-05
+  - [x] Replace the white card-heavy layout with a dark code-agent workbench style ✅ 2026-06-05
+  - [x] Sync the right-side current-run console to the submitted/refreshed job instead of stale latest-run data ✅ 2026-06-05
+  - [x] Render final output as transcript, evidence, and verification blocks instead of one long paragraph card ✅ 2026-06-05
+  - [x] Add a compact clickable recent-run list for switching selected jobs ✅ 2026-06-05
+  - [x] Frontend gates and browser QA pass ✅ 2026-06-05
 
 ### Ship
 
@@ -337,6 +344,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 14 closed — `Claude Code-style dashboard workbench`
+
+- **做了什么**:Reworked the dashboard from a white shadcn card layout into a dark code-agent workbench:composer on the left, recent runs below it, and a right-side current-run console with command context, metadata, claims, evidence, answer, and verification blocks.
+- **自己设计了什么**:The dashboard should feel like an operator console for an agent run, not an admin table. The selected run is now client-owned state, so after Haichuan submits a manual test the right panel follows that exact job instead of showing an older latest run.
+- **Codex 帮了哪里**:Codex implemented this frontend polish after Haichuan said the deployed format and UI style were uncomfortable and asked for a Claude Code-like direction.
+- **验证方式**:`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;local production-style browser QA against the public Railway API confirmed a GitHub URL run completed and displayed real `ast_explorer` evidence for `wayfinder.graph.app.build_graph`.
+- **问题记录**:Local `next dev` hit macOS `EMFILE` watcher limits, so QA used a production build/server path instead. Local standalone serving needs copied `.next/static` assets;the Dockerfile already copies them for deployment.
+- **下一步**:Commit/push Commit 14, wait for Railway dashboard auto-redeploy, public-smoke the new style, then record the 3-min recursive demo.
 
 ### 2026-06-04 — Commit 13 in progress — `Project 5 HTTP reader MCP deploy path`
 

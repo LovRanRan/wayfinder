@@ -10,8 +10,7 @@ import {
   TimerReset,
 } from "lucide-react";
 
-import { RunLauncher } from "@/components/run-launcher";
-import { RunStatusTable } from "@/components/run-status-table";
+import { AgentWorkbench } from "@/components/agent-workbench";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,9 +36,9 @@ export default async function DashboardPage() {
   const failureRows = failureModeCounts(runs);
 
   return (
-    <main className="min-h-screen bg-muted px-6 py-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
+    <main className="min-h-screen bg-background px-4 py-4 text-foreground md:px-6">
+      <div className="mx-auto flex max-w-[1500px] flex-col gap-4">
+        <header className="flex flex-col gap-4 rounded-lg border border-border bg-card px-4 py-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Badge variant="success">Wayfinder live dashboard</Badge>
@@ -48,12 +47,11 @@ export default async function DashboardPage() {
               </Badge>
             </div>
             <div>
-              <h1 className="text-3xl font-semibold tracking-normal">wayfinder runs</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                Monitor codebase onboarding runs, verification status, traces, latency, cost, routing
-                decisions, and resilience failure modes.
+              <h1 className="font-mono text-xl font-semibold tracking-normal">wayfinder</h1>
+              <p className="mt-2 max-w-3xl font-mono text-xs leading-6 text-muted-foreground">
+                codebase onboarding workbench · repo evidence · verification labels · MCP traces
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Public API: {publicApiBaseUrl}</p>
+              <p className="mt-1 font-mono text-[11px] text-muted-foreground">api {publicApiBaseUrl}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -106,37 +104,7 @@ export default async function DashboardPage() {
           />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(340px,0.95fr)_minmax(0,1.05fr)]">
-          <RunLauncher />
-          <Card>
-            <CardHeader>
-              <CardTitle>Current run</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {latest ? (
-                <>
-                  <div>
-                    <p className="text-sm font-medium">{latest.repoName}</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{latest.query}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <KeyValue label="Agent" value={latest.agentName} />
-                    <KeyValue label="Tool" value={latest.toolName ?? "none"} />
-                    <KeyValue label="Status" value={latest.status} />
-                    <KeyValue label="Latency" value={formatSeconds(latest.latency)} />
-                  </div>
-                  <div className="rounded-md border border-border bg-muted p-3 text-sm leading-6">
-                    {latest.finalOutput ?? latest.error ?? "Run is still producing output."}
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">No run data available.</p>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-
-        <RunStatusTable runs={runs} source={source} />
+        <AgentWorkbench runs={runs} source={source} publicApiBaseUrl={publicApiBaseUrl} />
 
         <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <MetricList
@@ -258,15 +226,6 @@ function MetricList({
         ))}
       </CardContent>
     </Card>
-  );
-}
-
-function KeyValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 font-medium">{value}</p>
-    </div>
   );
 }
 

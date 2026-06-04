@@ -527,3 +527,39 @@
 - "I caught a production design issue before deploying:separate HTTP MCP services cannot read the API container's cloned repo path, so I used localhost HTTP sidecars as the first working production step."
 - "The architecture now supports both stdio MCP for local development and Streamable HTTP MCP for Railway deployment."
 - "I also fixed the user-visible answer path:the dashboard now shows the evidence returned by repo_mapper / ast_explorer instead of a final placeholder string."
+
+---
+
+## Commit 14 — Claude Code-style Dashboard Workbench
+
+### 📚 Sources
+
+- [x] Dashboard entry page: [`dashboard/app/page.tsx`](dashboard/app/page.tsx) — shell layout, header, metrics, and workbench placement ✅ 2026-06-05
+- [x] Workbench coordinator: [`dashboard/components/agent-workbench.tsx`](dashboard/components/agent-workbench.tsx) — selected-run state, launcher/table/console composition, and stale-run avoidance ✅ 2026-06-05
+- [x] Current-run console: [`dashboard/components/current-run-console.tsx`](dashboard/components/current-run-console.tsx) — command-style metadata, claim chips, transcript blocks, evidence, answer, and verification rendering ✅ 2026-06-05
+- [x] Run launcher: [`dashboard/components/run-launcher.tsx`](dashboard/components/run-launcher.tsx) — manual submit/refresh/refine flow and selected job sync ✅ 2026-06-05
+- [x] Recent-run table: [`dashboard/components/run-status-table.tsx`](dashboard/components/run-status-table.tsx) — compact clickable run list and selected-row state ✅ 2026-06-05
+- [x] Theme layer: [`dashboard/app/globals.css`](dashboard/app/globals.css), [`dashboard/components/stat-card.tsx`](dashboard/components/stat-card.tsx), [`dashboard/components/ui/button.tsx`](dashboard/components/ui/button.tsx) — dark code-agent visual language, monospace controls, and dashboard metric styling ✅ 2026-06-05
+
+### 🧠 Concepts Internalized
+
+- A code-agent dashboard should prioritize the run transcript and evidence trail, not only tables and KPI cards.
+- The "current run" panel must be driven by the job the user just submitted or clicked. Falling back to the latest server run makes manual testing feel broken, even if the backend succeeded.
+- Long final outputs need structure. Splitting them into question, claim summary, answer, evidence, and verification blocks makes the result inspectable.
+- Visual style is product behavior. A Claude Code-like workbench communicates "agent execution + evidence" better than a generic white admin dashboard for this project.
+- Frontend state should keep the interaction loop local and obvious:submit -> selected job -> console output -> refine -> updated selected job.
+
+### ⚠️ Gotchas Debugged
+
+- The deployed page originally showed the user-submitted run on the left but an older `langchain-ai/langchain` run on the right. The fix is a client workbench state owner that updates the console on submit, refresh, refine, and recent-row click.
+- `next dev` hit macOS `EMFILE` watcher limits during local QA. Production-style preview was a better signal for this polish pass.
+- A standalone Next.js server can look unstyled locally if `.next/static` is not copied beside the standalone server. The deployment Dockerfile already handles that copy, so the browser QA used the correct built/static path.
+- Pure dark styling can become a flat one-color UI. The workbench uses amber actions, green/red verification states, muted borders, and purple trace accents sparingly so the page still scans by role.
+- A final-output paragraph card hides the real Project 5 evidence. The console component now promotes evidence and verification labels into first-class blocks.
+
+### 💼 Interview Soundbites
+
+- "I polished Wayfinder's dashboard into a code-agent workbench:composer, recent runs, and a current-run console that shows metadata, claims, evidence, and verification status."
+- "I fixed a UX correctness issue where the visible current-run panel could show a stale server run after a user submitted a new job."
+- "The dashboard now presents grounded MCP evidence as inspectable transcript blocks instead of burying it inside one long paragraph."
+- "This made the product demo match the system architecture:tools produce evidence, the agent composes the explanation, and the UI exposes that evidence trail."

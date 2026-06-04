@@ -1,54 +1,87 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, History } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatSeconds } from "@/lib/metrics";
 import type { DashboardRun } from "@/lib/types";
 
 type RunStatusTableProps = {
   runs: DashboardRun[];
   source?: "api" | "demo";
+  compact?: boolean;
+  selectedJobId?: string | null;
+  onSelectRun?: (run: DashboardRun) => void;
 };
 
-export function RunStatusTable({ runs, source = "api" }: RunStatusTableProps) {
+export function RunStatusTable({
+  runs,
+  source = "api",
+  compact = false,
+  selectedJobId = null,
+  onSelectRun,
+}: RunStatusTableProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent runs</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <header className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-3">
+        <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+          <History className="h-4 w-4 text-primary" aria-hidden="true" />
+          Recent runs
+        </div>
+        <span className="font-mono text-xs text-muted-foreground">{runs.length}</span>
+      </header>
+      <div className={compact ? "p-2" : "p-4"}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[760px] border-collapse text-left font-mono text-xs">
             <thead>
-              <tr className="border-b border-border text-xs uppercase text-muted-foreground">
+              <tr className="border-b border-border uppercase text-muted-foreground">
                 <th className="py-3 pr-4 font-medium">Repo</th>
-                <th className="py-3 pr-4 font-medium">Intent</th>
                 <th className="py-3 pr-4 font-medium">Status</th>
                 <th className="py-3 pr-4 font-medium">Agent</th>
-                <th className="py-3 pr-4 font-medium">Verified</th>
-                <th className="py-3 pr-4 font-medium">Unverified</th>
-                <th className="py-3 pr-4 font-medium">Contradicted</th>
+                {!compact ? <th className="py-3 pr-4 font-medium">Intent</th> : null}
+                <th className="py-3 pr-4 font-medium">Claims</th>
                 <th className="py-3 pr-4 font-medium">Latency</th>
-                <th className="py-3 pr-4 font-medium">Cost</th>
+                {!compact ? <th className="py-3 pr-4 font-medium">Cost</th> : null}
                 <th className="py-3 pr-4 font-medium">Trace</th>
               </tr>
             </thead>
             <tbody>
               {runs.map((run) => (
-                <tr key={run.jobId} className="border-b border-border last:border-0">
-                  <td className="py-3 pr-4 font-medium">{run.repoName}</td>
-                  <td className="py-3 pr-4">{run.intent}</td>
+                <tr
+                  key={run.jobId}
+                  className={
+                    run.jobId === selectedJobId
+                      ? "border-b border-border bg-primary/10 last:border-0"
+                      : "border-b border-border last:border-0"
+                  }
+                >
+                  <td className="py-3 pr-4 font-medium">
+                    {onSelectRun ? (
+                      <button
+                        type="button"
+                        className="max-w-52 truncate text-left text-foreground hover:text-primary"
+                        onClick={() => onSelectRun(run)}
+                      >
+                        {run.repoName}
+                      </button>
+                    ) : (
+                      <span>{run.repoName}</span>
+                    )}
+                  </td>
                   <td className="py-3 pr-4">
                     <Badge variant={statusVariant(run.status)}>
                       {run.status}
                     </Badge>
                   </td>
                   <td className="py-3 pr-4">{run.agentName}</td>
-                  <td className="py-3 pr-4">{run.verifiedCount}</td>
-                  <td className="py-3 pr-4">{run.unverifiedCount}</td>
-                  <td className="py-3 pr-4">{run.contradictedCount}</td>
+                  {!compact ? <td className="py-3 pr-4">{run.intent}</td> : null}
+                  <td className="py-3 pr-4">
+                    <span className="text-success">{run.verifiedCount}</span>
+                    <span className="text-muted-foreground"> / </span>
+                    <span className="text-warning">{run.unverifiedCount}</span>
+                    <span className="text-muted-foreground"> / </span>
+                    <span className="text-danger">{run.contradictedCount}</span>
+                  </td>
                   <td className="py-3 pr-4">{formatSeconds(run.latency)}</td>
-                  <td className="py-3 pr-4">{formatCurrency(run.costUsd)}</td>
+                  {!compact ? <td className="py-3 pr-4">{formatCurrency(run.costUsd)}</td> : null}
                   <td className="py-3 pr-4">
                     {source === "api" && run.traceUrl ? (
                       <a
@@ -71,8 +104,8 @@ export function RunStatusTable({ runs, source = "api" }: RunStatusTableProps) {
             </tbody>
           </table>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 

@@ -13,23 +13,39 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatSeconds, toDashboardRun } from "@/lib/metrics";
 import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
 
-const SAMPLE_REPO = ".";
-const SAMPLE_QUERY = "Map this repo architecture";
+const SAMPLE_REPO = "https://github.com/LovRanRan/wayfinder";
+const SAMPLE_QUERY = "Explain the behavior and data flow through wayfinder.graph.app.build_graph";
 const terminalStatuses: RunStatus[] = ["completed", "failed"];
 
-export function RunLauncher() {
+type RunLauncherProps = {
+  initialRun?: DashboardRun | null;
+  onRunChange?: (run: DashboardRun | null) => void;
+};
+
+export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps) {
   const [repoUrl, setRepoUrl] = useState(SAMPLE_REPO);
   const [query, setQuery] = useState(SAMPLE_QUERY);
   const [correction, setCorrection] = useState("");
-  const [run, setRun] = useState<DashboardRun | null>(null);
+  const [run, setRun] = useState<DashboardRun | null>(initialRun);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
+
+  useEffect(() => {
+    setRun(initialRun);
+  }, [initialRun]);
+
+  const updateRun = useCallback(
+    (nextRun: DashboardRun) => {
+      setRun(nextRun);
+      onRunChange?.(nextRun);
+    },
+    [onRunChange],
+  );
 
   const refreshRun = useCallback(
     async (silent = false) => {
@@ -44,7 +60,7 @@ export function RunLauncher() {
 
       try {
         const payload = await fetchRun(`/api/wayfinder/status/${encodeURIComponent(run.jobId)}`);
-        setRun(toDashboardRun(payload));
+        updateRun(toDashboardRun(payload));
       } catch (refreshError) {
         setError(errorMessage(refreshError));
       } finally {
@@ -53,7 +69,7 @@ export function RunLauncher() {
         }
       }
     },
-    [run],
+    [run, updateRun],
   );
 
   useEffect(() => {
@@ -82,7 +98,7 @@ export function RunLauncher() {
           query: query.trim(),
         }),
       });
-      setRun(toDashboardRun(payload));
+      updateRun(toDashboardRun(payload));
     } catch (submitError) {
       setError(errorMessage(submitError));
     } finally {
@@ -104,7 +120,7 @@ export function RunLauncher() {
         method: "POST",
         body: JSON.stringify({ correction: correction.trim() }),
       });
-      setRun(toDashboardRun(payload));
+      updateRun(toDashboardRun(payload));
       setCorrection("");
     } catch (refineError) {
       setError(errorMessage(refineError));
@@ -117,29 +133,32 @@ export function RunLauncher() {
   const canRefine = run !== null && correction.trim().length > 0 && !isRefining;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <CardTitle className="flex items-center gap-2">
-          <Play className="h-4 w-4" aria-hidden="true" />
-          Try a run
-        </CardTitle>
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <header className="flex items-start justify-between gap-3 border-b border-border bg-muted/60 px-4 py-3">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+            <Play className="h-4 w-4 text-primary" aria-hidden="true" />
+            Run composer
+          </div>
+          <p className="mt-1 font-mono text-xs text-muted-foreground">repo + question to agent trace</p>
+        </div>
         {run ? <Badge variant={statusVariant(run.status)}>{run.status}</Badge> : null}
-      </CardHeader>
-      <CardContent className="space-y-4">
+      </header>
+      <div className="space-y-4 p-4">
         <form className="grid gap-3" onSubmit={submitRun}>
-          <label className="grid gap-1.5 text-sm font-medium">
-            Repo URL or local path
+          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+            repo
             <input
-              className="h-10 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none transition focus:border-primary"
+              className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
               value={repoUrl}
               onChange={(event) => setRepoUrl(event.target.value)}
-              placeholder="."
+              placeholder="https://github.com/owner/repo"
             />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium">
-            Question
+          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+            prompt
             <textarea
-              className="min-h-24 resize-y rounded-md border border-border bg-background px-3 py-2 text-sm font-normal leading-6 outline-none transition focus:border-primary"
+              className="min-h-28 resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-sm normal-case leading-6 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Map architecture and explain runnable entry points"
@@ -162,6 +181,7 @@ export function RunLauncher() {
                 setQuery(SAMPLE_QUERY);
                 setCorrection("");
                 setRun(null);
+                onRunChange?.(null);
                 setError(null);
               }}
             >
@@ -187,7 +207,7 @@ export function RunLauncher() {
         ) : null}
 
         {run ? (
-          <div className="space-y-3 rounded-md border border-border bg-muted p-3">
+          <div className="space-y-3 rounded-md border border-border bg-muted/60 p-3">
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <KeyValue label="Job" value={run.jobId.slice(0, 8)} />
               <KeyValue label="Agent" value={run.agentName} />
@@ -199,14 +219,11 @@ export function RunLauncher() {
               <ClaimCount label="Unverified" value={run.unverifiedCount} />
               <ClaimCount label="Contradicted" value={run.contradictedCount} />
             </div>
-            <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-card p-3 text-sm leading-6">
-              {run.finalOutput ?? run.error ?? "Run is still producing output."}
-            </div>
             <form className="grid gap-2" onSubmit={submitRefine}>
-              <label className="grid gap-1.5 text-sm font-medium">
-                Correction
+              <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+                correction
                 <input
-                  className="h-10 rounded-md border border-border bg-background px-3 text-sm font-normal outline-none transition focus:border-primary"
+                  className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
                   value={correction}
                   onChange={(event) => setCorrection(event.target.value)}
                   placeholder="Focus on runtime entry points"
@@ -223,13 +240,13 @@ export function RunLauncher() {
             </form>
           </div>
         ) : (
-          <div className="flex items-center gap-2 rounded-md border border-border p-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-3 font-mono text-sm text-muted-foreground">
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             <span>Ready</span>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -277,17 +294,17 @@ function statusVariant(status: RunStatus) {
 function KeyValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate font-medium">{value}</p>
+      <p className="font-mono text-[10px] uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate font-mono text-xs font-medium">{value}</p>
     </div>
   );
 }
 
 function ClaimCount({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border border-border bg-card p-2 text-center">
-      <p className="text-lg font-semibold">{value}</p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
+    <div className="rounded-md border border-border bg-background/70 p-2 text-center">
+      <p className="font-mono text-lg font-semibold">{value}</p>
+      <p className="mt-0.5 font-mono text-[10px] uppercase text-muted-foreground">{label}</p>
     </div>
   );
 }
