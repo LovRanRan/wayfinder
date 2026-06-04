@@ -19,7 +19,6 @@ import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
 
 const SAMPLE_REPO = "https://github.com/LovRanRan/wayfinder";
 const SAMPLE_QUERY = "Explain the behavior and data flow through wayfinder.graph.app.build_graph";
-const terminalStatuses: RunStatus[] = ["completed", "failed"];
 
 type RunLauncherProps = {
   initialRun?: DashboardRun | null;
@@ -35,6 +34,7 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
+  const [submitStartedAt, setSubmitStartedAt] = useState<string | null>(null);
 
   useEffect(() => {
     setRun(initialRun);
@@ -73,21 +73,10 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
     [run, updateRun],
   );
 
-  useEffect(() => {
-    if (!run || terminalStatuses.includes(run.status)) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      void refreshRun(true);
-    }, 1400);
-
-    return () => window.clearTimeout(timer);
-  }, [refreshRun, run]);
-
   async function submitRun(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
+    setSubmitStartedAt(new Date().toISOString());
     setError(null);
     setRun(null);
 
@@ -104,6 +93,7 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
       setError(errorMessage(submitError));
     } finally {
       setIsSubmitting(false);
+      setSubmitStartedAt(null);
     }
   }
 
@@ -207,9 +197,13 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
           </div>
         ) : null}
 
+        {isSubmitting && !run ? (
+          <RunActivity status="running" startedAt={submitStartedAt ?? undefined} label="Starting run" />
+        ) : null}
+
         {run ? (
           <div className="space-y-3 rounded-md border border-border bg-muted/60 p-3">
-            <RunActivity status={run.status} />
+            <RunActivity status={run.status} startedAt={run.createdAt} />
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <KeyValue label="Job" value={run.jobId.slice(0, 8)} />
               <KeyValue label="Agent" value={run.agentName} />

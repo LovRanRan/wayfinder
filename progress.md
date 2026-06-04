@@ -154,10 +154,10 @@ Guided design mode:
 | **Current Commit** | [x] **Commit 17** — User workspaces + persistent run history |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **17 / 17 done** · ship **7 / 8 core artifacts done** |
 | **Blocker** | Demo video is still pending. Public test execution remains disabled until sandbox exists. |
-| **Last Activity** | 2026-06-05 · Added workspace UI polish: tabbed Run / Answer / History / Metrics layout with deep-linkable recent-run answers. |
+| **Last Activity** | 2026-06-05 · Added workspace UI polish: structured answer cards plus real-time elapsed timer while runs are pending. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Convert Wayfinder from a shared public demo console into a user workspace that can analyze public repo links and preserve per-user history. |
-| **Next Action** | Push the workspace tabs polish, wait for Railway dashboard redeploy, then smoke Run / Answer / History / Metrics on the public dashboard. |
+| **Next Action** | Push the answer-format polish, wait for Railway dashboard redeploy, then smoke one slow public run and confirm elapsed stops when the answer appears. |
 
 ---
 
@@ -369,6 +369,13 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Workspace UI polish — `answer cards + elapsed timer`
+
+- **做了什么**:Redesigned the answer console from repeated plain transcript blocks into structured cards for question, evidence, observed flow, behavior, verification summary, limitations, and errors. Added inline code styling, list-aware line rendering, and a live elapsed timer for both submit-time waiting and active queued/running jobs.
+- **自己设计了什么**:Keep the terminal/workbench shell, but make final answers scan like evidence packets instead of walls of text. Polling now lives at the `AgentWorkbench` selected-run layer, so switching from Run to Answer does not stop status refresh.
+- **验证方式**:`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;local browser QA with dev dashboard + local API verified structured answer cards, verification-summary classification, no console errors, and successful run selection after submit.
+- **下一步**:Push the polish commit and let Railway redeploy the dashboard.
 
 ### 2026-06-05 — Workspace UI polish — `workspace tabs + recent answer links`
 

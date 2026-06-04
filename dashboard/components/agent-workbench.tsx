@@ -8,7 +8,10 @@ import { RunLauncher } from "@/components/run-launcher";
 import { RunStatusTable } from "@/components/run-status-table";
 import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
 import { WorkspaceMetrics } from "@/components/workspace-metrics";
-import type { DashboardRun } from "@/lib/types";
+import { toDashboardRun } from "@/lib/metrics";
+import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
+
+const activeStatuses: RunStatus[] = ["queued", "running"];
 
 type AgentWorkbenchProps = {
   runs: DashboardRun[];
@@ -38,6 +41,8 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
   const [selectedRun, setSelectedRun] = useState<DashboardRun | null>(() =>
     runFromJobId(runs, selectedJobId) ?? runs[0] ?? null,
   );
+  const selectedRunJobId = selectedRun?.jobId ?? null;
+  const selectedRunStatus = selectedRun?.status ?? null;
 
   const updateUrl = useCallback(
     (updates: { job?: string | null; tab?: WorkspaceTab | null }) => {
@@ -93,6 +98,38 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
       setActiveTab(requestedTab);
     }
   }, [requestedTab]);
+
+  useEffect(() => {
+    if (
+      source !== "api" ||
+      selectedRunJobId === null ||
+      selectedRunStatus === null ||
+      !activeStatuses.includes(selectedRunStatus)
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/wayfinder/status/${encodeURIComponent(selectedRunJobId)}`, {
+          headers: { "content-type": "application/json" },
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload === null || cancelled) {
+          return;
+        }
+        setSelectedRun(toDashboardRun(payload as ApiRunSummary));
+      } catch {
+        // Keep the last known active run visible; manual refresh still reports request errors.
+      }
+    }, 1400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [selectedRunJobId, selectedRunStatus, source]);
 
   const changeTab = useCallback(
     (tab: WorkspaceTab) => {
