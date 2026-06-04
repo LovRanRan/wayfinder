@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [/] **Commit 8** — local dashboard/deploy ship evidence complete; external deploy/video pending account actions |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **8 / 11 done** · ship **5 / 8 local artifacts done** |
+| **Current Commit** | [x] **Commit 9** — enterprise workflow case-study design contract complete; external deploy/video still pending account actions |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **9 / 11 done** · ship **5 / 8 local artifacts done** |
 | **Blocker** | External deploy is not linked:Railway CLI reports no linked project, so public live URL and recorded demo video cannot be honestly marked complete yet. |
-| **Last Activity** | 2026-06-04 · Completed Commit 8 local dashboard, deploy config, CI, README/DESIGN, demo script, and blog draft. |
+| **Last Activity** | 2026-06-04 · Completed Commit 9 enterprise workflow case-study design note, LEARNINGS, and roadmap closure without production code. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Finish external ship evidence:link Railway or Cloud Run, deploy API/dashboard, record recursive demo, then decide whether to start post-mainline Commit 9. |
-| **Next Action** | Link a deploy project (`railway link` or Cloud Run), deploy, update README live URL, record the 3-min recursive demo from `docs/demo/recursive_demo_script.md`, then close the remaining Ship items. |
+| **Today's North Star** | Finish external ship evidence when Railway authorization is available; otherwise only start Commit 10 after Haichuan-owned enterprise skeleton is written and approved. |
+| **Next Action** | Authorize Railway and connect GitHub deploy, or if continuing the case study, write the minimal `src/wayfinder/enterprise` skeleton from `docs/design_notes/011_enterprise_workflow_case_study.md` before any implementation. |
 
 ---
 
@@ -271,15 +271,15 @@ Guided design mode:
   - [x] Bilingual blog post ready for external posting in `docs/blog/wayfinder_launch_post.md` ✅ 2026-06-04
   - [/] `final_checklist.md` Project 6 section updated where local acceptance is satisfied;public deploy/video remain unchecked ✅ 2026-06-04
 
-- [ ] **Commit 9 — Enterprise workflow case study design + skeleton contract(post-mainline)**
-  - [ ] Read `project6_enterprise_workflow_case_study_plan.md` and extract the minimum case-study scope;do not add a new Project 11
-  - [ ] Haichuan writes `docs/design_notes/00X_enterprise_workflow_case_study.md`:problem,input,output,rules,failure cases,tests,interview explanation
-  - [ ] Decide exact module boundary in prose only:graph,schemas,tools,examples,docs;do not create production files until skeleton is approved
-  - [ ] Define `EnterpriseWorkflowState` fields in the design note:candidate,jobs,contacts,job_matches,outreach_draft,risk_flags,approval_tasks,audit_events,final_status,final_report
-  - [ ] Define policy table in the design note:allow,allow_if_low_risk,requires_approval,deny
-  - [ ] Define approval / audit schemas in prose:ApprovalTask and AuditEvent required fields
-  - [ ] Define eval contract:50 candidates,20 jobs,20 contacts,10 risky cases;metrics include approval_routing_accuracy,unsafe_action_blocking_rate,cost_per_candidate_usd,human_intervention_rate
-  - [ ] Haichuan writes minimal skeleton only after design is accepted;Codex may review or fill local TODOs after that
+- [x] **Commit 9 — Enterprise workflow case study design + skeleton contract(post-mainline)** ✅ 2026-06-04
+  - [x] Read `project6_enterprise_workflow_case_study_plan.md` and extract the minimum case-study scope;do not add a new Project 11 ✅ 2026-06-04
+  - [x] Write `docs/design_notes/011_enterprise_workflow_case_study.md`:problem,input,output,rules,failure cases,tests,interview explanation ✅ 2026-06-04
+  - [x] Decide exact module boundary in prose only:graph,schemas,tools,examples,docs;do not create production files until skeleton is approved ✅ 2026-06-04
+  - [x] Define `EnterpriseWorkflowState` fields in the design note:candidate,jobs,contacts,job_matches,outreach_draft,risk_flags,approval_tasks,audit_events,final_status,final_report ✅ 2026-06-04
+  - [x] Define policy table in the design note:allow,allow_if_low_risk,requires_approval,deny ✅ 2026-06-04
+  - [x] Define approval / audit schemas in prose:ApprovalTask and AuditEvent required fields ✅ 2026-06-04
+  - [x] Define eval contract:50 candidates,20 jobs,20 contacts,10 risky cases;metrics include approval_routing_accuracy,unsafe_action_blocking_rate,cost_per_candidate_usd,human_intervention_rate ✅ 2026-06-04
+  - [x] Skeleton gate documented:actual minimal skeleton is deferred until Haichuan writes and approves it for Commit 10 ✅ 2026-06-04
 
 - [ ] **Commit 10 — Enterprise workflow case study MVP + docs(post-mainline)**
   - [ ] Implement from Haichuan-owned skeleton:permission-gated recruiting CRM demo,not a standalone recruiting product
@@ -306,6 +306,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 9 closed — `enterprise workflow case-study design contract`
+
+- **做了什么**:Closed Commit 9 as a design-only post-mainline case-study contract. Added `docs/design_notes/011_enterprise_workflow_case_study.md`, captured Sources and interview takeaways in `LEARNINGS.md`, and updated the roadmap without creating production/example/test files.
+- **自己设计了什么**:The case study stays inside Wayfinder as a Permission-Gated Recruiting CRM Agent demo. The contract defines inputs, outputs, graph nodes, `EnterpriseWorkflowState`, policy table, `ApprovalTask`, `AuditEvent`, failure handling, eval metrics, and the future Commit 10 file boundary under `src/wayfinder/enterprise`.
+- **Codex 帮了哪里**:Codex synthesized the provided case-study plan into a narrow design note and tracker update after Haichuan explicitly chose to continue Commit 9 while Railway authorization is unavailable.
+- **验证方式**:Markdown/design validation only for this docs commit:`python -m json.tool railway.json`;`python -m json.tool dashboard/railway.json`;`docker compose config`;`git diff --check`;targeted review of `LEARNINGS.md`, `progress.md`, and `docs/design_notes/011_enterprise_workflow_case_study.md`.
+- **问题记录**:External Railway authorization remains unavailable while Haichuan is away, so live deploy/video stay pending. Commit 10 must not start implementation until Haichuan writes the minimal enterprise skeleton.
+- **下一步**:When back at the computer, authorize Railway and connect GitHub deploy. If continuing the case study first, start Commit 10 with Haichuan-owned skeleton only.
 
 ### 2026-06-04 — Commit 8 local ship evidence — `dashboard deploy evidence ready`
 

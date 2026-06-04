@@ -342,3 +342,36 @@
 - "I added `/runs` because a dashboard should read a real API contract, not scrape internal state or rely only on mocks."
 - "I kept deploy evidence honest:the repo is Docker/Railway/Cloud Run ready, but I did not fabricate a public URL when Railway was not linked."
 - "The CI job recreates the actual Project 5/6 sibling layout, so integration tests exercise the same local editable MCP boundary as development."
+
+---
+
+## Commit 9 — Enterprise Workflow Case Study Design
+
+### 📚 Sources
+
+- [x] Project-local case-study plan: [`project6_enterprise_workflow_case_study_plan.md`](project6_enterprise_workflow_case_study_plan.md) — enterprise workflow gap, permission-gated recruiting CRM scenario, policy/approval/audit/eval scope, and no-Project-11 boundary ✅ 2026-06-04
+- [x] Project-local four-step workflow: [`project6_four_step_method.md`](../../planning/codebase_onboarding_theme/project6_four_step_method.md) — design-first and skeleton-before-code ownership rule for Project 6 modules ✅ 2026-06-04
+- [x] Project-local architecture baseline: [`DESIGN.md`](DESIGN.md) — current Wayfinder product contract, HITL, resilience, runtime, observability, and dashboard boundaries ✅ 2026-06-04
+- [x] Project-local tracker: [`progress.md`](progress.md) Commit 9 roadmap — design note, state fields, policy table, approval/audit schema, and eval contract ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- The enterprise case study should extend Wayfinder's story, not become a separate recruiting product. It exists to prove permissioned business workflow design on top of the same agent architecture.
+- Tool policy must be separated from model generation. The model can propose actions, but a deterministic policy layer decides allow / low-risk-only / approval-required / deny.
+- Audit logs are the evidence layer for enterprise agents. The final report should point to audit event ids and approval task ids instead of making unsupported workflow claims.
+- Synthetic eval data is acceptable only if the benchmark is repeatable and the numbers are generated from committed inputs. Commit 9 defines the eval contract but does not publish fake results.
+- Existing `src/wayfinder` package conventions should override the draft plan's `app/` path. Future implementation belongs under `src/wayfinder/enterprise`.
+
+### ⚠️ Gotchas Debugged
+
+- The source plan included implementation tasks A-G, but Commit 9 is intentionally only a design/skeleton contract. Creating graph/tool/schema/example/test files now would violate the post-mainline ownership boundary.
+- A recruiting CRM demo can easily look like a separate product. The design note keeps it as a case study inside Wayfinder and bans real Gmail, Salesforce, login, external CRM, or a new dashboard.
+- `allow_if_low_risk` needs a prior risk check. It is not equivalent to `allow`, and high-risk CRM updates must become approval tasks rather than quiet mutations.
+- Resume wording should not add a new project title. The case study becomes one Wayfinder bullet about permission-gated workflow execution, approval queues, audit logs, blocking, and evals.
+
+### 💼 Interview Soundbites
+
+- "I added an enterprise workflow case study to show Wayfinder's architecture generalizes beyond codebase onboarding without turning it into a separate product."
+- "The model proposes actions, but policy controls execution:read and draft actions can be automatic, while email sends, referral requests, and risky CRM mutations require approval or are blocked."
+- "Every node/tool decision writes an audit event, so the final report is backed by operational evidence instead of free-form narration."
+- "The eval contract measures workflow safety:approval-routing accuracy, unsafe-action blocking, cost per candidate, latency, and human intervention rate."
