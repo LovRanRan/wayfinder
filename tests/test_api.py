@@ -9,6 +9,7 @@ from wayfinder.api.main import app
 from wayfinder.graph.architecture import ArchitectureScanner
 from wayfinder.graph.entry import EntryScanner
 from wayfinder.graph.state import WayfinderState
+from wayfinder.ingestion.models import RepoHandle, RepoSource
 
 
 class FakeApiArchitectureScanner:
@@ -94,12 +95,13 @@ def test_health() -> None:
     assert response.json() == {"status": "ok", "service": "wayfinder"}
 
 
-def test_explain_status_and_refine_flow() -> None:
+def test_explain_status_and_refine_flow(tmp_path: Path) -> None:
     client = TestClient(app)
+    (tmp_path / "app.py").write_text("print('hello')\n")
 
     explain_response = client.post(
         "/explain",
-        json={"repo_url": "https://github.com/langchain-ai/langchain", "query": "Map the repo"},
+        json={"repo_url": str(tmp_path), "query": "Map the repo"},
     )
 
     assert explain_response.status_code == 202
@@ -114,7 +116,7 @@ def test_explain_status_and_refine_flow() -> None:
     assert status_payload["status"] == "completed"
     assert status_payload["verified_count"] == 0
     assert status_payload["contradicted_count"] == 0
-    assert "langchain-ai/langchain" in status_payload["final_output"]
+    assert str(tmp_path) in status_payload["final_output"]
     assert status_payload["trace_metadata"]["thread_id"] == payload["job_id"]
 
     refine_response = client.post(
@@ -146,6 +148,134 @@ def test_runs_lists_recent_jobs() -> None:
     assert runs_response.status_code == 200
     job_ids = [run["job_id"] for run in runs_response.json()]
     assert job_id in job_ids
+
+
+def test_explain_rejects_github_url_when_ingestion_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("WAYFINDER_ENABLE_GITHUB_INGESTION", raising=False)
+
+    client = TestClient(app)
+    response = client.post(
+        "/explain",
+        json={"repo_url": "https://github.com/langchain-ai/langchain", "query": "Map the repo"},
+    )
+
+    assert response.status_code == 403
+    assert "GitHub URL ingestion is disabled" in response.json()["detail"]
+
+
+def test_explain_resolves_allowed_github_url_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    inputs: list[WayfinderState] = []
+    cache_root = tmp_path / "cache"
+    repo_path = tmp_path / "cached-langchain"
+    repo_path.mkdir()
+    (repo_path / "README.md").write_text("# cached\n")
+    captured: dict[str, object] = {}
+
+    def fake_resolve_repo_source(
+        source: RepoSource,
+        cache_root: Path | None = None,
+        git_runner: object | None = None,
+    ) -> RepoHandle:
+        del git_runner
+        captured["source"] = source
+        captured["cache_root"] = cache_root
+        return RepoHandle(
+            source=source,
+            local_path=repo_path,
+            cache_key="github.com__langchain-ai__langchain",
+            clone_url="https://github.com/langchain-ai/langchain.git",
+            file_count=1,
+        )
+
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+    ) -> FakeApiGraph:
+        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        return FakeApiGraph(inputs=inputs)
+
+    monkeypatch.setenv("WAYFINDER_ENABLE_GITHUB_INGESTION", "1")
+    monkeypatch.setenv("WAYFINDER_GITHUB_REPO_ALLOWLIST", "langchain-ai/langchain")
+    monkeypatch.setenv("WAYFINDER_GITHUB_CACHE_ROOT", str(cache_root))
+    monkeypatch.setattr("wayfinder.api.main.resolve_repo_source", fake_resolve_repo_source)
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+
+    client = TestClient(app)
+    response = client.post(
+        "/explain",
+        json={"repo_url": "https://github.com/langchain-ai/langchain", "query": "Map the repo"},
+    )
+
+    assert response.status_code == 202
+    assert captured["cache_root"] == cache_root
+    assert captured["source"] == RepoSource(
+        kind="github",
+        original_ref="https://github.com/langchain-ai/langchain",
+    )
+    assert inputs
+    repo_handle = inputs[0]["repo_handle"]
+    assert repo_handle.source.kind == "github"
+    assert repo_handle.local_path == repo_path
+
+
+def test_explain_rejects_github_repo_outside_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("WAYFINDER_ENABLE_GITHUB_INGESTION", "1")
+    monkeypatch.setenv("WAYFINDER_GITHUB_REPO_ALLOWLIST", "lovranran/wayfinder")
+
+    client = TestClient(app)
+    response = client.post(
+        "/explain",
+        json={"repo_url": "https://github.com/langchain-ai/langchain", "query": "Map the repo"},
+    )
+
+    assert response.status_code == 403
+    assert "WAYFINDER_GITHUB_REPO_ALLOWLIST" in response.json()["detail"]
+
+
+def test_explain_rejects_oversized_github_repo(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo_path = tmp_path / "cached-large"
+    repo_path.mkdir()
+
+    def fake_resolve_repo_source(
+        source: RepoSource,
+        cache_root: Path | None = None,
+        git_runner: object | None = None,
+    ) -> RepoHandle:
+        del cache_root, git_runner
+        return RepoHandle(
+            source=source,
+            local_path=repo_path,
+            cache_key="github.com__langchain-ai__langchain",
+            clone_url="https://github.com/langchain-ai/langchain.git",
+            file_count=101,
+        )
+
+    monkeypatch.setenv("WAYFINDER_ENABLE_GITHUB_INGESTION", "1")
+    monkeypatch.setenv("WAYFINDER_GITHUB_REPO_ALLOWLIST", "*")
+    monkeypatch.setenv("WAYFINDER_GITHUB_MAX_FILES", "100")
+    monkeypatch.setattr("wayfinder.api.main.resolve_repo_source", fake_resolve_repo_source)
+
+    client = TestClient(app)
+    response = client.post(
+        "/explain",
+        json={"repo_url": "https://github.com/langchain-ai/langchain", "query": "Map the repo"},
+    )
+
+    assert response.status_code == 413
+    assert "exceeds the 100 file demo limit" in response.json()["detail"]
 
 
 def test_missing_job_returns_404() -> None:

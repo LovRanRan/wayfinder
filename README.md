@@ -83,6 +83,14 @@ Run backend:
 uv run uvicorn wayfinder.api.main:app --reload
 ```
 
+Optional trusted GitHub URL ingestion for demos:
+
+```bash
+export WAYFINDER_ENABLE_GITHUB_INGESTION=1
+export WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinder
+export WAYFINDER_GITHUB_MAX_FILES=10000
+```
+
 Run dashboard:
 
 ```bash
@@ -121,8 +129,13 @@ Starts a queued run.
 ```bash
 curl -X POST http://localhost:8000/explain \
   -H "Content-Type: application/json" \
-  -d '{"repo_url":"https://github.com/langchain-ai/langchain","query":"Map the architecture and entry points"}'
+  -d '{"repo_url":".","query":"Map the architecture and entry points"}'
 ```
+
+GitHub URLs are supported when `WAYFINDER_ENABLE_GITHUB_INGESTION=1` and the
+repo is present in `WAYFINDER_GITHUB_REPO_ALLOWLIST`. The API shallow-clones the
+repo into the Wayfinder cache and rejects repos over `WAYFINDER_GITHUB_MAX_FILES`
+files.
 
 ### `GET /status/{job_id}`
 

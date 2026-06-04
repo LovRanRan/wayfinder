@@ -1,10 +1,12 @@
 """FastAPI entrypoint for the Wayfinder scaffold."""
 
 import os
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
 from typing import cast
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, status
@@ -24,8 +26,12 @@ from wayfinder.graph.runtime import (
     verifier_runner_from_env,
 )
 from wayfinder.graph.state import WayfinderState
-from wayfinder.ingestion.models import RepoHandle, RepoSource
-from wayfinder.ingestion.resolver import resolve_repo_source
+from wayfinder.ingestion.models import RepoHandle, RepoSizePolicy, RepoSource
+from wayfinder.ingestion.resolver import (
+    assess_repo_size,
+    parse_github_repo_ref,
+    resolve_repo_source,
+)
 
 app = FastAPI(
     title="wayfinder",
@@ -34,6 +40,8 @@ app = FastAPI(
 )
 
 _CHECKPOINTER = InMemorySaver()
+_TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
+_DEFAULT_GITHUB_ALLOWLIST = "langchain-ai/langchain,lovranran/wayfinder"
 
 
 class RunStore:
@@ -190,11 +198,22 @@ def _graph_input_from_request(request: ExplainRequest) -> WayfinderState:
         "repo_url": request.repo_url,
         "query": request.query,
     }
-    repo_handle = _local_repo_handle_from_ref(request.repo_url)
+    repo_handle = _repo_handle_from_ref(request.repo_url, os.environ)
     if repo_handle is not None:
         graph_input["repo_handle"] = repo_handle
 
     return cast(WayfinderState, graph_input)
+
+
+def _repo_handle_from_ref(repo_ref: str, env: Mapping[str, str]) -> RepoHandle | None:
+    local_handle = _local_repo_handle_from_ref(repo_ref)
+    if local_handle is not None:
+        return local_handle
+
+    if _is_github_repo_url(repo_ref):
+        return _github_repo_handle_from_ref(repo_ref, env)
+
+    return None
 
 
 def _local_repo_handle_from_ref(repo_ref: str) -> RepoHandle | None:
@@ -203,6 +222,101 @@ def _local_repo_handle_from_ref(repo_ref: str) -> RepoHandle | None:
         return None
 
     return resolve_repo_source(RepoSource(kind="local", original_ref=repo_ref))
+
+
+def _github_repo_handle_from_ref(repo_ref: str, env: Mapping[str, str]) -> RepoHandle:
+    if not _github_ingestion_enabled(env):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "GitHub URL ingestion is disabled. Set "
+                "WAYFINDER_ENABLE_GITHUB_INGESTION=1 for trusted deploy demos."
+            ),
+        )
+
+    source = RepoSource(kind="github", original_ref=repo_ref)
+    try:
+        github_ref = parse_github_repo_ref(source)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    repo_name = f"{github_ref.owner}/{github_ref.repo}".lower()
+    allowed_repos = _github_allowlist(env)
+    if allowed_repos is not None and repo_name not in allowed_repos:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"GitHub repo {github_ref.owner}/{github_ref.repo} is not in "
+                "WAYFINDER_GITHUB_REPO_ALLOWLIST."
+            ),
+        )
+
+    try:
+        handle = resolve_repo_source(
+            source,
+            cache_root=_github_cache_root_from_env(env),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="GitHub repo clone failed.",
+        ) from exc
+
+    assessment = assess_repo_size(handle, RepoSizePolicy(max_files=_github_max_files(env)))
+    if assessment.is_oversized:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=(
+                f"GitHub repo has {assessment.file_count} files, which exceeds "
+                f"the {assessment.max_files} file demo limit."
+            ),
+        )
+
+    return handle
+
+
+def _is_github_repo_url(repo_ref: str) -> bool:
+    parsed = urlparse(repo_ref)
+    return parsed.scheme in {"http", "https"} and parsed.netloc.lower() == "github.com"
+
+
+def _github_ingestion_enabled(env: Mapping[str, str]) -> bool:
+    return env.get("WAYFINDER_ENABLE_GITHUB_INGESTION", "").strip().lower() in _TRUE_ENV_VALUES
+
+
+def _github_allowlist(env: Mapping[str, str]) -> frozenset[str] | None:
+    raw = env.get("WAYFINDER_GITHUB_REPO_ALLOWLIST", _DEFAULT_GITHUB_ALLOWLIST)
+    items = {item.strip().lower() for item in raw.split(",") if item.strip()}
+    if "*" in items:
+        return None
+
+    return frozenset(items)
+
+
+def _github_cache_root_from_env(env: Mapping[str, str]) -> Path | None:
+    raw = env.get("WAYFINDER_GITHUB_CACHE_ROOT")
+    return Path(raw).expanduser() if raw else None
+
+
+def _github_max_files(env: Mapping[str, str]) -> int:
+    raw = env.get("WAYFINDER_GITHUB_MAX_FILES", "10000").strip()
+    try:
+        max_files = int(raw)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="WAYFINDER_GITHUB_MAX_FILES must be an integer.",
+        ) from exc
+
+    if max_files < 1:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="WAYFINDER_GITHUB_MAX_FILES must be positive.",
+        )
+
+    return max_files
 
 
 @app.get("/status/{job_id}", response_model=RunSummary)

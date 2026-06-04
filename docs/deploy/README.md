@@ -50,11 +50,19 @@ After deploy, set:
 ```bash
 WAYFINDER_API_BASE_URL=<internal-or-public-api-url-reachable-from-dashboard>
 NEXT_PUBLIC_WAYFINDER_API_BASE_URL=https://<your-wayfinder-api>.up.railway.app
+WAYFINDER_ENABLE_GITHUB_INGESTION=1
+WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinder
+WAYFINDER_GITHUB_MAX_FILES=10000
+WAYFINDER_GITHUB_CACHE_ROOT=/tmp/wayfinder/repos
 ```
 
 If Railway gives the dashboard an internal service DNS for the API, use that for
 `WAYFINDER_API_BASE_URL` and keep the public API URL in
 `NEXT_PUBLIC_WAYFINDER_API_BASE_URL` for browser links.
+
+Keep `WAYFINDER_GITHUB_REPO_ALLOWLIST` narrow for a public portfolio demo. Use
+`*` only for a private trusted deployment; otherwise any visitor can make the
+API spend time cloning arbitrary GitHub repos.
 
 Then update the live URL section in `README.md`.
 

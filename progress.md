@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 11** — frontend launch hardening complete; external deploy/video still pending account actions |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **11 / 11 done** · ship **6 / 8 local artifacts done** |
+| **Current Commit** | [x] **Commit 12** — backend GitHub ingestion launch hardening complete; external deploy/video still pending account actions |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **12 / 12 done** · ship **6 / 8 local artifacts done** |
 | **Blocker** | External deploy is not linked:Railway CLI reports no linked project, so public live URL and recorded demo video cannot be honestly marked complete yet. |
-| **Last Activity** | 2026-06-04 · Completed Commit 11 dashboard launcher, Next proxy routes, public/internal API URL split, demo trace cleanup, deploy docs, and frontend smoke. |
+| **Last Activity** | 2026-06-04 · Completed Commit 12 GitHub URL ingestion gate, allowlist/max-file guards, Docker git dependency, Compose/Railway env docs, and API tests. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Commit and push Commit 11, then finish external ship evidence once Railway authorization is available. |
-| **Next Action** | Commit/push Commit 11. Then authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard API env vars, verify `/health` and dashboard, then record the 3-min demo. |
+| **Today's North Star** | Commit and push Commit 12, then finish external ship evidence once Railway authorization is available. |
+| **Next Action** | Commit/push Commit 12. Then authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard/API env vars, verify `/health` and dashboard GitHub URL flow, then record the 3-min demo. |
 
 ---
 
@@ -299,6 +299,14 @@ Guided design mode:
   - [x] Add `dashboard` production `start` script and update README/deploy notes for proxy/env behavior ✅ 2026-06-04
   - [x] Frontend gates and local proxy smoke pass:build,typecheck,lint,submit,status,refine ✅ 2026-06-04
 
+- [x] **Commit 12 — Backend GitHub ingestion launch hardening** ✅ 2026-06-04
+  - [x] Wire `/explain` to resolve trusted GitHub repo URLs into local `RepoHandle`s through the existing shallow-clone/cache resolver ✅ 2026-06-04
+  - [x] Keep GitHub URL ingestion opt-in via `WAYFINDER_ENABLE_GITHUB_INGESTION=1` ✅ 2026-06-04
+  - [x] Add public-demo safety guards:allowlist, max-file limit, explicit 403/413/502 API errors ✅ 2026-06-04
+  - [x] Forward optional GitHub cache root from env so deployments can use a known cache path ✅ 2026-06-04
+  - [x] Add API tests for disabled ingestion, allowed GitHub URL, allowlist rejection, and oversized repo rejection ✅ 2026-06-04
+  - [x] Add `git` to the API Docker image and expose GitHub ingestion env vars in Compose/deploy docs ✅ 2026-06-04
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -315,6 +323,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 12 closed — `backend GitHub ingestion launch hardening`
+
+- **做了什么**:Wired `/explain` to materialize trusted GitHub repo URLs into `RepoHandle`s using the existing shallow-clone/cache resolver. Added opt-in env gating, allowlist checks, file-count cap, explicit 403/413/502 errors, Docker `git` installation, Compose env wiring, README/deploy docs, and API tests.
+- **自己设计了什么**:GitHub URL ingestion is not open by default. A public demo must set `WAYFINDER_ENABLE_GITHUB_INGESTION=1`, keep `WAYFINDER_GITHUB_REPO_ALLOWLIST` narrow, and use `WAYFINDER_GITHUB_MAX_FILES` to prevent large arbitrary repos from consuming clone/scan time.
+- **Codex 帮了哪里**:Codex implemented this backend launch-hardening slice after Haichuan approved Commit 12, reusing the existing Commit 1 resolver instead of inventing a second ingestion path.
+- **验证方式**:`uv run pytest tests/test_api.py -q`(14 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(163 passed,8 skipped);`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;`docker compose config`;`git diff --check`.
+- **问题记录**:GitHub ingestion still depends on the deploy environment having outbound GitHub access and enough ephemeral/cache disk. Local `docker build -f Dockerfile.api -t wayfinder-api:commit12 .` was attempted but stopped after hanging at base image metadata pull, before reaching Commit 12 Dockerfile layers.
+- **下一步**:Run full gates, commit/push Commit 12, then authorize Railway and verify a real allowlisted GitHub URL through the public dashboard.
 
 ### 2026-06-04 — Commit 11 closed — `frontend launch hardening`
 
