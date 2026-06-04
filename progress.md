@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [ ] **Commit 7** — FastAPI runtime + observability kickoff pending |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **6 / 11 done** · ship **0 / 8 done** |
-| **Blocker** | none;Commit 6 reflection/resilience layer closed with tests and real Project 5 integration passing. |
-| **Last Activity** | 2026-06-04 · Closed Commit 6 reflection loop + resilience layer. |
+| **Current Commit** | [ ] **Commit 8** — Dashboard, deploy, and core ship evidence kickoff pending |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **7 / 11 done** · ship **0 / 8 done** |
+| **Blocker** | none;Commit 7 FastAPI runtime + observability layer closed with API/runtime tests and full gates passing. |
+| **Last Activity** | 2026-06-04 · Closed Commit 7 FastAPI runtime + observability layer. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Prepare Commit 7:API job lifecycle, status/refine persistence, and observability hooks before dashboard/deploy. |
-| **Next Action** | Run Commit 7 kickoff gate:read FastAPI runtime / LangSmith tracing materials, capture sources in `LEARNINGS.md`, then write runtime/observability design note. |
+| **Today's North Star** | Prepare Commit 8:dashboard, deploy, README evidence, demo artifact, and core Wayfinder ship pass. |
+| **Next Action** | Run Commit 8 kickoff gate:read dashboard/deploy evidence requirements, capture sources in `LEARNINGS.md`, then write dashboard/deploy design note before implementation. |
 
 ---
 
@@ -251,13 +251,13 @@ Guided design mode:
   - [x] Failure mode 8:test timeout / sandbox kill -> retry once + upgraded timeout;still failing becomes validation timed out ✅ 2026-06-04
   - [x] Fault injection tests cover mock timeout, mock parse error, mock supervisor hallucination / missing symbol, reflection cap ✅ 2026-06-04
 
-- [ ] **Commit 7 — FastAPI runtime + observability**
-  - [ ] FastAPI gateway exposes `/explain`, `/status/{job_id}`, `/refine/{job_id}`
-  - [ ] Async background jobs persist run status, current node, partial summaries, errors, and final output
-  - [ ] `/refine/{job_id}` accepts user corrections and resumes from checkpointer
-  - [ ] LangSmith tracing wraps all nodes and tool calls
-  - [ ] Trace metadata includes agent_name, tool_name, mcp_server, tokens, latency, cost_usd, claim_id
-  - [ ] API tests cover job lifecycle, status polling, refine/resume, error serialization, trace metadata hooks
+- [x] **Commit 7 — FastAPI runtime + observability** ✅ 2026-06-04
+  - [x] FastAPI gateway exposes `/explain`, `/status/{job_id}`, `/refine/{job_id}` ✅ 2026-06-04
+  - [x] Async background jobs persist run status, current node, partial summaries, errors, and final output ✅ 2026-06-04
+  - [x] `/refine/{job_id}` accepts user corrections and resumes from checkpointer ✅ 2026-06-04
+  - [x] LangSmith tracing wraps graph runs through `RunnableConfig` metadata and MCP tool calls through `MCPAdapter` tool spans ✅ 2026-06-04
+  - [x] Trace metadata includes agent_name, tool_name, mcp_server, tokens, latency, cost_usd, claim_id ✅ 2026-06-04
+  - [x] API tests cover job lifecycle, status polling, refine/resume, error serialization, trace metadata hooks ✅ 2026-06-04
 
 - [ ] **Commit 8 — Dashboard, deploy, and core Wayfinder ship evidence**
   - [ ] Next.js + shadcn dashboard replaces Streamlit plan and reads API status/results
@@ -306,6 +306,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 7 closed — `api runtime observability layer complete`
+
+- **做了什么**:Closed Commit 7. Added queued FastAPI job lifecycle, `/status` polling, `/refine` resume path, process-local LangGraph checkpointer wiring, dashboard-friendly run serialization, deterministic trace metadata, and optional MCP tool-call LangSmith tracing at the adapter boundary.
+- **自己设计了什么**:Runtime state is split into public `RunSummary` and internal graph input. `job_id` is the single `thread_id` across API store, LangGraph config, checkpointer, refine, and trace metadata.
+- **Codex 帮了哪里**:Codex implemented this commit directly after Haichuan explicitly delegated completion, wrote `docs/design_notes/009_runtime_observability.md`, updated `LEARNINGS.md`, and expanded API/MCP tests for lifecycle, refine/resume, 409 conflict, errors, env scanner injection, and trace metadata hooks.
+- **验证方式**:`uv run pytest -q`(148 passed,8 skipped);`uv run ruff check .`;`uv run mypy src tests`;`WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_integration.py -q -rs`(6 passed);`git diff --check`.
+- **问题记录**:FastAPI BackgroundTasks return the queued response before background state mutation, so tests must poll `/status`. This commit is intentionally in-process;multi-worker durability remains a Commit 8/deploy concern.
+- **下一步**:Commit 8 kickoff gate:dashboard reads `/status`, recent runs, trace metadata, verification/error stats, Docker/deploy wiring, README/demo evidence, and ship checklist.
 
 ### 2026-06-04 — Commit 6 closed — `reflection resilience layer complete`
 

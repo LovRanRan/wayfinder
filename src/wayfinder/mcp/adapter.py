@@ -19,6 +19,7 @@ from wayfinder.mcp.models import (
     MCPToolError,
     MCPToolErrorType,
 )
+from wayfinder.mcp.tracing import trace_mcp_tool_call
 
 MCPConnection: TypeAlias = (
     StdioConnection | SSEConnection | StreamableHttpConnection | WebsocketConnection
@@ -92,7 +93,8 @@ class MCPAdapter:
             ) from exc
 
         try:
-            result = await self._invoke_tool(tool, call)
+            async with trace_mcp_tool_call(call):
+                result = await self._invoke_tool(tool, call)
         except TimeoutError as exc:
             raise self._tool_call_error(
                 tool_name=call.tool_name,

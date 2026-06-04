@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -52,9 +53,32 @@ class FakeApiEntryScanner:
 
 
 class FakeApiGraph:
-    def invoke(self, input: WayfinderState) -> WayfinderState:
+    def __init__(
+        self,
+        *,
+        inputs: list[WayfinderState] | None = None,
+        configs: list[dict[str, Any] | None] | None = None,
+        should_raise: bool = False,
+    ) -> None:
+        self.inputs = inputs
+        self.configs = configs
+        self.should_raise = should_raise
+
+    def invoke(
+        self,
+        input: WayfinderState,
+        config: dict[str, Any] | None = None,
+    ) -> WayfinderState:
+        if self.inputs is not None:
+            self.inputs.append(input)
+        if self.configs is not None:
+            self.configs.append(config)
+        if self.should_raise:
+            raise RuntimeError("graph exploded")
+
         return {
             "final_output": f"fake output for {input.get('query', '')}",
+            "partial_summaries": {"architect_mapper": "fake architecture summary"},
             "verified_claims": [],
             "unverified_claims": [],
             "contradicted_claims": [],
@@ -80,21 +104,33 @@ def test_explain_status_and_refine_flow() -> None:
 
     assert explain_response.status_code == 202
     payload = explain_response.json()
-    assert payload["status"] == "completed"
-    assert payload["verified_count"] == 0
-    assert payload["contradicted_count"] == 0
-    assert "langchain-ai/langchain" in payload["final_output"]
+    assert payload["status"] == "queued"
+    assert payload["current_node"] == "queued"
 
     status_response = client.get(f"/status/{payload['job_id']}")
     assert status_response.status_code == 200
-    assert status_response.json()["job_id"] == payload["job_id"]
+    status_payload = status_response.json()
+    assert status_payload["job_id"] == payload["job_id"]
+    assert status_payload["status"] == "completed"
+    assert status_payload["verified_count"] == 0
+    assert status_payload["contradicted_count"] == 0
+    assert "langchain-ai/langchain" in status_payload["final_output"]
+    assert status_payload["trace_metadata"]["thread_id"] == payload["job_id"]
 
     refine_response = client.post(
         f"/refine/{payload['job_id']}",
         json={"correction": "Focus on runtime entry points"},
     )
-    assert refine_response.status_code == 200
+    assert refine_response.status_code == 202
     assert "runtime entry points" in refine_response.json()["query"]
+    assert refine_response.json()["user_corrections"] == ["Focus on runtime entry points"]
+
+    refined_status_response = client.get(f"/status/{payload['job_id']}")
+    assert refined_status_response.status_code == 200
+    refined_payload = refined_status_response.json()
+    assert refined_payload["status"] == "completed"
+    assert refined_payload["trace_metadata"]["phase"] == "refine"
+    assert refined_payload["trace_metadata"]["thread_id"] == payload["job_id"]
 
 
 def test_missing_job_returns_404() -> None:
@@ -103,6 +139,147 @@ def test_missing_job_returns_404() -> None:
     response = client.get("/status/missing")
 
     assert response.status_code == 404
+
+
+def test_refine_reuses_thread_id_and_passes_user_corrections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs: list[WayfinderState] = []
+    configs: list[dict[str, Any] | None] = []
+
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+    ) -> FakeApiGraph:
+        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        return FakeApiGraph(inputs=inputs, configs=configs)
+
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+
+    client = TestClient(app)
+    explain_response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+    )
+    job_id = explain_response.json()["job_id"]
+
+    refine_response = client.post(
+        f"/refine/{job_id}",
+        json={"correction": "intent=behavioral"},
+    )
+
+    assert refine_response.status_code == 202
+    assert len(inputs) == 2
+    assert inputs[0]["thread_id"] == job_id
+    assert inputs[1]["thread_id"] == job_id
+    assert inputs[1]["user_corrections"] == ["intent=behavioral"]
+    assert configs[0] is not None
+    assert configs[1] is not None
+    assert configs[0]["configurable"]["thread_id"] == job_id
+    assert configs[1]["configurable"]["thread_id"] == job_id
+
+
+def test_refine_rejects_running_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_execute_job(job_id: str, phase: str) -> None:
+        del job_id, phase
+
+    monkeypatch.setattr("wayfinder.api.main._execute_job", fake_execute_job)
+
+    client = TestClient(app)
+    explain_response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+    )
+
+    assert explain_response.status_code == 202
+    response = client.post(
+        f"/refine/{explain_response.json()['job_id']}",
+        json={"correction": "intent=behavioral"},
+    )
+
+    assert response.status_code == 409
+
+
+def test_explain_serializes_graph_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+    ) -> FakeApiGraph:
+        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        return FakeApiGraph(should_raise=True)
+
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+
+    client = TestClient(app)
+    explain_response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+    )
+
+    assert explain_response.status_code == 202
+    status_response = client.get(f"/status/{explain_response.json()['job_id']}")
+    payload = status_response.json()
+    assert payload["status"] == "failed"
+    assert payload["error"] == "graph exploded"
+    assert payload["errors"] == [
+        {
+            "node": "supervisor",
+            "error_type": "RuntimeError",
+            "message": "graph exploded",
+            "retryable": False,
+        }
+    ]
+    assert payload["trace_metadata"]["status"] == "failed"
+    assert payload["trace_metadata"]["error_type"] == "RuntimeError"
+
+
+def test_trace_metadata_hooks_are_passed_to_graph(monkeypatch: pytest.MonkeyPatch) -> None:
+    configs: list[dict[str, Any] | None] = []
+
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+    ) -> FakeApiGraph:
+        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        return FakeApiGraph(configs=configs)
+
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+    monkeypatch.setenv("LANGSMITH_TRACING", "true")
+    monkeypatch.setenv("LANGSMITH_PROJECT", "wayfinder-test")
+
+    client = TestClient(app)
+    response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+    )
+    job_id = response.json()["job_id"]
+
+    assert configs
+    config = configs[0]
+    assert config is not None
+    assert config["configurable"]["thread_id"] == job_id
+    assert config["metadata"]["thread_id"] == job_id
+    assert config["metadata"]["langsmith_tracing"] is True
+    assert config["metadata"]["langsmith_project"] == "wayfinder-test"
+    for key in (
+        "agent_name",
+        "tool_name",
+        "mcp_server",
+        "tokens",
+        "latency",
+        "cost_usd",
+        "claim_id",
+    ):
+        assert key in config["metadata"]
 
 
 def test_explain_uses_architecture_scanner_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -123,10 +300,13 @@ def test_explain_uses_architecture_scanner_from_env(monkeypatch: pytest.MonkeyPa
         return entry_scanner
 
     def fake_build_graph(
+        checkpointer: object = None,
         *,
         architecture_scanner: ArchitectureScanner | None = None,
         entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
     ) -> FakeApiGraph:
+        del checkpointer, verifier_runner
         captured["architecture_scanner"] = architecture_scanner
         captured["entry_scanner"] = entry_scanner
         return FakeApiGraph()
@@ -188,12 +368,14 @@ def test_explain_behavioral_query_uses_entry_scanner_on_local_fixture(
 
     payload = response.json()
     assert response.status_code == 202
-    assert payload["status"] == "completed"
+    assert payload["status"] == "queued"
+    status_payload = client.get(f"/status/{payload['job_id']}").json()
+    assert status_payload["status"] == "completed"
     assert entry_scanner.calls == [(str(tmp_path.resolve()), "app.service.create_user")]
     assert "Entry explanation evidence collected for app.service.create_user" in (
-        payload["final_output"]
+        status_payload["final_output"]
     )
-    assert "Definition: app/service.py:2" in payload["final_output"]
+    assert "Definition: app/service.py:2" in status_payload["final_output"]
     assert "Call chain: app.api:create_user_route -> app.service.create_user" in (
-        payload["final_output"]
+        status_payload["final_output"]
     )

@@ -263,3 +263,43 @@
 - "The resilience layer keeps failure modes visible to the user:oversized repos, unsupported language, AST parse errors, no tests, unrelated suite failures, misroutes, hallucinated symbols, and validation timeouts all produce explicit limitations."
 - "I separated failed tests from contradictions. A direct selected-test failure can contradict a claim, but a broad unrelated suite failure only means the claim is unverified."
 - "The timeout policy is conservative:retry once with a larger timeout, then mark validation timed out rather than hiding the uncertainty."
+
+---
+
+## Commit 7 — FastAPI Runtime + Observability
+
+### 📚 Sources
+
+- [x] [FastAPI Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/) — `BackgroundTasks` as path-operation parameter, `add_task()`, response-first execution, and same-process caveat ✅ 2026-06-04
+- [x] [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence) — checkpointer/thread semantics, `thread_id` requirement, super-step checkpoints, pending writes, and in-memory/SQLite checkpointer boundary ✅ 2026-06-04
+- [x] [LangSmith Custom instrumentation](https://docs.langchain.com/langsmith/annotate-code) — `LANGSMITH_TRACING`, `traceable`, `trace` context manager, nested trace hierarchy, and custom run id hooks ✅ 2026-06-04
+- [x] [LangSmith Trace LangChain applications](https://docs.langchain.com/langsmith/trace-with-langchain) — LangChain/LangGraph tracing behavior, metadata/tags in runnable config, and tracing SDK interoperability ✅ 2026-06-04
+- [x] [LangSmith Add metadata and tags to traces](https://docs.langchain.com/langsmith/add-metadata-tags) — static, invocation-time, context, and trace-level metadata patterns ✅ 2026-06-04
+- [x] [LangSmith Configure threads](https://docs.langchain.com/langsmith/threads) — `thread_id` / `session_id` metadata for grouping traces and aggregating token/cost across a thread ✅ 2026-06-04
+- [x] Project-local tracker: [`progress.md`](progress.md) Commit 7 roadmap — API lifecycle, `/status`, `/refine`, checkpointer resume, trace metadata, and API test requirements ✅ 2026-06-04
+- [x] Current API shell: [`main.py`](src/wayfinder/api/main.py) / [`schemas.py`](src/wayfinder/api/schemas.py) — pre-Commit-7 sync API and minimal run summary contract ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- API runtime is a job lifecycle boundary, not a graph rewrite. `/explain` creates a durable run record, queues graph work, and `/status/{job_id}` becomes the polling source of truth.
+- `thread_id` has to be the same id used by API job state and LangGraph config. That keeps status, refine/resume, checkpoints, and trace grouping aligned.
+- `/refine` should not only mutate visible query text. It must persist `user_corrections`, reuse the same checkpointer thread, and re-enter the graph with those corrections in state.
+- Trace metadata is a product contract even when LangSmith is disabled locally. Every run still emits `agent_name`, `tool_name`, `mcp_server`, `tokens`, `latency`, `cost_usd`, and `claim_id` keys so dashboard/eval work has stable columns.
+- Tool-call tracing belongs at the MCP adapter boundary. Wrapping `MCPAdapter.call_tool()` gives Project 5 and community MCP calls the same optional LangSmith tool-span path without changing individual scanner/verifier nodes.
+- BackgroundTasks are acceptable for Commit 7's in-process runtime, but they are not a distributed queue. Commit 8/deploy still needs honest docs about this boundary.
+
+### ⚠️ Gotchas Debugged
+
+- FastAPI background responses are rendered before the task mutates state. Tests should assert POST returns `queued`, then poll `/status/{job_id}` for completed/failed state.
+- `model_copy(update=...)` does not make graph state persistence automatic. The API needs a separate internal graph input store so `/refine` can reuse original repo/query state plus corrections.
+- LangGraph checkpointer resume depends on `RunnableConfig.configurable.thread_id`; storing `thread_id` only inside `WayfinderState` is not enough.
+- Trace metadata should be deterministic in unit tests and not require live LangSmith credentials. The API passes metadata/tags in `RunnableConfig`; LangSmith can consume it when env vars are enabled.
+- The MCP tracing wrapper must be no-op unless `LANGSMITH_TRACING` is enabled. Tool failures should still flow through the existing `MCPToolCallError` normalization path.
+
+### 💼 Interview Soundbites
+
+- "I turned the FastAPI layer into a real job runtime:POST creates a queued run, background execution updates status, and `/status` serializes partial summaries, errors, counts, and final output."
+- "Refine reuses the same `thread_id` across API state, LangGraph config, and trace metadata, so user corrections become resumable state instead of a string-only patch."
+- "Observability starts as schema discipline:even local fake runs emit the same trace metadata keys the dashboard and eval harness will need later."
+- "I traced MCP tools at the adapter boundary, so all Project 5 server calls share one instrumentation policy instead of duplicating tracing code inside every node."
+- "I kept Commit 7 intentionally in-process with FastAPI BackgroundTasks;the production queue/deploy tradeoff is visible instead of hidden."
