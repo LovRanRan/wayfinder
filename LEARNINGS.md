@@ -472,6 +472,7 @@
 - `HTTP_413_REQUEST_ENTITY_TOO_LARGE` is deprecated in the current FastAPI/Starlette stack;the API uses `HTTP_413_CONTENT_TOO_LARGE`.
 - Docker Compose previously had no env surface for GitHub ingestion. Commit 12 adds the env keys but keeps `WAYFINDER_ENABLE_GITHUB_INGESTION=0` by default for local safety.
 - Local Docker image builds can still hang before the project Dockerfile executes if the base image metadata pull is slow. `docker compose config` validates the service/env contract, but live deploy remains the real image-build proof.
+- Haichuan reran `docker build -f Dockerfile.api -t wayfinder-api:commit12 .` successfully after the initial metadata-pull stall;the build finished 11/11, including `apt-get install git` and `uv sync --frozen --no-dev`.
 
 ### 💼 Interview Soundbites
 

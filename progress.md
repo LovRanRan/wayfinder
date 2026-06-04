@@ -154,10 +154,10 @@ Guided design mode:
 | **Current Commit** | [x] **Commit 12** — backend GitHub ingestion launch hardening complete; external deploy/video still pending account actions |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **12 / 12 done** · ship **6 / 8 local artifacts done** |
 | **Blocker** | External deploy is not linked:Railway CLI reports no linked project, so public live URL and recorded demo video cannot be honestly marked complete yet. |
-| **Last Activity** | 2026-06-04 · Completed Commit 12 GitHub URL ingestion gate, allowlist/max-file guards, Docker git dependency, Compose/Railway env docs, and API tests. |
+| **Last Activity** | 2026-06-04 · Completed Commit 12 GitHub URL ingestion gate, allowlist/max-file guards, Docker git dependency, Compose/Railway env docs, API tests, and API Docker image build evidence. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Commit and push Commit 12, then finish external ship evidence once Railway authorization is available. |
-| **Next Action** | Commit/push Commit 12. Then authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard/API env vars, verify `/health` and dashboard GitHub URL flow, then record the 3-min demo. |
+| **Today's North Star** | Finish external ship evidence once Railway authorization is available. |
+| **Next Action** | Authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard/API env vars, verify `/health` and dashboard GitHub URL flow, then record the 3-min demo. |
 
 ---
 
@@ -329,9 +329,9 @@ Guided design mode:
 - **做了什么**:Wired `/explain` to materialize trusted GitHub repo URLs into `RepoHandle`s using the existing shallow-clone/cache resolver. Added opt-in env gating, allowlist checks, file-count cap, explicit 403/413/502 errors, Docker `git` installation, Compose env wiring, README/deploy docs, and API tests.
 - **自己设计了什么**:GitHub URL ingestion is not open by default. A public demo must set `WAYFINDER_ENABLE_GITHUB_INGESTION=1`, keep `WAYFINDER_GITHUB_REPO_ALLOWLIST` narrow, and use `WAYFINDER_GITHUB_MAX_FILES` to prevent large arbitrary repos from consuming clone/scan time.
 - **Codex 帮了哪里**:Codex implemented this backend launch-hardening slice after Haichuan approved Commit 12, reusing the existing Commit 1 resolver instead of inventing a second ingestion path.
-- **验证方式**:`uv run pytest tests/test_api.py -q`(14 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(163 passed,8 skipped);`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;`docker compose config`;`git diff --check`.
-- **问题记录**:GitHub ingestion still depends on the deploy environment having outbound GitHub access and enough ephemeral/cache disk. Local `docker build -f Dockerfile.api -t wayfinder-api:commit12 .` was attempted but stopped after hanging at base image metadata pull, before reaching Commit 12 Dockerfile layers.
-- **下一步**:Run full gates, commit/push Commit 12, then authorize Railway and verify a real allowlisted GitHub URL through the public dashboard.
+- **验证方式**:`uv run pytest tests/test_api.py -q`(14 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(163 passed,8 skipped);`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;`docker compose config`;`docker build -f Dockerfile.api -t wayfinder-api:commit12 .`(user rerun succeeded,11/11 finished,`apt-get install git` and `uv sync --frozen --no-dev` passed);`git diff --check`.
+- **问题记录**:GitHub ingestion still depends on the deploy environment having outbound GitHub access and enough ephemeral/cache disk. Codex's first local Docker attempt hung at base image metadata pull, but Haichuan reran the same API image build successfully and proved the Commit 12 Dockerfile layers pass.
+- **下一步**:Authorize Railway and verify a real allowlisted GitHub URL through the public dashboard.
 
 ### 2026-06-04 — Commit 11 closed — `frontend launch hardening`
 
