@@ -241,3 +241,25 @@
 - [x] Commit 3 deferred boundary: [`005_architect_mapper.md`](docs/design_notes/005_architect_mapper.md) — oversized repo sampling stays ingestion/resilience;AST parse warnings belong downstream, not in architecture mapping ✅ 2026-06-04
 - [x] Commit 4 degraded evidence contract: [`006_entry_explainer.md`](docs/design_notes/006_entry_explainer.md) — unsupported language, parse error, missing symbol, and tool-error degraded output rules ✅ 2026-06-04
 - [x] Commit 5 verifier contract: [`007_verifier_hitl.md`](docs/design_notes/007_verifier_hitl.md) — contradicted/unverified claim labels, timeout/malformed-output handling, and retry policy deferred to Commit 6 ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- Reflection is output repair, not fact generation. It can relabel/remove contradicted prose and surface limitations, but it must not create new repo facts or change verifier labels.
+- Resilience belongs at the cross-node boundary. `architect_mapper`, `entry_explainer`, and `verifier` keep local normalization;`resilience.py` checks the final draft against evidence labels and failure signals.
+- "Unverified" and "contradicted" are different product states. Missing tests, unsupported language, parse errors, unrelated suite failures, and timeouts remain unverified;direct selected-test failure is contradicted.
+- Timeout retry policy should be narrow. Commit 6 retries only validation timeouts once with an upgraded timeout;it does not retry invalid filters, skipped tests, unsupported frameworks, or malformed parser output.
+- Route correction can start as a state contract. `user_corrections=["intent=behavioral"]` is enough to prove the Supervisor can accept HITL intent correction before the Commit 7 API/runtime UI exists.
+
+### ⚠️ Gotchas Debugged
+
+- The first reflection reviewer was too broad:it treated old `missing_repo_path` placeholder errors as Commit 6 resilience errors and broke existing graph-output tests. The reviewer now only enforces the explicit Commit 6 failure-mode set.
+- `TypedDict` state copied through `dict(state)` needs a boundary cast when returned as `WayfinderState`;otherwise strict mypy sees `dict[str, object]`.
+- Broad failing test suites should not automatically contradict a claim. A failed observation contradicts only when its failure id matches the selected test target;unrelated failures become `unverified(test_suite_failed_unrelated)`.
+- The env-gated Project 5 integration failed once because `.venv` had a corrupt `beartype` install, not because of Commit 6 logic. Reinstalling `beartype` restored FastMCP server imports.
+
+### 💼 Interview Soundbites
+
+- "I made the reflection loop bounded and evidence-driven:it only repairs final prose when verifier labels or normalized errors show the draft is unsafe."
+- "The resilience layer keeps failure modes visible to the user:oversized repos, unsupported language, AST parse errors, no tests, unrelated suite failures, misroutes, hallucinated symbols, and validation timeouts all produce explicit limitations."
+- "I separated failed tests from contradictions. A direct selected-test failure can contradict a claim, but a broad unrelated suite failure only means the claim is unverified."
+- "The timeout policy is conservative:retry once with a larger timeout, then mark validation timed out rather than hiding the uncertainty."

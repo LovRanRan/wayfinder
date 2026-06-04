@@ -42,6 +42,16 @@ def choose_next_agent(intent: Intent) -> AgentName:
 
 def build_route_decision(state: WayfinderState) -> RouteDecision:
     """Build the state-attached routing decision used by the Supervisor node."""
+    corrected_intent = _intent_from_user_corrections(state.get("user_corrections", []))
+    if corrected_intent is not None:
+        return {
+            "intent": corrected_intent,
+            "next_agent": choose_next_agent(corrected_intent),
+            "source": "user_correction",
+            "reason": "accepted user HITL route correction",
+            "needs_human_review": False,
+        }
+
     intent = classify_intent(state)
     next_agent = choose_next_agent(intent)
 
@@ -97,3 +107,12 @@ def parse_llm_route_decision(raw_response: str) -> RouteDecision:
         "reason": reason,
         "needs_human_review": False,
     }
+
+
+def _intent_from_user_corrections(corrections: list[str]) -> Intent | None:
+    for correction in reversed(corrections):
+        lowered = correction.lower()
+        for intent in _SUPPORTED_INTENTS:
+            if f"intent={intent}" in lowered or f"intent: {intent}" in lowered:
+                return cast(Intent, intent)
+    return None

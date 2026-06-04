@@ -58,6 +58,25 @@ class FakeVerifierRunner:
         )
 
 
+class SequencedVerifierRunner:
+    def __init__(self, observations: list[VerifierRunObservation]) -> None:
+        self.observations = observations
+        self.requests: list[VerifierRunRequest] = []
+
+    def run_test(self, request: VerifierRunRequest) -> VerifierRunObservation:
+        self.requests.append(request)
+        observation = self.observations.pop(0)
+        return VerifierRunObservation(
+            test_ref=request.test_ref,
+            status=observation.status,
+            output=observation.output,
+            passed=observation.passed,
+            failed=observation.failed,
+            skipped=observation.skipped,
+            failures=observation.failures,
+        )
+
+
 def _repo_handle(tmp_path: Path) -> RepoHandle:
     return RepoHandle(
         source=RepoSource(kind="local", original_ref=str(tmp_path)),
@@ -247,6 +266,95 @@ def test_verifier_state_from_state_records_timeout_as_unverified(tmp_path: Path)
     assert result["unverified_claims"][0]["status"] == "unverified"
     assert result["test_results"]["test-0"]["status"] == "timed_out"
     assert result["errors"][0]["error_type"] == "validation_timed_out"
+
+
+def test_verifier_retries_timeout_once_and_can_recover(tmp_path: Path) -> None:
+    runner = SequencedVerifierRunner(
+        [
+            VerifierRunObservation(
+                test_ref="test-0",
+                status="timed_out",
+                output="test command timed out",
+            ),
+            VerifierRunObservation(
+                test_ref="test-0",
+                status="passed",
+                output="1 passed",
+                passed=1,
+            ),
+        ]
+    )
+
+    result = verifier_state_from_state(
+        {
+            "repo_handle": _repo_handle(tmp_path),
+            "pending_claims": [_claim()],
+        },
+        test_runner=runner,
+        approval_decision={"action": "approve"},
+    )
+
+    assert len(runner.requests) == 2
+    assert runner.requests[1].timeout_seconds > runner.requests[0].timeout_seconds
+    assert result["verified_claims"][0]["status"] == "verified"
+    assert result["errors"] == []
+
+
+def test_verifier_retry_timeout_still_unverified(tmp_path: Path) -> None:
+    runner = SequencedVerifierRunner(
+        [
+            VerifierRunObservation(
+                test_ref="test-0",
+                status="timed_out",
+                output="first timeout",
+            ),
+            VerifierRunObservation(
+                test_ref="test-0",
+                status="timed_out",
+                output="second timeout",
+            ),
+        ]
+    )
+
+    result = verifier_state_from_state(
+        {
+            "repo_handle": _repo_handle(tmp_path),
+            "pending_claims": [_claim()],
+        },
+        test_runner=runner,
+        approval_decision={"action": "approve"},
+    )
+
+    assert len(runner.requests) == 2
+    assert result["unverified_claims"][0]["status"] == "unverified"
+    assert result["errors"][0]["error_type"] == "validation_timed_out"
+
+
+def test_verifier_marks_unrelated_suite_failure_unverified(tmp_path: Path) -> None:
+    runner = SequencedVerifierRunner(
+        [
+            VerifierRunObservation(
+                test_ref="test-0",
+                status="failed",
+                output="unrelated test failed",
+                failed=1,
+                failures=("tests/test_other.py::test_unrelated",),
+            ),
+        ]
+    )
+
+    result = verifier_state_from_state(
+        {
+            "repo_handle": _repo_handle(tmp_path),
+            "pending_claims": [_claim()],
+        },
+        test_runner=runner,
+        approval_decision={"action": "approve"},
+    )
+
+    assert result["contradicted_claims"] == []
+    assert result["unverified_claims"][0]["status"] == "unverified"
+    assert "test_suite_failed_unrelated" in result["partial_summaries"]["verifier"]
 
 
 def test_verifier_state_from_state_handles_missing_repo_path() -> None:

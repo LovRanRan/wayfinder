@@ -369,7 +369,7 @@ def verification_state_from_test_results(
             observation,
             claim_ref=",".join(request.claim_refs),
         )
-        status = _claim_status_from_observation(observation)
+        status = _claim_status_from_observation(observation, request)
         for claim_ref in request.claim_refs:
             claim = _claim_with_status(claims_by_ref[claim_ref], status)
             if status == "verified":
@@ -378,9 +378,12 @@ def verification_state_from_test_results(
                 contradicted_claims.append(claim)
             else:
                 unverified_claims.append(claim)
-                summary_reasons[claim_ref] = _unverified_reason_from_observation(observation)
+                summary_reasons[claim_ref] = _unverified_reason_from_observation(
+                    observation,
+                    request,
+                )
 
-        error = _error_from_observation(observation)
+        error = _error_from_observation(observation, request)
         if error is not None:
             result_errors.append(error)
 
@@ -460,13 +463,14 @@ def verifier_state_from_state(
         )
 
     runner = test_runner or UnavailableTestRunner()
-    observations = {
-        request.test_ref: runner.run_test(request) for request in approved_plan.requests
-    }
+    observations, executed_requests = _run_requests_with_timeout_retry(
+        runner,
+        approved_plan.requests,
+    )
     return verification_state_from_test_results(
         approved_plan.claims_by_ref,
         observations,
-        approved_plan.requests,
+        executed_requests,
         existing_partial_summaries=partial_summaries,
         initial_unverified_claims=approved_plan.unverified_claims,
         initial_unverified_reasons=approved_plan.unverified_reasons,
@@ -781,11 +785,71 @@ def _failure_ids(failures: object) -> list[str]:
     return result
 
 
-def _claim_status_from_observation(observation: TestRunObservation) -> ClaimStatus:
+def _run_requests_with_timeout_retry(
+    runner: TestRunner,
+    requests: Sequence[TestRunRequest],
+) -> tuple[dict[str, TestRunObservation], tuple[TestRunRequest, ...]]:
+    observations: dict[str, TestRunObservation] = {}
+    executed_requests: list[TestRunRequest] = []
+    for request in requests:
+        observation = runner.run_test(request)
+        final_request = request
+        if observation.status == "timed_out":
+            retry_request = replace(
+                request,
+                timeout_seconds=request.timeout_seconds * 2,
+                estimated_runtime_seconds=int(request.timeout_seconds * 2),
+            )
+            observation = runner.run_test(retry_request)
+            final_request = retry_request
+
+        observations[request.test_ref] = observation
+        executed_requests.append(final_request)
+
+    return observations, tuple(executed_requests)
+
+
+def _claim_status_from_observation(
+    observation: TestRunObservation,
+    request: TestRunRequest,
+) -> ClaimStatus:
     if observation.status == "passed":
         return "verified"
     if observation.status == "failed":
-        return "contradicted"
+        if _failed_observation_matches_request(observation, request):
+            return "contradicted"
+        return "unverified"
+    return "unverified"
+
+
+def _failed_observation_matches_request(
+    observation: TestRunObservation,
+    request: TestRunRequest,
+) -> bool:
+    if not observation.failures:
+        return True
+    normalized_filter = request.test_filter.removeprefix("jest:")
+    return any(
+        normalized_filter in failure or failure in normalized_filter
+        for failure in observation.failures
+    )
+
+
+def _unverified_reason_from_observation(
+    observation: TestRunObservation,
+    request: TestRunRequest,
+) -> str:
+    if observation.status == "failed" and not _failed_observation_matches_request(
+        observation,
+        request,
+    ):
+        return "test_suite_failed_unrelated"
+    if observation.status == "timed_out":
+        return "validation_timed_out"
+    if observation.status == "malformed":
+        return "malformed_test_output"
+    if observation.status == "tool_error":
+        return "test_runner_unavailable"
     return "unverified"
 
 
@@ -807,17 +871,21 @@ def _test_result_from_observation(
     return {"status": status, "output": observation.output, "claim_ref": claim_ref}
 
 
-def _unverified_reason_from_observation(observation: TestRunObservation) -> str:
-    if observation.status == "timed_out":
-        return "validation_timed_out"
-    if observation.status == "malformed":
-        return "malformed_test_output"
-    if observation.status == "tool_error":
-        return "test_runner_unavailable"
-    return "unverified"
+def _error_from_observation(
+    observation: TestRunObservation,
+    request: TestRunRequest,
+) -> GraphError | None:
+    if observation.status == "failed" and not _failed_observation_matches_request(
+        observation,
+        request,
+    ):
+        return {
+            "node": "verifier",
+            "error_type": "test_suite_failed_unrelated",
+            "message": observation.output,
+            "retryable": False,
+        }
 
-
-def _error_from_observation(observation: TestRunObservation) -> GraphError | None:
     if observation.status not in ("timed_out", "malformed", "tool_error"):
         return None
     error_type_by_status: dict[ObservationStatus, str] = {

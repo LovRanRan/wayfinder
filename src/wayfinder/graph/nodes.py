@@ -22,6 +22,7 @@ from wayfinder.graph.entry import (
 from wayfinder.graph.entry import (
     repo_path_from_state as entry_repo_path_from_state,
 )
+from wayfinder.graph.resilience import apply_resilience_to_final_output
 from wayfinder.graph.routing import build_route_decision
 from wayfinder.graph.state import WayfinderState
 from wayfinder.graph.verifier import TestRunner, verifier_state_from_state
@@ -100,23 +101,21 @@ def final_writer_node(state: WayfinderState) -> WayfinderState:
         verification_section = (
             f"\n\n{verifier_summary}" if verifier_summary is not None else ""
         )
-        return {
-            "final_output": (
+        return apply_resilience_to_final_output(
+            state,
+            (
                 f"Entry explanation for {repo_ref}: {query}\n\n"
                 f"{entry_summary}{verification_section}"
             ),
-            "next_agent": None,
-        }
+        )
 
     if verifier_summary is not None:
-        return {
-            "final_output": (
-                f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}"
-            ),
-            "next_agent": None,
-        }
+        return apply_resilience_to_final_output(
+            state,
+            f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}",
+        )
 
-    return {
-        "final_output": f"Placeholder final output for {repo_ref}: {query}",
-        "next_agent": None,
-    }
+    return apply_resilience_to_final_output(
+        state,
+        f"Placeholder final output for {repo_ref}: {query}",
+    )

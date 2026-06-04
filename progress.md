@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [/] **Commit 6** — Reflection loop + resilience layer design complete; skeleton pending |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **5 / 11 done** · ship **0 / 8 done** |
-| **Blocker** | none;Commit 6 kickoff sources and resilience/reflection design note are captured. |
-| **Last Activity** | 2026-06-04 · Completed Commit 6 kickoff gate and `docs/design_notes/008_reflection_resilience.md`. |
+| **Current Commit** | [ ] **Commit 7** — FastAPI runtime + observability kickoff pending |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **6 / 11 done** · ship **0 / 8 done** |
+| **Blocker** | none;Commit 6 reflection/resilience layer closed with tests and real Project 5 integration passing. |
+| **Last Activity** | 2026-06-04 · Closed Commit 6 reflection loop + resilience layer. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Start Commit 6 implementation from the design note:bounded reflection guard first, then resilience fault-injection tests. |
-| **Next Action** | Haichuan writes the minimal `resilience.py` / reflection-guard skeleton and first failing tests, or explicitly delegates implementation to Codex. |
+| **Today's North Star** | Prepare Commit 7:API job lifecycle, status/refine persistence, and observability hooks before dashboard/deploy. |
+| **Next Action** | Run Commit 7 kickoff gate:read FastAPI runtime / LangSmith tracing materials, capture sources in `LEARNINGS.md`, then write runtime/observability design note. |
 
 ---
 
@@ -238,18 +238,18 @@ Guided design mode:
   - [x] Final pre-output HITL summary shows X verified / Y unverified / Z contradicted ✅ 2026-06-04
   - [x] Tests cover verified, unverified(no tests), contradicted, skipped-by-user, and modified test filter paths ✅ 2026-06-04
 
-- [ ] **Commit 6 — Reflection loop + resilience layer**
+- [x] **Commit 6 — Reflection loop + resilience layer** ✅ 2026-06-04
   - [x] Design note for bounded reflection, eight failure modes, and Commit 3 deferred resilience scope ✅ 2026-06-04
-  - [ ] Reflection self-check rewrites final output when `contradicted_claims` exist:generate -> verify -> rewrite, max 2 iterations
-  - [ ] Failure mode 1:repo >10k files -> sampling + user confirmation
-  - [ ] Failure mode 2:unsupported language -> filename/comment heuristic + verifier skipped
-  - [ ] Failure mode 3:AST parse error -> skip file + flag in final output
-  - [ ] Failure mode 4:no tests or all tests fail -> claim unverified(no test coverage)
-  - [ ] Failure mode 5:Supervisor intent misclassification -> HITL correction
-  - [ ] Failure mode 6:LLM hallucinated symbol -> AST validation hard gate
-  - [ ] Failure mode 7:reflection loop infinite -> hard cap 2 + abort with explanation
-  - [ ] Failure mode 8:test timeout / sandbox kill -> retry once + upgraded timeout;still failing becomes validation timed out
-  - [ ] Fault injection tests cover mock timeout, mock parse error, mock supervisor hallucination, reflection cap
+  - [x] Reflection self-check rewrites final output when `contradicted_claims` exist:generate -> verify -> rewrite, max 2 iterations ✅ 2026-06-04
+  - [x] Failure mode 1:repo >10k files -> sampling / user-confirmation requirement surfaced as final limitation ✅ 2026-06-04
+  - [x] Failure mode 2:unsupported language -> degraded limitation + verifier skipped/unverified behavior ✅ 2026-06-04
+  - [x] Failure mode 3:AST parse error -> skip symbol certainty + flag in final output ✅ 2026-06-04
+  - [x] Failure mode 4:no tests or all tests fail -> claim unverified(no test coverage / unrelated suite failure) ✅ 2026-06-04
+  - [x] Failure mode 5:Supervisor intent misclassification -> HITL/user correction route contract ✅ 2026-06-04
+  - [x] Failure mode 6:LLM hallucinated symbol -> AST validation hard gate preserved into final output ✅ 2026-06-04
+  - [x] Failure mode 7:reflection loop infinite -> hard cap 2 + abort with explanation ✅ 2026-06-04
+  - [x] Failure mode 8:test timeout / sandbox kill -> retry once + upgraded timeout;still failing becomes validation timed out ✅ 2026-06-04
+  - [x] Fault injection tests cover mock timeout, mock parse error, mock supervisor hallucination / missing symbol, reflection cap ✅ 2026-06-04
 
 - [ ] **Commit 7 — FastAPI runtime + observability**
   - [ ] FastAPI gateway exposes `/explain`, `/status/{job_id}`, `/refine/{job_id}`
@@ -306,6 +306,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 6 closed — `reflection resilience layer complete`
+
+- **做了什么**:Closed Commit 6. Added `src/wayfinder/graph/resilience.py`, wired `final_writer_node()` through resilience/reflection output repair, added user-correction routing support, and upgraded verifier timeout handling to retry once with a larger timeout.
+- **自己设计了什么**:Reflection only repairs unsafe final prose;it cannot invent facts or change verification labels. Resilience-relevant errors are limited to the explicit Commit 6 failure modes, so older placeholder/missing-path graph behavior stays stable.
+- **Codex 帮了哪里**:Codex implemented this commit directly after Haichuan explicitly delegated completion, added fault-injection tests for reflection cap, oversized repo limitation, unsupported/parse/missing-symbol output, route correction, timeout retry, and unrelated suite failure.
+- **验证方式**:`uv run pytest -q`(144 passed,8 skipped);`uv run ruff check .`;`uv run mypy src tests`;`WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_integration.py -q -rs`(6 passed).
+- **问题记录**:The first integration run failed because `.venv` had a corrupt `beartype` install that broke FastMCP server imports. `uv sync --extra dev --reinstall-package beartype` fixed the environment;no code change was needed.
+- **下一步**:Commit 7 kickoff gate:runtime/API job lifecycle, `/status` persistence, `/refine` resume semantics, and LangSmith observability design before code.
 
 ### 2026-06-04 — Commit 6 kickoff/design — `reflection resilience boundary locked`
 
