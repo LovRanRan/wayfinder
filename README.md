@@ -9,9 +9,9 @@ Verifier-backed codebase onboarding copilot for engineers entering an unfamiliar
 - Local API/runtime: ready
 - Dashboard: ready with live API fetch and seeded demo fallback
 - Project 5 MCP integration: env-gated integration passing locally
-- Docker/Compose: deploy-ready
-- Public live URL: pending external Railway or Cloud Run project link
-- Demo video: script ready, recording pending public URL
+- Docker/Compose: deploy-ready and Railway-smoked
+- Public live URL: deployed on Railway
+- Demo video: script ready, recording pending
 
 ## Why This Exists
 
@@ -247,8 +247,14 @@ Railway:
 
 ```bash
 railway link
-railway up
+railway up --service wayfinder-api
+railway up --service wayfinder-dashboard --path-as-root dashboard
 ```
+
+The current Railway services were first deployed with CLI snapshot deploys from
+commit `c1c09c4`. GitHub auto-deploy still needs the Railway UI GitHub repo
+connection; `railway add --repo LovRanRan/wayfinder` returned `Unauthorized`
+from the CLI in this account.
 
 Cloud Run:
 
@@ -263,7 +269,9 @@ gcloud run deploy wayfinder-api \
 Live URL:
 
 ```text
-pending: no Railway project is linked in this checkout yet
+Dashboard: https://wayfinder-dashboard-production-f8d7.up.railway.app
+API docs: https://wayfinder-api-production.up.railway.app/docs
+API health: https://wayfinder-api-production.up.railway.app/health
 ```
 
 ## Demo And Launch Assets

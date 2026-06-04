@@ -38,14 +38,57 @@ WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_i
 
 ## Railway
 
-This checkout is not linked to a Railway project yet.
+Current Railway project:
+
+- Project: `wayfinder`
+- Project URL: <https://railway.com/project/1bf2ff55-6588-4cd2-a144-d2ece69005a2>
+- API: <https://wayfinder-api-production.up.railway.app>
+- Dashboard: <https://wayfinder-dashboard-production-f8d7.up.railway.app>
+
+Current deploy mode is CLI snapshot deploy from commit `c1c09c4`. GitHub
+auto-deploy is still pending because `railway add --repo LovRanRan/wayfinder`
+returned `Unauthorized` from the CLI account path. Connect both services to the
+GitHub repo in the Railway UI before relying on push-to-deploy updates.
+
+Create or link the project:
 
 ```bash
 railway link
-railway up
 ```
 
-After deploy, set:
+API service:
+
+```bash
+railway add --service wayfinder-api
+railway variable set -s wayfinder-api --skip-deploys \
+  WAYFINDER_ARCHITECTURE_SCANNER=placeholder \
+  WAYFINDER_ENTRY_SCANNER=placeholder \
+  WAYFINDER_VERIFIER_RUNNER=placeholder \
+  WAYFINDER_ENABLE_GITHUB_INGESTION=1 \
+  WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinder \
+  WAYFINDER_GITHUB_MAX_FILES=10000 \
+  WAYFINDER_GITHUB_CACHE_ROOT=/tmp/wayfinder/repos
+railway up --service wayfinder-api --detach --message c1c09c4-railway-runtime-fix
+railway domain --service wayfinder-api --port 8000
+```
+
+Dashboard service:
+
+```bash
+railway add --service wayfinder-dashboard
+railway variable set -s wayfinder-dashboard --skip-deploys \
+  WAYFINDER_API_BASE_URL=https://wayfinder-api-production.up.railway.app \
+  NEXT_PUBLIC_WAYFINDER_API_BASE_URL=https://wayfinder-api-production.up.railway.app
+railway up --service wayfinder-dashboard --detach --path-as-root dashboard \
+  --message c1c09c4-railway-dashboard-path-root
+railway domain --service wayfinder-dashboard --port 3000
+```
+
+Do not deploy the dashboard from the repo root without `--path-as-root
+dashboard`; otherwise Railway reads the root `railway.json` and builds
+`Dockerfile.api`.
+
+For a new Railway project, set:
 
 ```bash
 WAYFINDER_API_BASE_URL=<internal-or-public-api-url-reachable-from-dashboard>
@@ -64,7 +107,16 @@ Keep `WAYFINDER_GITHUB_REPO_ALLOWLIST` narrow for a public portfolio demo. Use
 `*` only for a private trusted deployment; otherwise any visitor can make the
 API spend time cloning arbitrary GitHub repos.
 
-Then update the live URL section in `README.md`.
+Smoke checks:
+
+```bash
+curl -fsS https://wayfinder-api-production.up.railway.app/health
+curl -fsS 'https://wayfinder-api-production.up.railway.app/runs?limit=3'
+curl -fsSI https://wayfinder-dashboard-production-f8d7.up.railway.app
+curl -fsS -X POST https://wayfinder-dashboard-production-f8d7.up.railway.app/api/wayfinder/explain \
+  -H 'content-type: application/json' \
+  --data '{"repo_url":"https://github.com/langchain-ai/langchain","query":"Where should a new contributor start?"}'
+```
 
 ## Cloud Run
 

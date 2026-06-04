@@ -64,7 +64,7 @@ hard_deadline: 2026-09-15
 - [ ] `WayfinderState` / `Claim` schema、Supervisor routing、3 sub-agent、verifier loop 全部可测
 - [ ] 5 MCP integrations working,其中 3 个 Project 5 self-authored MCP 作为主力工具
 - [ ] 8 个 failure modes 都有 pytest / fault injection coverage
-- [ ] FastAPI gateway + Next.js dashboard + Docker Compose + deployed URL 可用
+- [x] FastAPI gateway + Next.js dashboard + Docker Compose + deployed URL 可用 ✅ 2026-06-04
 - [ ] LangSmith traces 可打开,README 有 trace / demo evidence
 - [ ] 3-min recursive demo video 完成
 - [ ] `DESIGN.md` / README / bilingual blog post 完成
@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 12** — backend GitHub ingestion launch hardening complete; external deploy/video still pending account actions |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **12 / 12 done** · ship **6 / 8 local artifacts done** |
-| **Blocker** | External deploy is not linked:Railway CLI reports no linked project, so public live URL and recorded demo video cannot be honestly marked complete yet. |
-| **Last Activity** | 2026-06-04 · Completed Commit 12 GitHub URL ingestion gate, allowlist/max-file guards, Docker git dependency, Compose/Railway env docs, API tests, and API Docker image build evidence. |
+| **Current Commit** | [x] **Commit 12 + Railway deploy evidence** — backend GitHub ingestion launch hardening is live on split API/dashboard Railway services |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **12 / 12 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | GitHub auto-deploy is not connected yet:CLI `railway add --repo LovRanRan/wayfinder` returned `Unauthorized`, so current Railway deploys are CLI snapshot deploys. Demo video is still pending. |
+| **Last Activity** | 2026-06-04 · Created Railway project `wayfinder`, deployed API and dashboard services, generated public domains, fixed API Docker runtime command, and verified dashboard-to-API GitHub URL flow. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Finish external ship evidence once Railway authorization is available. |
-| **Next Action** | Authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard/API env vars, verify `/health` and dashboard GitHub URL flow, then record the 3-min demo. |
+| **Today's North Star** | Record the 3-min demo and connect GitHub auto-deploy in Railway UI when repo integration is available. |
+| **Next Action** | In Railway UI, connect both services to `LovRanRan/wayfinder` for push-to-deploy;then record the 3-min recursive demo using the live dashboard URL. |
 
 ---
 
@@ -259,12 +259,12 @@ Guided design mode:
   - [x] Trace metadata includes agent_name, tool_name, mcp_server, tokens, latency, cost_usd, claim_id ✅ 2026-06-04
   - [x] API tests cover job lifecycle, status polling, refine/resume, error serialization, trace metadata hooks ✅ 2026-06-04
 
-- [/] **Commit 8 — Dashboard, deploy, and core Wayfinder ship evidence** ✅ local artifacts 2026-06-04
+- [/] **Commit 8 — Dashboard, deploy, and core Wayfinder ship evidence** ✅ local artifacts + Railway live URL 2026-06-04
   - [x] Next.js + shadcn dashboard replaces Streamlit plan and reads API status/results through `/runs?limit=10` with demo fallback ✅ 2026-06-04
   - [x] Dashboard panels:recent runs table(10 entries, click -> trace URL), per-agent latency P50/P95, token usage, cost overview, routing decision flow, verification stats, failure mode frequency ✅ 2026-06-04
   - [x] Docker Compose multi-service:api + 3 MCP servers + dashboard + sqlite-volume;MCP stdio servers are documented under explicit `mcp` profile ✅ 2026-06-04
   - [x] GitHub Actions CI for main app plus integration checks against the 3 MCP server packages/repos via sibling checkout layout ✅ 2026-06-04
-  - [/] Railway or Cloud Run deploy config is ready;live URL is pending because Railway CLI reports no linked project ✅ local config 2026-06-04
+  - [x] Railway split-service deploy is live:API `https://wayfinder-api-production.up.railway.app`, dashboard `https://wayfinder-dashboard-production-f8d7.up.railway.app` ✅ 2026-06-04
   - [x] README terminal pass:tagline, architecture, tech stack, quickstart, API spec, 3 curl examples, eval evidence, failure modes, lessons learned, hidden interview talking points ✅ 2026-06-04
   - [x] `DESIGN.md` v1.0 finalized with 8 failure modes and each mitigation ✅ 2026-06-04
   - [/] 3-min recursive demo script on pinned LangChain commit is ready;actual recording/link pending public URL ✅ script 2026-06-04
@@ -312,7 +312,7 @@ Guided design mode:
 - [ ] 全部 acceptance criteria `[x]`
 - [ ] README terminal pass:tagline + demo GIF + architecture + tech stack + quickstart + API spec + 3 curl examples + eval evidence + failure modes + lessons learned
 - [ ] `DESIGN.md` v1.0:3-agent architecture, state schema, routing, verifier strategy, 8 failure modes
-- [ ] Live deploy URL 写进 README
+- [x] Live deploy URL 写进 README ✅ 2026-06-04
 - [ ] 3-min recursive demo video 完成并链接
 - [ ] Bilingual blog post 发布
 - [ ] `final_checklist.md` Project 6 section 全部同步
@@ -323,6 +323,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Railway deploy live — `api + dashboard public URLs`
+
+- **做了什么**:Created Railway project `wayfinder`, added `wayfinder-api` and `wayfinder-dashboard` services, set API GitHub ingestion env vars and dashboard API URL env vars, generated public domains, and deployed split API/dashboard services.
+- **自己设计了什么**:Kept deploy evidence honest:current services are CLI snapshot deploys from commit `c1c09c4`;GitHub push-to-deploy still requires connecting both services to `LovRanRan/wayfinder` in Railway UI because `railway add --repo LovRanRan/wayfinder` returned `Unauthorized`.
+- **Codex 帮了哪里**:Codex debugged the first API Railway runtime failure, found `uv run` was re-resolving dev editable Project 5 dependencies, changed `Dockerfile.api` to call `.venv/bin/uvicorn`, committed and pushed `c1c09c4`, then redeployed.
+- **验证方式**:`docker build -f Dockerfile.api -t wayfinder-api:railway-runtime-fix .`;Railway API deployment `a83a6e47-0589-4547-8ab9-ce9799f4a0ae` `SUCCESS`;dashboard deployment `6c030e5d-c365-4f34-b251-17bc8c877280` `SUCCESS`;`curl -fsS https://wayfinder-api-production.up.railway.app/health`;`curl -fsSI https://wayfinder-dashboard-production-f8d7.up.railway.app`;dashboard proxy `POST /api/wayfinder/explain` against `https://github.com/langchain-ai/langchain`;status completed for job `a55c804f-cf57-4387-8d30-f7b67c0e2457`.
+- **问题记录**:Dashboard deploy must use `railway up --service wayfinder-dashboard --path-as-root dashboard`;otherwise Railway reads the root config and builds `Dockerfile.api`. GitHub auto-deploy remains a Railway account/UI integration task.
+- **下一步**:Connect GitHub auto-deploy in Railway UI and record the 3-min demo video.
 
 ### 2026-06-04 — Commit 12 closed — `backend GitHub ingestion launch hardening`
 

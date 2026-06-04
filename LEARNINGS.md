@@ -456,6 +456,7 @@
 - [x] API deploy image: [`Dockerfile.api`](Dockerfile.api) — container runtime dependencies required for `git clone` ✅ 2026-06-04
 - [x] Compose deploy contract: [`docker-compose.yml`](docker-compose.yml) — API env wiring for scanners, GitHub ingestion, allowlist, max files, and cache path ✅ 2026-06-04
 - [x] Project-local deploy notes: [`docs/deploy/README.md`](docs/deploy/README.md) — Railway API/dashboard env setup and public demo guardrails ✅ 2026-06-04
+- [x] Live Railway services: [dashboard](https://wayfinder-dashboard-production-f8d7.up.railway.app) / [API docs](https://wayfinder-api-production.up.railway.app/docs) — split-service public deployment and smoke evidence ✅ 2026-06-04
 
 ### 🧠 Concepts Internalized
 
@@ -463,6 +464,8 @@
 - Public demo ingestion needs an explicit trust boundary. `WAYFINDER_ENABLE_GITHUB_INGESTION=1` opts in, and `WAYFINDER_GITHUB_REPO_ALLOWLIST` keeps random visitors from cloning arbitrary repos.
 - File-count limits belong immediately after materialization. If a repo exceeds `WAYFINDER_GITHUB_MAX_FILES`, the API returns 413 before graph nodes scan it.
 - Deployment images must include operational dependencies. A Python API image that calls `git clone` must install `git`, or local tests pass while Railway fails at runtime.
+- Production container start commands should use the installed runtime, not package-manager launchers that may resync dev dependencies. Railway exposed this when `uv run` tried to resolve local editable Project 5 packages at container startup.
+- Railway CLI snapshot deploy is not the same as GitHub auto-deploy. The live services are deployed, but push-to-deploy still requires connecting the repo in Railway UI because the CLI repo integration returned `Unauthorized`.
 - Failing fast is better than placeholder ambiguity. Disabled or disallowed GitHub URLs now return explicit 403 errors instead of silently falling through to `missing_repo_path`.
 
 ### ⚠️ Gotchas Debugged
@@ -473,6 +476,8 @@
 - Docker Compose previously had no env surface for GitHub ingestion. Commit 12 adds the env keys but keeps `WAYFINDER_ENABLE_GITHUB_INGESTION=0` by default for local safety.
 - Local Docker image builds can still hang before the project Dockerfile executes if the base image metadata pull is slow. `docker compose config` validates the service/env contract, but live deploy remains the real image-build proof.
 - Haichuan reran `docker build -f Dockerfile.api -t wayfinder-api:commit12 .` successfully after the initial metadata-pull stall;the build finished 11/11, including `apt-get install git` and `uv sync --frozen --no-dev`.
+- Railway API startup first failed because `CMD ["uv", "run", ...]` re-entered dependency resolution and looked for `../project5/mcp-test-runner`. Calling `.venv/bin/uvicorn` uses the image's already-installed production environment.
+- Railway dashboard deployment must treat `dashboard/` as the archive root. Running `railway up` without `--path-as-root dashboard` built the root `Dockerfile.api` into the dashboard service.
 
 ### 💼 Interview Soundbites
 
@@ -480,3 +485,4 @@
 - "The API reuses the existing shallow-clone/cache resolver, so launch hardening did not create a parallel ingestion implementation."
 - "Disabled or disallowed GitHub URLs fail fast with 403 instead of producing confusing placeholder output."
 - "I added `git` to the API image because deploy readiness includes operational dependencies, not just Python imports."
+- "I deployed Wayfinder as split Railway services:FastAPI API plus Next.js dashboard, verified `/health`, `/docs`, dashboard home, proxy submit/status, and an allowlisted GitHub URL flow."
