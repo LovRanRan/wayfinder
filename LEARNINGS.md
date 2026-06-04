@@ -184,3 +184,43 @@
 - "The scanner collects deterministic evidence:definition, signature, references, call chain, and class hierarchy only when the symbol type calls for it. The LLM layer would only organize that evidence into prose."
 - "I explicitly distinguish empty evidence from negative evidence:an empty call-chain result is not proof a function is unused."
 - "The graph node stays simple because fake scanners, placeholder scanners, and real Project 5 MCP scanners all implement the same `EntryScanner` protocol."
+
+---
+
+## Commit 5 — Verifier + HITL Test Approval
+
+### 📚 Sources
+
+- [x] [LangGraph Interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) — dynamic `interrupt()` pause/resume, `Command(resume=...)`, checkpointer/thread id requirement, JSON-serializable payload rule, and resume re-execution caveat ✅ 2026-06-04
+- [x] [LangChain Human-in-the-loop middleware](https://docs.langchain.com/oss/python/langchain/human-in-the-loop) — approval policy shape, decision types (`approve` / `edit` / `reject` / `respond`), ordered decisions, and tool-call review lifecycle ✅ 2026-06-04
+- [x] Project-local tracker: [`progress.md`](progress.md) Commit 5 roadmap — claim extraction, verifier risk policy, pre-test approval, final verification summary, and required test paths ✅ 2026-06-04
+- [x] Project-local contract: [`DESIGN.md`](DESIGN.md) §§5-6 — verification labels, high-risk claim definition, HITL checkpoints, and pre-test approval payload requirements ✅ 2026-06-04
+- [x] Project 6 four-step method: [`project6_four_step_method.md`](../../planning/codebase_onboarding_theme/project6_four_step_method.md) — Haichuan-owned Claim / verification logic and test case design boundary ✅ 2026-06-04
+- [x] Project 5 `mcp-test-runner` README: [`README.md`](../project5/mcp-test-runner/README.md) — tool list, pytest/Jest execution scope, normalized result purpose, and v1 limitations ✅ 2026-06-04
+- [x] Project 5 `mcp-test-runner` server contract: [`server.py`](../project5/mcp-test-runner/src/mcp_test_runner/server.py) — `run_pytest`, `run_jest`, `run_single_test`, `parse_test_output`, and `get_coverage_summary` tool signatures ✅ 2026-06-04
+- [x] Project 5 `mcp-test-runner` schemas: [`schemas.py`](../project5/mcp-test-runner/src/mcp_test_runner/schemas.py) — normalized `TestRunResult`, `TestFailure`, and `CoverageSummary` shapes ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- `verifier` is a cross-cutting safety layer, not another narrator. AST-backed source locations, signatures, references, and call-chain facts stay with `entry_explainer`;runtime behavior and testable state/API claims move into `pending_claims`.
+- `unverified` is a product feature. No coverage, skipped execution, unsupported frameworks, timeouts, malformed output, and unrelated test failures should be visible to the user instead of hidden behind confident prose.
+- HITL should fire only when there is an executable test plan. If no safe pytest/Jest target exists, the claim becomes `unverified(no_test_coverage)` without interrupting the user.
+- LangGraph `interrupt()` belongs inside graph runtime, not direct helper calls. The verifier can build deterministic plans before the interrupt, but test execution must happen only after approve / skip / modify-filter input.
+- The current `Claim` schema can stay small for Commit 5. Stable `claim-0` refs live in HITL payloads and `test_results.claim_ref`;a persistent `Claim.id` can wait until a later schema revision proves it is needed.
+- Real Project 5 MCP integration is now reproducible through Project 6 dev path sources instead of relying on manually installed console scripts in `.venv`.
+
+### ⚠️ Gotchas Debugged
+
+- LangGraph `partial_summaries` is not deep-merged by default. The verifier must preserve existing `entry_explainer` summaries when it adds `partial_summaries["verifier"]`, or `final_writer` loses the explanation text.
+- Calling a node that reaches `interrupt()` outside a LangGraph runnable context raises `RuntimeError: Called get_config outside of a runnable context`. Direct unit tests should pass an explicit approval decision or use a no-test-plan path;interrupt/resume belongs in a compiled graph test with a checkpointer.
+- `uv sync --extra dev` removes manually installed Project 5 console scripts unless they are declared as dependencies. Project 6 now declares local editable Project 5 MCP packages under `[tool.uv.sources]`.
+- `mcp-test-runner` v1 runs pytest with `--json-report`;Project 6's dev environment must include `pytest-json-report`, or real test execution fails before verifier logic sees a usable result.
+- Real `mcp-test-runner` execution can return raw pytest stdout while normalized counts remain zero. Wayfinder treats successful exit status as enough smoke evidence for `status=passed`, while malformed/nonzero output stays unverified.
+- The first Commit 5 implementation should not run a full suite by default. A claim without explicit `test_id` or safe filter becomes unverified rather than launching broad tests with unrelated failure risk.
+
+### 💼 Interview Soundbites
+
+- "I made verification claim-first:only concrete runtime behavior, state mutation, command/test, numeric, or error-path statements become verifier claims."
+- "The verifier uses HITL as an execution gate. It shows the proposed pytest/Jest target, claim refs, and estimated runtime, then resumes with approve, skip, or modify-filter."
+- "I intentionally mark missing coverage and skipped tests as `unverified` instead of treating them as failures or silently accepting the claim."
+- "The real Project 5 `mcp-test-runner` is isolated behind a `TestRunner` protocol, so unit tests use fakes while env-gated integration proves the published MCP command path."

@@ -12,7 +12,9 @@ from wayfinder.graph.entry import entry_state_from_ast_result
 from wayfinder.graph.runtime import (
     build_project5_architecture_scanner,
     build_project5_entry_scanner,
+    build_project5_verifier_runner,
 )
+from wayfinder.graph.verifier import TestRunRequest as VerifierRunRequest
 from wayfinder.mcp.adapter import MCPAdapter, build_mcp_client
 from wayfinder.mcp.models import MCPServerConfig, MCPToolCall
 from wayfinder.mcp.project5 import build_project5_mcp_configs
@@ -194,3 +196,28 @@ def test_project5_entry_scanner_explains_fixture_symbol(tmp_path: Path) -> None:
     assert "ast_index" in state
     assert "partial_summaries" in state
     assert "Source citations:" in state["partial_summaries"]["entry_explainer"]
+
+
+def test_project5_verifier_runner_verifies_fixture_test(tmp_path: Path) -> None:
+    _skip_if_integration_disabled()
+
+    config = _config_by_name("test_runner")
+    _skip_if_command_missing(config)
+
+    repo_path = _write_fixture_repo(tmp_path)
+    runner = build_project5_verifier_runner()
+
+    observation = runner.run_test(
+        VerifierRunRequest(
+            test_ref="test-0",
+            claim_refs=("claim-0",),
+            framework="pytest",
+            tool_name="run_single_test",
+            path=str(repo_path),
+            test_filter="tests/test_main.py::test_greet",
+            timeout_seconds=10.0,
+            estimated_runtime_seconds=10,
+        )
+    )
+
+    assert observation.status == "passed", observation.output

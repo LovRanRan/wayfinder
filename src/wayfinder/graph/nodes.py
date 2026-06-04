@@ -24,6 +24,7 @@ from wayfinder.graph.entry import (
 )
 from wayfinder.graph.routing import build_route_decision
 from wayfinder.graph.state import WayfinderState
+from wayfinder.graph.verifier import TestRunner, verifier_state_from_state
 
 
 def supervisor_node(state: WayfinderState) -> WayfinderState:
@@ -76,13 +77,17 @@ def entry_explainer_node(state: WayfinderState) -> WayfinderState:
     return build_entry_explainer_node()(state)
 
 
+def build_verifier_node(
+    test_runner: TestRunner | None = None,
+) -> Callable[[WayfinderState], WayfinderState]:
+    def _node(state: WayfinderState) -> WayfinderState:
+        return verifier_state_from_state(state, test_runner=test_runner)
+
+    return _node
+
+
 def verifier_node(state: WayfinderState) -> WayfinderState:
-    return {
-        "partial_summaries": {
-            "verifier": "Placeholder verifier result; real test execution comes later."
-        },
-        "next_agent": "final_writer",
-    }
+    return build_verifier_node()(state)
 
 
 def final_writer_node(state: WayfinderState) -> WayfinderState:
@@ -90,9 +95,24 @@ def final_writer_node(state: WayfinderState) -> WayfinderState:
     repo_ref = state.get("repo_url", "unknown repo")
     partial_summaries = state.get("partial_summaries", {})
     entry_summary = partial_summaries.get("entry_explainer")
+    verifier_summary = partial_summaries.get("verifier")
     if entry_summary is not None:
+        verification_section = (
+            f"\n\n{verifier_summary}" if verifier_summary is not None else ""
+        )
         return {
-            "final_output": f"Entry explanation for {repo_ref}: {query}\n\n{entry_summary}",
+            "final_output": (
+                f"Entry explanation for {repo_ref}: {query}\n\n"
+                f"{entry_summary}{verification_section}"
+            ),
+            "next_agent": None,
+        }
+
+    if verifier_summary is not None:
+        return {
+            "final_output": (
+                f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}"
+            ),
             "next_agent": None,
         }
 

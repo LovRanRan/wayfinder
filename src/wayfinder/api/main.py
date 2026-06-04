@@ -10,7 +10,11 @@ from fastapi import FastAPI, HTTPException, status
 
 from wayfinder.api.schemas import ExplainRequest, RefineRequest, RunSummary
 from wayfinder.graph import build_graph
-from wayfinder.graph.runtime import architecture_scanner_from_env, entry_scanner_from_env
+from wayfinder.graph.runtime import (
+    architecture_scanner_from_env,
+    entry_scanner_from_env,
+    verifier_runner_from_env,
+)
 from wayfinder.graph.state import WayfinderState
 from wayfinder.ingestion.models import RepoHandle, RepoSource
 from wayfinder.ingestion.resolver import resolve_repo_source
@@ -47,10 +51,18 @@ def explain(request: ExplainRequest) -> RunSummary:
     try:
         architecture_scanner = architecture_scanner_from_env(os.environ)
         entry_scanner = entry_scanner_from_env(os.environ)
-        graph = build_graph(
-            architecture_scanner=architecture_scanner,
-            entry_scanner=entry_scanner,
-        )
+        verifier_runner = verifier_runner_from_env(os.environ)
+        if verifier_runner is None:
+            graph = build_graph(
+                architecture_scanner=architecture_scanner,
+                entry_scanner=entry_scanner,
+            )
+        else:
+            graph = build_graph(
+                architecture_scanner=architecture_scanner,
+                entry_scanner=entry_scanner,
+                verifier_runner=verifier_runner,
+            )
         graph_input = _graph_input_from_request(request)
         typed_result = graph.invoke(graph_input)
         completed = run.model_copy(

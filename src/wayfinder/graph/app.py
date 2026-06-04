@@ -3,18 +3,19 @@ from typing import Any, Protocol, cast
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import StateSnapshot
+from langgraph.types import Command, StateSnapshot
 
 from wayfinder.graph.architecture import ArchitectureScanner
 from wayfinder.graph.entry import EntryScanner
 from wayfinder.graph.nodes import (
     build_architect_mapper_node,
     build_entry_explainer_node,
+    build_verifier_node,
     final_writer_node,
     supervisor_node,
-    verifier_node,
 )
 from wayfinder.graph.state import AgentName, WayfinderState
+from wayfinder.graph.verifier import TestRunner
 
 GraphCheckpointer = bool | BaseCheckpointSaver[Any] | None
 
@@ -24,7 +25,7 @@ class WayfinderGraph(Protocol):
 
     def invoke(
         self,
-        input: WayfinderState,
+        input: WayfinderState | Command[object],
         config: RunnableConfig | None = None,
     ) -> WayfinderState: ...
 
@@ -46,6 +47,7 @@ def build_graph(
     *,
     architecture_scanner: ArchitectureScanner | None = None,
     entry_scanner: EntryScanner | None = None,
+    verifier_runner: TestRunner | None = None,
 ) -> WayfinderGraph:
     """Build the Commit 2 Supervisor graph skeleton."""
     # LangGraph's builder exposes incomplete type information to static checkers.
@@ -61,7 +63,7 @@ def build_graph(
         "entry_explainer",
         build_entry_explainer_node(entry_scanner),
     )
-    graph.add_node("verifier", verifier_node)
+    graph.add_node("verifier", build_verifier_node(verifier_runner))
     graph.add_node("final_writer", final_writer_node)
 
     graph.add_edge(START, "supervisor")
@@ -75,7 +77,7 @@ def build_graph(
         },
     )
     graph.add_edge("architect_mapper", "final_writer")
-    graph.add_edge("entry_explainer", "final_writer")
+    graph.add_edge("entry_explainer", "verifier")
     graph.add_edge("verifier", "final_writer")
     graph.add_edge("final_writer", END)
 

@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [ ] **Commit 5** — Verifier + HITL test approval kickoff pending |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **4 / 11 done** · ship **0 / 8 done** |
-| **Blocker** | none for Commit 5;real Project 5 MCP integration now passes after local install and runtime `PYTHONPATH` hardening. |
-| **Last Activity** | 2026-06-04 · Closed Commit 4 entry explanation + AST anti-hallucination path. |
+| **Current Commit** | [ ] **Commit 6** — Reflection loop + resilience layer kickoff pending |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **5 / 11 done** · ship **0 / 8 done** |
+| **Blocker** | none;Commit 5 verifier/HITL test approval closed with default + real Project 5 MCP integration passing. |
+| **Last Activity** | 2026-06-04 · Closed Commit 5 verifier + HITL test approval path. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Prepare Commit 5 verifier kickoff:turn high-risk entry explanations into testable claims and design HITL test approval before code. |
-| **Next Action** | Run Commit 5 kickoff gate:read verifier/HITL materials, capture sources in `LEARNINGS.md`, then write Haichuan-owned verifier design note before production code. |
+| **Today's North Star** | Prepare Commit 6:bounded reflection rewrite and resilience/fault-injection design before code. |
+| **Next Action** | Run Commit 6 kickoff gate:read reflection/resilience materials, capture sources in `LEARNINGS.md`, then write the Haichuan-owned reflection/resilience design note. |
 
 ---
 
@@ -228,14 +228,15 @@ Guided design mode:
   - [x] Behavioral query works through `/explain` on a real fixture repo ✅ 2026-06-04
   - [x] Tests cover existing symbol, missing symbol, parse error skip + flag, and unsupported language degraded answer ✅ 2026-06-04
 
-- [ ] **Commit 5 — Verifier + HITL test approval**
-  - [ ] Claim extractor turns high-risk output statements into `pending_claims`
-  - [ ] Risk policy triggers verifier only for concrete function names, numbers, behavior assertions, or testable runtime claims
-  - [ ] `verifier` uses `mcp-test-runner` to select/run minimal pytest or jest targets
-  - [ ] Low-risk claims skip verification; no-test-coverage claims become `unverified`, not silently accepted
-  - [ ] Pre-test HITL interrupt shows test list + estimated time;Command API supports approve / skip / modify_filter
-  - [ ] Final pre-output HITL summary shows X verified / Y unverified / Z contradicted
-  - [ ] Tests cover verified, unverified(no tests), contradicted, skipped-by-user, and modified test filter paths
+- [x] **Commit 5 — Verifier + HITL test approval** ✅ 2026-06-04
+  - [x] Design note for verifier/HITL boundary, claim policy, approval payload, failure handling, and test matrix ✅ 2026-06-04
+  - [x] Claim extractor turns high-risk output statements into `pending_claims` ✅ 2026-06-04
+  - [x] Risk policy triggers verifier only for concrete function names, numbers, behavior assertions, or testable runtime claims ✅ 2026-06-04
+  - [x] `verifier` uses `mcp-test-runner` to select/run minimal pytest or jest targets ✅ 2026-06-04
+  - [x] Low-risk claims skip verification;no-test-coverage claims become `unverified`, not silently accepted ✅ 2026-06-04
+  - [x] Pre-test HITL interrupt shows test list + estimated time;Command API supports approve / skip / modify_filter ✅ 2026-06-04
+  - [x] Final pre-output HITL summary shows X verified / Y unverified / Z contradicted ✅ 2026-06-04
+  - [x] Tests cover verified, unverified(no tests), contradicted, skipped-by-user, and modified test filter paths ✅ 2026-06-04
 
 - [ ] **Commit 6 — Reflection loop + resilience layer**
   - [ ] Reflection self-check rewrites final output when `contradicted_claims` exist:generate -> verify -> rewrite, max 2 iterations
@@ -304,6 +305,33 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 5 closed — `verifier HITL path complete`
+
+- **做了什么**:Closed Commit 5. Added `src/wayfinder/graph/verifier.py` with claim extraction, risk policy, test-plan construction, HITL approval payloads, approve / skip / modify-filter handling, fake/real `TestRunner` boundary, `MCPTestRunner`, and verification state shaping. Wired `entry_explainer -> verifier -> final_writer`, preserved existing summaries, added `verifier_runner` runtime/env injection, and made Project 5 MCP path dependencies reproducible through `pyproject.toml` / `uv.lock`.
+- **自己设计了什么**:Verifier only acts on high-risk runtime/testable claims;AST-proven symbol facts are not re-verified. Claims without safe tests become `unverified(no_test_coverage)`. HITL interrupts only when an executable test plan exists, so normal no-coverage paths do not block `/explain`.
+- **Codex 帮了哪里**:Codex implemented this commit directly after Haichuan explicitly delegated completion, added focused unit/graph/API/runtime/integration tests, debugged the real `mcp-test-runner` dependency boundary, and updated tracker/LEARNINGS.
+- **验证方式**:`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(135 passed,8 skipped);`WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_integration.py -q -rs`(6 passed).
+- **问题记录**:Project 5 `mcp-test-runner` v1 returns raw pytest output and can produce zero normalized counts even when the selected test exits successfully. Wayfinder treats exit-code-0 smoke evidence as `passed`, but nonzero/unparseable output remains unverified. This should be revisited in Project 5 or Commit 6 resilience if richer per-test evidence is needed.
+- **下一步**:Commit 6 kickoff gate:design bounded reflection rewrite for `contradicted_claims` and fault-injection handling for timeout, parse error, hallucinated symbol, no tests, and reflection cap.
+
+### 2026-06-04 — Commit 5 design — `verifier/HITL design note complete`
+
+- **做了什么**:Completed `docs/design_notes/007_verifier_hitl.md` at the user's explicit request. The note now defines Commit 5 boundary, problem, inputs/outputs, pending-claim extraction policy, risk policy, test selection, HITL approval/resume payloads, verification label rules, failure handling, test matrix, skeleton handoff, and interview explanation.
+- **自己设计了什么**:The design separates AST-proven facts from runtime-testable claims. Source locations, signatures, references, and static call-chain facts do not become verifier claims;runtime behavior, data transformation, error-path, command/test, numeric runtime, and file/path behavior statements do.
+- **Codex 帮了哪里**:Codex directly completed the design note because Haichuan explicitly asked for it, but did not touch production code or tests.
+- **验证方式**:Documentation-only update;next check is `git diff --check` on the edited docs/tracker.
+- **问题记录**:Current `Claim` schema has no persistent `id`;design keeps stable `claim-0` refs in HITL payloads and `test_results.claim_ref` for now instead of expanding schema prematurely.
+- **下一步**:Haichuan writes the minimal verifier skeleton from the design note;Codex reviews the skeleton before any implementation TODO is filled.
+
+### 2026-06-04 — Commit 5 kickoff — `verifier/HITL sources captured`
+
+- **做了什么**:Ran the Commit 5 kickoff gate. Read the current tracker/design contract, four-step ownership method, official LangGraph interrupt/HITL docs, and Project 5 `mcp-test-runner` README/server/schema contracts. Captured Commit 5 sources in `LEARNINGS.md` and started `docs/design_notes/007_verifier_hitl.md`.
+- **自己设计了什么**:No production design is finalized yet. The source-backed boundary is:verifier only runs for high-risk claims, test execution needs pre-test HITL approval, skipped/no-coverage claims become `unverified`, and LangGraph interrupts require checkpointer + stable `thread_id`.
+- **Codex 帮了哪里**:Codex read and organized materials, updated LEARNINGS/tracker, and created a Haichuan-owned design note skeleton with the first guided question.
+- **验证方式**:Documentation-only update;no production code or tests changed.
+- **问题记录**:Commit 5 cannot move into production code until Haichuan defines pending-claim extraction rules, risk policy, HITL approval payload, verifier outputs, and test matrix.
+- **下一步**:Haichuan answers the first guided question:which exact entry-explanation statements become `pending_claims` in Commit 5 v1?
 
 ### 2026-06-04 — Commit 4 closed — `entry explainer complete`
 

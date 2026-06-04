@@ -18,10 +18,19 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.27.0",
+  "lovranran-mcp-test-runner",
+  "mcp-ast-explorer",
+  "mcp-repo-mapper",
   "mypy>=1.13.0",
   "pytest>=8.3.0",
+  "pytest-json-report>=1.5.0",
   "ruff>=0.8.0",
 ]
+
+[tool.uv.sources]
+lovranran-mcp-test-runner = { path = "../project5/mcp-test-runner", editable = true }
+mcp-ast-explorer = { path = "../project5/mcp-ast-explorer", editable = true }
+mcp-repo-mapper = { path = "../project5/mcp-repo-mapper", editable = true }
 
 [build-system]
 requires = ["hatchling"]
