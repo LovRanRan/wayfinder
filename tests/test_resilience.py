@@ -115,6 +115,30 @@ def test_final_writer_surfaces_unsupported_language_and_parse_error() -> None:
     assert "Unverified claims" in result["final_output"]
 
 
+def test_reflection_accepts_partial_tool_error_limitation_text() -> None:
+    output, summary, errors = rewrite_final_output_with_reflection(
+        {
+            "errors": [
+                _error(
+                    "architecture_scan_tool_error",
+                    (
+                        "Error calling tool 'scan_repo': 'utf-8' codec can't decode "
+                        "byte 0xb1 in position 23: invalid start byte"
+                    ),
+                )
+            ],
+        },
+        (
+            "The repository scan failed with a tool error: 'utf-8' codec can't "
+            "decode byte 0xb1 in position 23: invalid start byte."
+        ),
+    )
+
+    assert "Reflection feedback" not in output
+    assert summary == "Reflection summary: no rewrite needed."
+    assert errors == []
+
+
 def test_final_writer_does_not_rewrite_missing_symbol_into_fact() -> None:
     result = apply_resilience_to_final_output(
         {

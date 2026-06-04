@@ -45,8 +45,7 @@ class DefaultReflectionReviewer:
         for error in state.get("errors", []):
             if not _is_resilience_relevant_error(error):
                 continue
-            message = error.get("message", "")
-            if message and message not in output:
+            if not _error_limitation_mentioned(output, error):
                 reasons.append(f"draft omits error limitation: {error['error_type']}")
 
         return ReflectionFeedback(is_safe=not reasons, reasons=tuple(reasons))
@@ -269,6 +268,36 @@ def _is_resilience_relevant_error(error: GraphError) -> bool:
         "test_suite_failed_unrelated",
         "reflection_cap_reached",
     }
+
+
+def _error_limitation_mentioned(output: str, error: GraphError) -> bool:
+    lowered_output = output.lower()
+    error_type = error["error_type"].lower()
+    if error_type in lowered_output:
+        return True
+
+    message = error.get("message", "")
+    if not message:
+        return True
+
+    lowered_message = message.lower()
+    if lowered_message in lowered_output:
+        return True
+
+    return any(
+        len(fragment) >= 20 and fragment.lower() in lowered_output
+        for fragment in _error_message_fragments(message)
+    )
+
+
+def _error_message_fragments(message: str) -> list[str]:
+    fragments = [message]
+    if ": " in message:
+        fragments.append(message.split(": ", 1)[1])
+        fragments.append(message.rsplit(": ", 1)[1])
+    if "'scan_repo': " in message:
+        fragments.append(message.split("'scan_repo': ", 1)[1])
+    return [fragment.strip() for fragment in fragments if fragment.strip()]
 
 
 def _has_error(errors: Sequence[Mapping[str, object]], error_type: str) -> bool:
