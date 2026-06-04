@@ -224,3 +224,20 @@
 - "The verifier uses HITL as an execution gate. It shows the proposed pytest/Jest target, claim refs, and estimated runtime, then resumes with approve, skip, or modify-filter."
 - "I intentionally mark missing coverage and skipped tests as `unverified` instead of treating them as failures or silently accepting the claim."
 - "The real Project 5 `mcp-test-runner` is isolated behind a `TestRunner` protocol, so unit tests use fakes while env-gated integration proves the published MCP command path."
+
+---
+
+## Commit 6 — Reflection Loop + Resilience Layer
+
+### 📚 Sources
+
+- [x] [LangGraph Fault tolerance](https://docs.langchain.com/oss/python/langgraph/fault-tolerance) — retry policy, timeout policy, error handlers, resume-safe failures, and `interrupt()` bypassing retry/error handlers ✅ 2026-06-04
+- [x] [Thinking in LangGraph](https://docs.langchain.com/oss/python/langgraph/thinking-in-langgraph) — error categories, retry vs loop-back vs interrupt strategy, and state-first node design ✅ 2026-06-04
+- [x] [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence) — checkpointer/thread semantics, pending writes, and fault-tolerant resume from super-step boundaries ✅ 2026-06-04
+- [x] [LangGraph Graph API](https://docs.langchain.com/oss/python/langgraph/use-graph-api) — loop termination, recursion limits, and explicit conditional edges for bounded loops ✅ 2026-06-04
+- [x] [Self-Refine: Iterative Refinement with Self-Feedback](https://arxiv.org/abs/2303.17651) — generate feedback then refine output iteratively at test time without training ✅ 2026-06-04
+- [x] [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) — turn failure feedback into verbal reflection memory for later attempts, especially coding-agent tasks ✅ 2026-06-04
+- [x] Project-local tracker: [`progress.md`](progress.md) Commit 6 roadmap — reflection cap, eight failure modes, and fault-injection requirements ✅ 2026-06-04
+- [x] Commit 3 deferred boundary: [`005_architect_mapper.md`](docs/design_notes/005_architect_mapper.md) — oversized repo sampling stays ingestion/resilience;AST parse warnings belong downstream, not in architecture mapping ✅ 2026-06-04
+- [x] Commit 4 degraded evidence contract: [`006_entry_explainer.md`](docs/design_notes/006_entry_explainer.md) — unsupported language, parse error, missing symbol, and tool-error degraded output rules ✅ 2026-06-04
+- [x] Commit 5 verifier contract: [`007_verifier_hitl.md`](docs/design_notes/007_verifier_hitl.md) — contradicted/unverified claim labels, timeout/malformed-output handling, and retry policy deferred to Commit 6 ✅ 2026-06-04

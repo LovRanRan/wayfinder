@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [ ] **Commit 6** — Reflection loop + resilience layer kickoff pending |
+| **Current Commit** | [/] **Commit 6** — Reflection loop + resilience layer design complete; skeleton pending |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **5 / 11 done** · ship **0 / 8 done** |
-| **Blocker** | none;Commit 5 verifier/HITL test approval closed with default + real Project 5 MCP integration passing. |
-| **Last Activity** | 2026-06-04 · Closed Commit 5 verifier + HITL test approval path. |
+| **Blocker** | none;Commit 6 kickoff sources and resilience/reflection design note are captured. |
+| **Last Activity** | 2026-06-04 · Completed Commit 6 kickoff gate and `docs/design_notes/008_reflection_resilience.md`. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Prepare Commit 6:bounded reflection rewrite and resilience/fault-injection design before code. |
-| **Next Action** | Run Commit 6 kickoff gate:read reflection/resilience materials, capture sources in `LEARNINGS.md`, then write the Haichuan-owned reflection/resilience design note. |
+| **Today's North Star** | Start Commit 6 implementation from the design note:bounded reflection guard first, then resilience fault-injection tests. |
+| **Next Action** | Haichuan writes the minimal `resilience.py` / reflection-guard skeleton and first failing tests, or explicitly delegates implementation to Codex. |
 
 ---
 
@@ -239,6 +239,7 @@ Guided design mode:
   - [x] Tests cover verified, unverified(no tests), contradicted, skipped-by-user, and modified test filter paths ✅ 2026-06-04
 
 - [ ] **Commit 6 — Reflection loop + resilience layer**
+  - [x] Design note for bounded reflection, eight failure modes, and Commit 3 deferred resilience scope ✅ 2026-06-04
   - [ ] Reflection self-check rewrites final output when `contradicted_claims` exist:generate -> verify -> rewrite, max 2 iterations
   - [ ] Failure mode 1:repo >10k files -> sampling + user confirmation
   - [ ] Failure mode 2:unsupported language -> filename/comment heuristic + verifier skipped
@@ -305,6 +306,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 6 kickoff/design — `reflection resilience boundary locked`
+
+- **做了什么**:Ran Commit 6 kickoff after deciding not to reopen Commit 3. Captured reflection/resilience sources in `LEARNINGS.md` and created `docs/design_notes/008_reflection_resilience.md`.
+- **自己设计了什么**:Commit 3 deferred items now fold into Commit 6 resilience:oversized repo sampling/user confirmation, unsupported-language limitations/verifier skipped behavior, and AST parse/tool-failure propagation into final output. Reflection is bounded output repair, not a new fact-generating agent.
+- **Codex 帮了哪里**:Codex read tracker/design context, checked official LangGraph fault-tolerance/persistence/loop docs plus Self-Refine/Reflexion background, and wrote the design note directly after Haichuan approved the recommended path.
+- **验证方式**:Documentation/tracker update only;no production code changed.
+- **问题记录**:Commit 6 should not start by changing graph topology. First implementation should prove behavior through small helpers/fault-injection tests;topology can stay wrapped in `final_writer` unless tests prove a separate node is needed.
+- **下一步**:Write the minimal resilience/reflection skeleton and first failing tests:contradicted-claim rewrite, reflection cap, oversized repo limitation, AST parse/tool error limitation, and timeout retry once.
 
 ### 2026-06-04 — Commit 5 closed — `verifier HITL path complete`
 
