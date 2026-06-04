@@ -1,0 +1,15 @@
+.git
+.github
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+*.pyc
+dashboard/.next
+dashboard/node_modules
+dashboard/.turbo
+node_modules
+dist
+build
+.DS_Store

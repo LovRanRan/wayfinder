@@ -7,7 +7,7 @@ from threading import RLock
 from typing import cast
 from uuid import uuid4
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, status
 from langgraph.checkpoint.memory import InMemorySaver
 
 from wayfinder.api.observability import (
@@ -40,6 +40,7 @@ class RunStore:
     def __init__(self) -> None:
         self._runs: dict[str, RunSummary] = {}
         self._graph_inputs: dict[str, WayfinderState] = {}
+        self._run_order: list[str] = []
         self._lock = RLock()
 
     def create(self, *, request: ExplainRequest, graph_input: WayfinderState) -> RunSummary:
@@ -58,11 +59,16 @@ class RunStore:
         with self._lock:
             self._runs[job_id] = run
             self._graph_inputs[job_id] = _copy_graph_input(graph_input)
+            self._run_order.insert(0, job_id)
         return run
 
     def get(self, job_id: str) -> RunSummary:
         with self._lock:
             return self._runs[job_id]
+
+    def list_recent(self, *, limit: int) -> list[RunSummary]:
+        with self._lock:
+            return [self._runs[job_id] for job_id in self._run_order[:limit]]
 
     def graph_input(self, job_id: str) -> WayfinderState:
         with self._lock:
@@ -164,6 +170,11 @@ _RUNS = RunStore()
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "wayfinder"}
+
+
+@app.get("/runs", response_model=list[RunSummary])
+def list_runs(limit: int = Query(default=10, ge=1, le=50)) -> list[RunSummary]:
+    return _RUNS.list_recent(limit=limit)
 
 
 @app.post("/explain", response_model=RunSummary, status_code=status.HTTP_202_ACCEPTED)

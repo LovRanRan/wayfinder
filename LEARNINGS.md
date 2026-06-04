@@ -303,3 +303,42 @@
 - "Observability starts as schema discipline:even local fake runs emit the same trace metadata keys the dashboard and eval harness will need later."
 - "I traced MCP tools at the adapter boundary, so all Project 5 server calls share one instrumentation policy instead of duplicating tracing code inside every node."
 - "I kept Commit 7 intentionally in-process with FastAPI BackgroundTasks;the production queue/deploy tradeoff is visible instead of hidden."
+
+---
+
+## Commit 8 — Dashboard, Deploy, And Core Ship Evidence
+
+### 📚 Sources
+
+- [x] [Next.js Environment Variables](https://nextjs.org/docs/app/guides/environment-variables) — runtime API base URL contract for dashboard server-side fetches ✅ 2026-06-04
+- [x] [Next.js `output: "standalone"`](https://nextjs.org/docs/app/api-reference/config/next-config-js/output) — standalone dashboard Docker image packaging ✅ 2026-06-04
+- [x] [Docker Compose file reference](https://docs.docker.com/reference/compose-file/) — service definitions, healthchecks, profiles, volumes, and dependency wiring ✅ 2026-06-04
+- [x] [GitHub Actions workflow syntax](https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions) — multi-job CI structure, defaults, and checkout paths ✅ 2026-06-04
+- [x] [Google Cloud Run deploy containers](https://cloud.google.com/run/docs/deploying) — container image deploy path and public service URL workflow ✅ 2026-06-04
+- [x] [Railway Dockerfile deploys](https://docs.railway.com/guides/dockerfiles) — Railway Dockerfile build contract and project-link requirement ✅ 2026-06-04
+- [x] Project-local runtime note: [`009_runtime_observability.md`](docs/design_notes/009_runtime_observability.md) — `/runs`, trace metadata, and dashboard/eval schema requirements ✅ 2026-06-04
+- [x] Project-local roadmap: [`progress.md`](progress.md) Commit 8 — dashboard, deploy, README, DESIGN v1, demo, blog, and ship-evidence requirements ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- A dashboard should consume the same run contract as the API, not a parallel mock-only schema. Commit 8 added `/runs` and transformed snake_case API payloads into a dashboard model.
+- Demo fallback data is useful only if it has the same shape as live API data. It keeps Docker/CI/demo inspectable while still making live API data the preferred path.
+- Deploy-ready is different from deployed. Dockerfiles, Compose, Railway config, and Cloud Build config make the repo deployable;without a linked Railway or Cloud Run project, a public URL cannot be honestly marked complete.
+- Project 5 MCP servers are stdio-first. Compose can document them under an explicit `mcp` profile, but API production wiring should not pretend they are HTTP sidecars.
+- CI has to recreate the local sibling Project 5 layout before running `uv sync --extra dev`, because Project 6's dev dependencies point to `../project5/...`.
+
+### ⚠️ Gotchas Debugged
+
+- Existing dashboard `node_modules` was corrupt and npm's default cache had root-owned files. Re-running `npm ci --cache /private/tmp/wayfinder-npm-cache` rebuilt dependencies without changing global cache ownership.
+- Next.js build should not require a live API. The page uses server-side fetch with no-store and falls back to seeded runs when `/runs` is unavailable or empty.
+- Railway CLI reported `No linked project found`;this is an external deploy state blocker, not a repo code failure.
+- GitHub Actions originally checked out only the Project 6 repo, which would break local editable Project 5 path dependencies. CI now checks out the three MCP repos into sibling paths first.
+- Next dev server hit local `EMFILE` watcher limits, but production `npm run build` passed and HTTP rendering returned 200.
+- Docker image builds hung at base image metadata pull and were canceled. `docker compose config` still validates the Compose contract;image build needs a working Docker registry pull path.
+
+### 💼 Interview Soundbites
+
+- "Commit 8 turned the project from backend-only evidence into a dashboarded product surface:recent runs, trace links, latency, cost, routing, verification stats, and failure modes."
+- "I added `/runs` because a dashboard should read a real API contract, not scrape internal state or rely only on mocks."
+- "I kept deploy evidence honest:the repo is Docker/Railway/Cloud Run ready, but I did not fabricate a public URL when Railway was not linked."
+- "The CI job recreates the actual Project 5/6 sibling layout, so integration tests exercise the same local editable MCP boundary as development."

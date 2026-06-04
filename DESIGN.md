@@ -1,135 +1,165 @@
-# wayfinder DESIGN v0
+# wayfinder DESIGN v1.0
 
 ## 1. Product Contract
 
-`wayfinder` is a codebase onboarding workflow for engineers entering an unfamiliar repository. Its job is to answer questions about architecture, entry points, call paths, and behavior while separating verified facts from assumptions.
+`wayfinder` is a verifier-backed codebase onboarding workflow. Given a repository and a question, it maps architecture, explains entry paths, verifies high-risk claims, and exposes the run through an inspectable API/dashboard surface.
 
-The primary demo target is a pinned commit of `langchain-ai/langchain`. The demo should show `wayfinder` explaining part of the ecosystem it depends on.
+The product promise is not "answer every code question confidently." The promise is:
 
-## 2. Architecture
+- ground architecture facts in repository scans;
+- ground symbol facts in AST evidence;
+- verify risky runtime claims with focused tests when possible;
+- label uncertainty explicitly;
+- make each run resumable and observable.
 
-`wayfinder` uses a LangGraph Supervisor coordinating three sub-agents.
+Primary demo target: a pinned commit of `langchain-ai/langchain`.
 
-| Agent | Main Tooling | Responsibility |
+## 2. Agent Architecture
+
+| Agent | Tooling | Responsibility |
 |---|---|---|
-| `architect_mapper` | `mcp-repo-mapper` | Map repo structure, frameworks, language breakdown, dependency graph, entry points, and architecture-level evidence. |
-| `entry_explainer` | `mcp-ast-explorer` | Explain key symbols, definitions, references, signatures, call chains, class relationships, and data flow from AST-backed evidence. |
-| `verifier` | `mcp-test-runner` | Verify high-risk claims with minimal relevant pytest or jest targets and label claims as `verified`, `unverified`, or `contradicted`. |
+| `supervisor` | LangGraph routing policy | Classify intent, choose the next agent, and accept user route corrections. |
+| `architect_mapper` | `mcp-repo-mapper` | Map repo structure, language breakdown, frameworks, dependency graph, and entry points. |
+| `entry_explainer` | `mcp-ast-explorer` | Explain definitions, signatures, references, call chains, class relationships, and AST-backed symbol evidence. |
+| `verifier` | `mcp-test-runner` | Verify high-risk claims with minimal pytest/Jest targets and produce claim labels. |
+| `final_writer` | local resilience layer | Assemble final output and repair unsafe prose based on verifier labels and errors. |
 
-Two community MCP servers can add context when useful:
+Project 5 MCP servers are the deterministic fact layer:
 
-- `arxiv-mcp` for research-code repositories or paper-backed projects.
-- `tavily-mcp` or GitHub search MCP for external discussion, issue context, or ecosystem context.
+- `mcp-repo-mapper`: structure and architecture primitives.
+- `mcp-ast-explorer`: Python AST symbol truth.
+- `mcp-test-runner`: bounded pytest/Jest execution and parser output.
 
-## 3. State Schema Sketch
+Community MCPs are supporting context only. They do not replace Project 5 as the primary evidence path.
 
-`WayfinderState` should contain:
+## 3. State Schema
 
-- `query`: original user question.
-- `repo_url`: target repository URL or local path.
-- `intent`: `architectural`, `runtime`, `behavioral`, `debug`, or `mixed`.
-- `repo_metadata`: cloned path, language breakdown, framework evidence, file counts, selected sampling policy.
-- `module_dep_graph`: dependency graph from `architect_mapper`.
-- `entry_points`: candidate entry files and scripts.
-- `ast_index`: symbol index or symbol evidence from `entry_explainer`.
-- `pending_claims`: claims waiting for verification.
-- `verified_claims`: claims verified by tests or hard evidence.
-- `unverified_claims`: claims that could not be tested or lacked coverage.
-- `contradicted_claims`: claims disproved by tests or tool evidence.
-- `test_results`: normalized test output keyed by test id and claim id.
-- `partial_summaries`: per-agent intermediate summaries.
-- `next_agent`: supervisor routing target.
-- `user_corrections`: HITL inputs and route corrections.
-- `final_output`: final answer or report.
-- `messages`: LangGraph message history.
+`WayfinderState` contains:
 
-`Claim` should contain:
+- `query`
+- `repo_url`
+- `repo_handle`
+- `thread_id`
+- `intent`
+- `route_decision`
+- `next_agent`
+- `repo_metadata`
+- `module_dep_graph`
+- `entry_points`
+- `ast_index`
+- `pending_claims`
+- `verified_claims`
+- `unverified_claims`
+- `contradicted_claims`
+- `test_results`
+- `partial_summaries`
+- `user_corrections`
+- `errors`
+- `final_output`
+- `messages`
 
-- `text`: the claim text.
-- `source_agent`: which agent produced the claim.
-- `risk_level`: `low`, `medium`, or `high`.
-- `test_strategy`: `existing_test`, `generate_test`, or `skip`.
-- `test_id`: selected test id when applicable.
+`Claim` contains:
+
+- `text`
+- `source_agent`
+- `risk_level`
+- `test_strategy`
+- `test_id`
+- `status`
 
 ## 4. Routing Model
 
-Routing uses deterministic rules first and LLM fallback second.
+Routing starts deterministic:
 
-Deterministic examples:
+- architecture / structure / module / overview -> `architect_mapper`
+- runtime / run / start / entrypoint -> `entry_explainer`
+- behavior / logic / flow / function -> `entry_explainer`
+- bug / error / traceback / failing -> `entry_explainer`
+- unclear mixed query -> safe default architecture path
 
-- Architecture / overview questions route to `architect_mapper`, then optionally `entry_explainer`.
-- Runtime / quickstart questions route to `entry_explainer`, then `verifier` for smoke-testable claims.
-- Behavior questions route to `entry_explainer`, then `verifier` for concrete behavior assertions.
-- Debug questions route to `entry_explainer` plus `verifier` to reproduce or isolate failing behavior.
-- Mixed questions route through the supervisor in stages and preserve intermediate summaries.
+User corrections are state-level inputs:
 
-Fallback LLM routing must return structured JSON. Invalid routing JSON is rejected and recovered with a default safe route plus HITL confirmation.
+```text
+user_corrections=["intent=behavioral"]
+```
+
+The supervisor reads the latest correction and resumes with the corrected intent.
 
 ## 5. Verification Strategy
 
-Verifier runs only for high-risk claims. High-risk means the claim includes concrete function names, numeric values, runtime behavior, file paths, testable data transformations, or statements that can be checked with existing tests.
+Verifier acts only on high-risk claims.
 
-Low-risk orientation text can skip verification. Skipped claims should not be counted as verified.
+High-risk examples:
 
-Verification labels:
+- concrete runtime behavior;
+- data transformation;
+- state mutation;
+- numeric counts;
+- error-path behavior;
+- test/command claims;
+- file/path behavior that can be executed.
 
-- `verified`: relevant test or tool evidence supports the claim.
-- `unverified`: no relevant test exists, coverage is unavailable, or the user skipped test execution.
-- `contradicted`: test or tool evidence disproves the claim.
+Labels:
 
-When `contradicted_claims` exist, the graph runs a bounded reflection loop:
+- `verified`: relevant test/tool evidence supports the claim.
+- `unverified`: no safe test, no coverage, timeout, malformed output, unsupported framework/language, user skip, or unrelated suite failure.
+- `contradicted`: selected relevant test directly conflicts with the claim.
 
-1. Generate or rewrite the explanation.
-2. Verify high-risk rewritten claims.
-3. Stop after a maximum of two iterations.
-
-If the contradiction remains, the final output must say so directly.
+Verifier uses HITL only when there is an executable test plan. If no safe test exists, it marks claims unverified without interrupting.
 
 ## 6. HITL Checkpoints
 
-HITL should protect high-risk boundaries, not interrupt every step.
+Current implemented checkpoint:
 
-Required checkpoints:
+- pre-test verifier approval via LangGraph `interrupt()` and `Command(resume=...)`.
 
-- Intent confirmation after initial routing.
-- Test execution approval before verifier runs commands.
-- Final verification summary before producing the polished explanation.
+Supported decisions:
 
-Pre-test approval must show:
+- approve;
+- skip;
+- modify filter.
 
-- proposed test command or filter;
-- estimated runtime if available;
-- claim ids being checked;
-- available actions: approve, skip, modify filter.
+The graph requires a checkpointer and stable `thread_id` for HITL resume.
+
+Commit 7/8 API exposes a user correction path through `/refine/{job_id}`, which reuses the same `thread_id`.
 
 ## 7. Resilience Modes
 
-The v1 system must cover these failure modes.
-
-1. Repo too large: if repo has more than 10k files, propose a sampling plan and require user confirmation.
-2. Unsupported language: fall back to filename/comment heuristics and skip verifier with an explicit label.
-3. AST parse error: skip the broken file, flag it, and keep processing other files.
-4. No tests or all tests fail: mark claims as `unverified (no test coverage)` instead of pretending success.
-5. Supervisor misclassification: allow HITL correction and resume the graph.
-6. Hallucinated function or class: reject via AST validation gate before final output.
-7. Reflection loop infinite: hard cap at two iterations and abort with an explanation.
-8. Test timeout or sandbox kill: retry once with upgraded timeout; if still failing, mark as `validation timed out`.
-
-Fault injection tests should cover timeout, parse error, hallucinated symbol, supervisor misroute, no tests, and reflection cap.
+| Failure Mode | Current Mitigation |
+|---|---|
+| Repo too large | Sampling/user-confirmation requirement is surfaced as a final limitation. |
+| Unsupported language | Degraded output keeps the unsupported-language limitation and verifier leaves related claims unverified. |
+| AST parse error | Entry explanation skips symbol certainty, preserves parse/tool error in state, and final output names the limitation. |
+| No tests or all tests fail | No coverage and unrelated suite failures become `unverified`, not `verified` or `contradicted`. |
+| Supervisor misclassification | `user_corrections` can override intent; `/refine` persists correction and re-enters the graph. |
+| Hallucinated function/class | AST validation returns missing-symbol evidence; final output cannot invent nearby symbols. |
+| Reflection loop infinite | Reflection cap is two rewrites; cap reached is surfaced instead of looping. |
+| Test timeout or sandbox kill | Verifier retries once with larger timeout; repeated timeout becomes `validation_timed_out`. |
 
 ## 8. Runtime Surface
 
 FastAPI endpoints:
 
-- `POST /explain`: start a run from repo URL and question.
-- `GET /status/{job_id}`: return current node, status, partial summaries, verification counts, errors, and final output if done.
-- `POST /refine/{job_id}`: accept user correction or follow-up and resume from checkpoint.
+- `GET /health`
+- `GET /runs?limit=10`
+- `POST /explain`
+- `GET /status/{job_id}`
+- `POST /refine/{job_id}`
 
-State should be persisted through SQLite checkpointing so interrupted runs can resume.
+`POST /explain` creates a queued job and schedules graph execution with FastAPI `BackgroundTasks`.
+
+The API stores:
+
+- public `RunSummary`;
+- internal graph input by `job_id`;
+- process-local checkpointer;
+- trace metadata.
+
+`job_id` is the graph `thread_id`.
+
+Production caveat: current runtime is process-local. Multi-worker deployment needs a durable run store and checkpointer.
 
 ## 9. Observability
-
-LangSmith tracing should wrap every node and tool call.
 
 Required metadata:
 
@@ -141,23 +171,85 @@ Required metadata:
 - `cost_usd`
 - `claim_id`
 
-Dashboard panels should show recent runs, trace links, per-agent latency, token usage, cost overview, routing decisions, verification stats, and failure mode frequency.
+Additional runtime metadata:
 
-## 10. Build And Deploy Surface
+- `job_id`
+- `thread_id`
+- `phase`
+- `status`
+- `langsmith_tracing`
+- `langsmith_project`
 
-Commit 0 scaffold should prepare:
+Graph runs receive metadata/tags through `RunnableConfig`. MCP tool calls are optionally wrapped at the adapter boundary when `LANGSMITH_TRACING=true`.
 
-- Python package for API and graph code.
-- FastAPI application shell.
-- LangGraph module shell.
-- Next.js + shadcn dashboard shell.
-- `ruff`, strict `mypy`, `pytest`, frontend lint/typecheck placeholders.
-- GitHub Actions for main app checks.
+The dashboard consumes the same metadata for latency, cost, token, route, and failure-mode panels.
 
-Ship target:
+## 10. Dashboard
 
-- Docker Compose with API, three MCP servers, dashboard, and SQLite volume.
-- Railway or Cloud Run deployment.
-- Live URL in README.
-- Three-minute recursive demo video.
-- Bilingual blog post.
+Next.js dashboard behavior:
+
+- server-side fetch from `GET /runs?limit=10`;
+- fallback to seeded demo data when API is unavailable;
+- recent runs table with trace links;
+- current run summary;
+- per-agent P50/P95 latency;
+- route decision flow;
+- verification stats;
+- token/cost overview;
+- failure mode frequency.
+
+## 11. Build And Deploy Surface
+
+Local backend:
+
+```bash
+uv run uvicorn wayfinder.api.main:app --reload
+```
+
+Local dashboard:
+
+```bash
+cd dashboard
+WAYFINDER_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+Docker Compose:
+
+```bash
+docker compose up --build api dashboard
+```
+
+Optional Project 5 MCP process topology:
+
+```bash
+docker compose --profile mcp up --build
+```
+
+Railway config: `railway.json`.
+
+Cloud Build config: `cloudbuild.yaml`.
+
+GitHub Actions:
+
+- backend ruff/mypy/pytest;
+- env-gated Project 5 integration after checking out the three MCP repos;
+- dashboard lint/typecheck/build.
+
+## 12. Ship Evidence
+
+Artifacts:
+
+- README terminal pass;
+- dashboard surface;
+- Docker/Compose files;
+- GitHub Actions CI;
+- deploy notes;
+- demo recording script;
+- bilingual launch draft;
+- design notes 001-010.
+
+External evidence still required:
+
+- public Railway or Cloud Run URL after project link/deploy;
+- actual recorded 3-minute demo video or GIF;
+- published blog URL if posted externally.

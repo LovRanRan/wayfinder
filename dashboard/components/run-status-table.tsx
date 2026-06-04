@@ -2,10 +2,11 @@ import { ExternalLink } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { RunSummary } from "@/lib/types";
+import { formatCurrency, formatSeconds } from "@/lib/metrics";
+import type { DashboardRun } from "@/lib/types";
 
 type RunStatusTableProps = {
-  runs: RunSummary[];
+  runs: DashboardRun[];
 };
 
 export function RunStatusTable({ runs }: RunStatusTableProps) {
@@ -22,9 +23,12 @@ export function RunStatusTable({ runs }: RunStatusTableProps) {
                 <th className="py-3 pr-4 font-medium">Repo</th>
                 <th className="py-3 pr-4 font-medium">Intent</th>
                 <th className="py-3 pr-4 font-medium">Status</th>
+                <th className="py-3 pr-4 font-medium">Agent</th>
                 <th className="py-3 pr-4 font-medium">Verified</th>
                 <th className="py-3 pr-4 font-medium">Unverified</th>
                 <th className="py-3 pr-4 font-medium">Contradicted</th>
+                <th className="py-3 pr-4 font-medium">Latency</th>
+                <th className="py-3 pr-4 font-medium">Cost</th>
                 <th className="py-3 pr-4 font-medium">Trace</th>
               </tr>
             </thead>
@@ -34,21 +38,28 @@ export function RunStatusTable({ runs }: RunStatusTableProps) {
                   <td className="py-3 pr-4 font-medium">{run.repoName}</td>
                   <td className="py-3 pr-4">{run.intent}</td>
                   <td className="py-3 pr-4">
-                    <Badge variant={run.status === "completed" ? "success" : "warning"}>
+                    <Badge variant={statusVariant(run.status)}>
                       {run.status}
                     </Badge>
                   </td>
+                  <td className="py-3 pr-4">{run.agentName}</td>
                   <td className="py-3 pr-4">{run.verifiedCount}</td>
                   <td className="py-3 pr-4">{run.unverifiedCount}</td>
                   <td className="py-3 pr-4">{run.contradictedCount}</td>
+                  <td className="py-3 pr-4">{formatSeconds(run.latency)}</td>
+                  <td className="py-3 pr-4">{formatCurrency(run.costUsd)}</td>
                   <td className="py-3 pr-4">
-                    <a
-                      href={run.traceUrl}
-                      className="inline-flex items-center gap-1 text-primary hover:underline"
-                    >
-                      Trace
-                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                    </a>
+                    {run.traceUrl ? (
+                      <a
+                        href={run.traceUrl}
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        Trace
+                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">Pending</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -58,4 +69,14 @@ export function RunStatusTable({ runs }: RunStatusTableProps) {
       </CardContent>
     </Card>
   );
+}
+
+function statusVariant(status: DashboardRun["status"]) {
+  if (status === "completed") {
+    return "success";
+  }
+  if (status === "failed") {
+    return "danger";
+  }
+  return "warning";
 }

@@ -1,0 +1,14 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-f"
+      - "Dockerfile.api"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/wayfinder-api:$COMMIT_SHA"
+      - "."
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/wayfinder-api:$COMMIT_SHA"
+substitutions:
+  _REGION: "us-central1"
+  _REPOSITORY: "wayfinder"

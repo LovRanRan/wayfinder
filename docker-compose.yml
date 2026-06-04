@@ -1,0 +1,72 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      WAYFINDER_ARCHITECTURE_SCANNER: ${WAYFINDER_ARCHITECTURE_SCANNER:-placeholder}
+      WAYFINDER_ENTRY_SCANNER: ${WAYFINDER_ENTRY_SCANNER:-placeholder}
+      WAYFINDER_VERIFIER_RUNNER: ${WAYFINDER_VERIFIER_RUNNER:-placeholder}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-wayfinder-local}
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    environment:
+      WAYFINDER_API_BASE_URL: http://api:8000
+      NEXT_PUBLIC_WAYFINDER_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  mcp-repo-mapper:
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    profiles: ["mcp"]
+    working_dir: /workspace
+    volumes:
+      - ../project5/mcp-repo-mapper:/workspace:ro
+    command: ["uv", "run", "mcp-repo-mapper"]
+    stdin_open: true
+    tty: true
+
+  mcp-ast-explorer:
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    profiles: ["mcp"]
+    working_dir: /workspace
+    volumes:
+      - ../project5/mcp-ast-explorer:/workspace:ro
+    command: ["uv", "run", "mcp-ast-explorer"]
+    stdin_open: true
+    tty: true
+
+  mcp-test-runner:
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    profiles: ["mcp"]
+    working_dir: /workspace
+    volumes:
+      - ../project5/mcp-test-runner:/workspace:ro
+    command: ["uv", "run", "mcp-test-runner"]
+    stdin_open: true
+    tty: true
+
+volumes:
+  sqlite-data:

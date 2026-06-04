@@ -133,6 +133,21 @@ def test_explain_status_and_refine_flow() -> None:
     assert refined_payload["trace_metadata"]["thread_id"] == payload["job_id"]
 
 
+def test_runs_lists_recent_jobs() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+    )
+    job_id = response.json()["job_id"]
+
+    runs_response = client.get("/runs?limit=10")
+
+    assert runs_response.status_code == 200
+    job_ids = [run["job_id"] for run in runs_response.json()]
+    assert job_id in job_ids
+
+
 def test_missing_job_returns_404() -> None:
     client = TestClient(app)
 

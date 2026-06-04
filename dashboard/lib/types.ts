@@ -2,14 +2,80 @@ export type RunStatus = "queued" | "running" | "completed" | "failed";
 
 export type RunIntent = "architectural" | "runtime" | "behavioral" | "debug" | "mixed";
 
-export type RunSummary = {
+export type TraceMetadataValue = string | number | boolean | null;
+
+export type RunError = {
+  node: string;
+  errorType: string;
+  message: string;
+  retryable: boolean;
+};
+
+export type ApiRunError = {
+  node: string;
+  error_type: string;
+  message: string;
+  retryable: boolean;
+};
+
+export type ApiRunSummary = {
+  job_id: string;
+  repo_url: string;
+  query: string;
+  status: RunStatus;
+  current_node: string | null;
+  final_output: string | null;
+  error: string | null;
+  partial_summaries: Record<string, string>;
+  errors: ApiRunError[];
+  user_corrections: string[];
+  verified_count: number;
+  unverified_count: number;
+  contradicted_count: number;
+  trace_url: string | null;
+  trace_metadata: Record<string, TraceMetadataValue>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DashboardRun = {
   jobId: string;
   repoName: string;
   repoUrl: string;
+  query: string;
   intent: RunIntent;
   status: RunStatus;
+  currentNode: string | null;
+  finalOutput: string | null;
+  error: string | null;
+  partialSummaries: Record<string, string>;
+  errors: RunError[];
+  userCorrections: string[];
   verifiedCount: number;
   unverifiedCount: number;
   contradictedCount: number;
-  traceUrl: string;
+  traceUrl: string | null;
+  traceMetadata: Record<string, TraceMetadataValue>;
+  agentName: string;
+  toolName: string | null;
+  mcpServer: string | null;
+  latency: number;
+  tokens: number;
+  costUsd: number;
+  failureModes: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DashboardMetrics = {
+  totalRuns: number;
+  activeRuns: number;
+  verifiedClaims: number;
+  unverifiedClaims: number;
+  contradictedClaims: number;
+  verificationRate: number;
+  p50Latency: number;
+  p95Latency: number;
+  totalTokens: number;
+  totalCostUsd: number;
 };

@@ -9,8 +9,25 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project6
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: project6
+      - uses: actions/checkout@v4
+        with:
+          repository: LovRanRan/mcp-repo-mapper
+          path: project5/mcp-repo-mapper
+      - uses: actions/checkout@v4
+        with:
+          repository: LovRanRan/mcp-ast-explorer
+          path: project5/mcp-ast-explorer
+      - uses: actions/checkout@v4
+        with:
+          repository: LovRanRan/mcp-test-runner
+          path: project5/mcp-test-runner
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-python@v5
         with:
@@ -19,19 +36,23 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src tests
       - run: uv run pytest
+      - run: WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_integration.py -q -rs
 
   dashboard:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: dashboard
+        working-directory: project6/dashboard
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: project6
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: dashboard/package-lock.json
+          cache-dependency-path: project6/dashboard/package-lock.json
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run build

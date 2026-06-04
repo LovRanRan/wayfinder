@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [ ] **Commit 8** — Dashboard, deploy, and core ship evidence kickoff pending |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **7 / 11 done** · ship **0 / 8 done** |
-| **Blocker** | none;Commit 7 FastAPI runtime + observability layer closed with API/runtime tests and full gates passing. |
-| **Last Activity** | 2026-06-04 · Closed Commit 7 FastAPI runtime + observability layer. |
+| **Current Commit** | [/] **Commit 8** — local dashboard/deploy ship evidence complete; external deploy/video pending account actions |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **8 / 11 done** · ship **5 / 8 local artifacts done** |
+| **Blocker** | External deploy is not linked:Railway CLI reports no linked project, so public live URL and recorded demo video cannot be honestly marked complete yet. |
+| **Last Activity** | 2026-06-04 · Completed Commit 8 local dashboard, deploy config, CI, README/DESIGN, demo script, and blog draft. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Prepare Commit 8:dashboard, deploy, README evidence, demo artifact, and core Wayfinder ship pass. |
-| **Next Action** | Run Commit 8 kickoff gate:read dashboard/deploy evidence requirements, capture sources in `LEARNINGS.md`, then write dashboard/deploy design note before implementation. |
+| **Today's North Star** | Finish external ship evidence:link Railway or Cloud Run, deploy API/dashboard, record recursive demo, then decide whether to start post-mainline Commit 9. |
+| **Next Action** | Link a deploy project (`railway link` or Cloud Run), deploy, update README live URL, record the 3-min recursive demo from `docs/demo/recursive_demo_script.md`, then close the remaining Ship items. |
 
 ---
 
@@ -259,17 +259,17 @@ Guided design mode:
   - [x] Trace metadata includes agent_name, tool_name, mcp_server, tokens, latency, cost_usd, claim_id ✅ 2026-06-04
   - [x] API tests cover job lifecycle, status polling, refine/resume, error serialization, trace metadata hooks ✅ 2026-06-04
 
-- [ ] **Commit 8 — Dashboard, deploy, and core Wayfinder ship evidence**
-  - [ ] Next.js + shadcn dashboard replaces Streamlit plan and reads API status/results
-  - [ ] Dashboard panels:recent runs table(10 entries, click -> trace URL), per-agent latency P50/P95, token usage, cost overview, routing decision Sankey, verification stats, failure mode frequency
-  - [ ] Docker Compose multi-service:api + 3 MCP servers + dashboard + sqlite-volume
-  - [ ] GitHub Actions CI for main app plus integration checks against the 3 MCP server packages/repos
-  - [ ] Railway or Cloud Run deploy works;live URL added to README
-  - [ ] README terminal pass:tagline, demo GIF, architecture, tech stack, quickstart, API spec, 3 curl examples, eval evidence, failure modes, lessons learned, hidden interview talking points
-  - [ ] `DESIGN.md` v1.0 finalized with 8 failure modes and each mitigation
-  - [ ] 3-min recursive demo video on pinned LangChain commit linked from README
-  - [ ] Bilingual blog post(~2500 words) published or ready for external posting
-  - [ ] `final_checklist.md` Project 6 section updated to `[x]` where acceptance is satisfied
+- [/] **Commit 8 — Dashboard, deploy, and core Wayfinder ship evidence** ✅ local artifacts 2026-06-04
+  - [x] Next.js + shadcn dashboard replaces Streamlit plan and reads API status/results through `/runs?limit=10` with demo fallback ✅ 2026-06-04
+  - [x] Dashboard panels:recent runs table(10 entries, click -> trace URL), per-agent latency P50/P95, token usage, cost overview, routing decision flow, verification stats, failure mode frequency ✅ 2026-06-04
+  - [x] Docker Compose multi-service:api + 3 MCP servers + dashboard + sqlite-volume;MCP stdio servers are documented under explicit `mcp` profile ✅ 2026-06-04
+  - [x] GitHub Actions CI for main app plus integration checks against the 3 MCP server packages/repos via sibling checkout layout ✅ 2026-06-04
+  - [/] Railway or Cloud Run deploy config is ready;live URL is pending because Railway CLI reports no linked project ✅ local config 2026-06-04
+  - [x] README terminal pass:tagline, architecture, tech stack, quickstart, API spec, 3 curl examples, eval evidence, failure modes, lessons learned, hidden interview talking points ✅ 2026-06-04
+  - [x] `DESIGN.md` v1.0 finalized with 8 failure modes and each mitigation ✅ 2026-06-04
+  - [/] 3-min recursive demo script on pinned LangChain commit is ready;actual recording/link pending public URL ✅ script 2026-06-04
+  - [x] Bilingual blog post ready for external posting in `docs/blog/wayfinder_launch_post.md` ✅ 2026-06-04
+  - [/] `final_checklist.md` Project 6 section updated where local acceptance is satisfied;public deploy/video remain unchecked ✅ 2026-06-04
 
 - [ ] **Commit 9 — Enterprise workflow case study design + skeleton contract(post-mainline)**
   - [ ] Read `project6_enterprise_workflow_case_study_plan.md` and extract the minimum case-study scope;do not add a new Project 11
@@ -306,6 +306,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 8 local ship evidence — `dashboard deploy evidence ready`
+
+- **做了什么**:Added `/runs`, upgraded the Next.js dashboard to read real API run summaries with seeded fallback data, added recent-run/latency/cost/routing/verification/failure-mode panels, added Dockerfiles, Compose, Railway/Cloud Run config, CI sibling checkouts for Project 5 MCP integration, README terminal pass, DESIGN v1.0, deploy notes, recursive demo script, and bilingual launch draft.
+- **自己设计了什么**:Dashboard consumes the same `RunSummary` + trace metadata contract as the API instead of a separate mock schema. Deploy evidence is split honestly into local deploy-ready artifacts versus external public URL/video proof.
+- **Codex 帮了哪里**:Codex implemented the commit directly after Haichuan explicitly delegated completion, handled frontend data modeling and deploy docs, and fixed the local dashboard dependency corruption by rebuilding `node_modules` with a temporary npm cache.
+- **验证方式**:`uv run pytest -q`(149 passed,8 skipped);`uv run ruff check .`;`uv run mypy src tests`;`WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_integration.py -q -rs`(6 passed);`npm run lint`;`npm run typecheck`;`npm run build`;`docker compose config`;`git diff --check`.
+- **问题记录**:`railway status` returned `No linked project found`, so live URL and recorded demo cannot be truthfully marked complete yet. Existing npm cache also had root-owned files;using `npm ci --cache /private/tmp/wayfinder-npm-cache` avoided changing global permissions. Docker image builds were canceled after hanging at base image metadata pull;Compose config and all app build gates passed.
+- **下一步**:Run final full gates, commit Commit 8, then link Railway/Cloud Run project externally, deploy, update README live URL, and record demo video.
 
 ### 2026-06-04 — Commit 7 closed — `api runtime observability layer complete`
 
