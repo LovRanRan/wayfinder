@@ -563,3 +563,35 @@
 - "I fixed a UX correctness issue where the visible current-run panel could show a stale server run after a user submitted a new job."
 - "The dashboard now presents grounded MCP evidence as inspectable transcript blocks instead of burying it inside one long paragraph."
 - "This made the product demo match the system architecture:tools produce evidence, the agent composes the explanation, and the UI exposes that evidence trail."
+
+---
+
+## Commit 15 — AST-backed Verified Claims
+
+### 📚 Sources
+
+- [x] Verifier implementation: [`src/wayfinder/graph/verifier.py`](src/wayfinder/graph/verifier.py) — claim extraction, AST evidence conversion, verification state aggregation, and test-backed verifier preservation ✅ 2026-06-05
+- [x] Verifier tests: [`tests/test_verifier.py`](tests/test_verifier.py) — AST-only verified claims and mixed AST-verified/runtime-unverified regression coverage ✅ 2026-06-05
+- [x] Entry evidence contract: [`src/wayfinder/graph/entry.py`](src/wayfinder/graph/entry.py) — `ast_index` shape from `mcp-ast-explorer`, including found symbol, definition location, signature, references, and call chain ✅ 2026-06-05
+- [x] Deploy notes: [`docs/deploy/README.md`](docs/deploy/README.md) — public deploy keeps `mcp-test-runner` disabled while still allowing AST-backed verified facts ✅ 2026-06-05
+
+### 🧠 Concepts Internalized
+
+- "Verified" should mean evidence-backed, but not every verified claim needs the same evidence source. Static symbol facts can be verified by deterministic AST evidence;runtime behavior still needs executable tests.
+- Public deployment should not run arbitrary test commands just to make a metric look better. The safe public path is read-only verification first, command execution later with sandbox/auth.
+- The verifier can combine evidence tiers in one answer:definition/signature claims become verified, while data-flow/runtime claims without focused tests stay unverified with `no_test_coverage`.
+- The dashboard metric is only useful if the underlying labels are honest. Showing `3 verified / 1 unverified` is better than pretending the data-flow claim passed a test.
+
+### ⚠️ Gotchas Debugged
+
+- Turning on `WAYFINDER_VERIFIER_RUNNER=mcp` would not make the current manual `build_graph` question verified by itself because the extracted data-flow claim has no pytest/Jest target.
+- The existing verifier ignored `ast_index` after entry explanation, so deterministic MCP evidence appeared in prose but not in the verification counters.
+- AST evidence should not mark missing/unsupported/tool-error results as verified. The new helper only trusts found definition evidence.
+- Test-backed verifier behavior must stay intact for explicit pytest/Jest targets;AST-backed claims are added as initial verified claims before test-result aggregation.
+
+### 💼 Interview Soundbites
+
+- "I split verification into evidence tiers:read-only AST facts can be verified by `mcp-ast-explorer`, while runtime behavior claims still require `mcp-test-runner`."
+- "For the public demo I kept command execution disabled, but still surfaced real verified claims from deterministic AST evidence."
+- "A Wayfinder answer can now say:the function exists, its location is verified, its signature is verified, but the data-flow claim is unverified because no focused test target was available."
+- "That is the product principle in practice:verified labels are earned by evidence, and unavailable evidence stays visible instead of being papered over."

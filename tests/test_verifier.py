@@ -95,6 +95,27 @@ def _claim(test_id: str | None = "tests/test_parser.py::test_invalid_input") -> 
     }
 
 
+def _ast_index() -> dict[str, object]:
+    return {
+        "status": "found",
+        "symbol": "src.wayfinder.graph.app.build_graph",
+        "definition": {
+            "found": True,
+            "symbol": "src.wayfinder.graph.app.build_graph",
+            "kind": "function",
+            "location": {"relative_path": "src/wayfinder/graph/app.py", "line": 45},
+        },
+        "signature": {
+            "found": True,
+            "symbol": "src.wayfinder.graph.app.build_graph",
+            "signature": "build_graph(checkpointer)",
+        },
+        "references": {"found": True, "references": []},
+        "call_chain": {"found": True, "callers": []},
+        "limitations": [],
+    }
+
+
 def test_extract_pending_claims_from_entry_summary_selects_runtime_claims() -> None:
     summary = "\n".join(
         [
@@ -151,6 +172,58 @@ def test_build_test_plan_marks_high_risk_claim_without_test_unverified(tmp_path:
     assert len(plan.unverified_claims) == 1
     assert plan.unverified_claims[0]["status"] == "unverified"
     assert plan.unverified_reasons == {"claim-0": "no_test_coverage"}
+
+
+def test_verifier_state_from_state_marks_ast_facts_verified(tmp_path: Path) -> None:
+    result = verifier_state_from_state(
+        {
+            "repo_handle": _repo_handle(tmp_path),
+            "ast_index": _ast_index(),
+            "partial_summaries": {"entry_explainer": "entry summary"},
+        }
+    )
+
+    verified_texts = [claim["text"] for claim in result["verified_claims"]]
+    assert verified_texts == [
+        "src.wayfinder.graph.app.build_graph has AST definition evidence",
+        "src.wayfinder.graph.app.build_graph is defined at src/wayfinder/graph/app.py:45",
+        "src.wayfinder.graph.app.build_graph has signature build_graph(checkpointer)",
+    ]
+    assert result["unverified_claims"] == []
+    assert result["contradicted_claims"] == []
+    assert set(result["test_results"]) == {
+        "ast-evidence-0",
+        "ast-evidence-1",
+        "ast-evidence-2",
+    }
+    assert "3 verified" in result["partial_summaries"]["verifier"]
+
+
+def test_verifier_keeps_runtime_claim_unverified_with_ast_facts_verified(
+    tmp_path: Path,
+) -> None:
+    result = verifier_state_from_state(
+        {
+            "repo_handle": _repo_handle(tmp_path),
+            "ast_index": _ast_index(),
+            "pending_claims": [_claim(test_id=None)],
+        }
+    )
+
+    assert len(result["verified_claims"]) == 3
+    assert result["unverified_claims"] == [
+        {
+            "text": "parse_user raises ValueError for invalid input",
+            "source_agent": "entry_explainer",
+            "risk_level": "high",
+            "test_strategy": "skip",
+            "test_id": None,
+            "status": "unverified",
+        }
+    ]
+    assert "3 verified" in result["partial_summaries"]["verifier"]
+    assert "1 unverified" in result["partial_summaries"]["verifier"]
+    assert "claim-0=no_test_coverage" in result["partial_summaries"]["verifier"]
 
 
 def test_build_test_approval_payload_contains_claims_and_tests(tmp_path: Path) -> None:

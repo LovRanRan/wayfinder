@@ -83,7 +83,10 @@ separate Railway services until the tool input contract changes from local path
 to repo URL or shared artifact.
 
 `mcp-test-runner` should stay disabled for public HTTP deployment until remote
-command execution has sandbox/auth controls.
+command execution has sandbox/auth controls. With `mcp-ast-explorer` enabled,
+the verifier can still mark deterministic AST facts as verified, such as symbol
+definition location and signature. Runtime/data-flow claims without a focused
+test target remain unverified instead of being treated as test-backed.
 
 Dashboard service:
 
@@ -121,6 +124,10 @@ WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinder
 WAYFINDER_GITHUB_MAX_FILES=10000
 WAYFINDER_GITHUB_CACHE_ROOT=/tmp/wayfinder/repos
 ```
+
+`WAYFINDER_VERIFIER_RUNNER=placeholder` disables test execution only. AST-backed
+definition/signature verification still works when `WAYFINDER_ENTRY_SCANNER` is
+`mcp_http` and the AST evidence tool returns a found symbol.
 
 If Railway gives the dashboard an internal service DNS for the API, use that for
 `WAYFINDER_API_BASE_URL` and keep the public API URL in

@@ -352,14 +352,16 @@ def verification_state_from_test_results(
     requests: Sequence[TestRunRequest],
     *,
     existing_partial_summaries: Mapping[str, str] | None = None,
+    initial_verified_claims: Sequence[Claim] = (),
+    initial_test_results: Mapping[str, TestResult] | None = None,
     initial_unverified_claims: Sequence[Claim] = (),
     initial_unverified_reasons: Mapping[str, str] | None = None,
     errors: Sequence[GraphError] = (),
 ) -> WayfinderState:
-    verified_claims: list[Claim] = []
+    verified_claims: list[Claim] = list(initial_verified_claims)
     unverified_claims: list[Claim] = list(initial_unverified_claims)
     contradicted_claims: list[Claim] = []
-    test_results: dict[str, TestResult] = {}
+    test_results: dict[str, TestResult] = dict(initial_test_results or {})
     summary_reasons: dict[str, str] = dict(initial_unverified_reasons or {})
     result_errors: list[GraphError] = list(errors)
 
@@ -406,7 +408,16 @@ def verifier_state_from_state(
 ) -> WayfinderState:
     claims = extract_pending_claims_from_state(state)
     partial_summaries = state.get("partial_summaries", {})
+    ast_verified_claims = _verified_claims_from_ast_index(state.get("ast_index"))
+    ast_test_results = _test_results_from_ast_claims(ast_verified_claims)
     if not claims:
+        if ast_verified_claims:
+            return _verification_state(
+                verified_claims=ast_verified_claims,
+                test_results=ast_test_results,
+                existing_partial_summaries=partial_summaries,
+            )
+
         return _verification_state(
             existing_partial_summaries=partial_summaries,
             summary_override="Verification summary: no high-risk claims selected.",
@@ -416,7 +427,9 @@ def verifier_state_from_state(
     if repo_path is None:
         unverified_claims = [_claim_with_status(claim, "unverified") for claim in claims]
         return _verification_state(
+            verified_claims=ast_verified_claims,
             unverified_claims=unverified_claims,
+            test_results=ast_test_results,
             summary_reasons={
                 claim_ref: "missing_repo_path"
                 for claim_ref in claim_refs_for_pending_claims(claims)
@@ -435,7 +448,9 @@ def verifier_state_from_state(
     plan = build_test_plan(repo_path, claims, state.get("ast_index"))
     if not plan.requests:
         return _verification_state(
+            verified_claims=ast_verified_claims,
             unverified_claims=plan.unverified_claims,
+            test_results=ast_test_results,
             summary_reasons=plan.unverified_reasons,
             existing_partial_summaries=partial_summaries,
         )
@@ -472,9 +487,160 @@ def verifier_state_from_state(
         observations,
         executed_requests,
         existing_partial_summaries=partial_summaries,
+        initial_verified_claims=ast_verified_claims,
+        initial_test_results=ast_test_results,
         initial_unverified_claims=approved_plan.unverified_claims,
         initial_unverified_reasons=approved_plan.unverified_reasons,
     )
+
+
+def _verified_claims_from_ast_index(
+    ast_index: Mapping[str, object] | None,
+) -> tuple[Claim, ...]:
+    if ast_index is None:
+        return ()
+
+    status = ast_index.get("status")
+    if status in ("missing", "unsupported", "tool_error"):
+        return ()
+
+    definition = ast_index.get("definition")
+    if not _ast_definition_found(definition):
+        return ()
+
+    symbol = _ast_symbol(ast_index, definition)
+    claims: list[Claim] = [
+        _claim_with_status(
+            {
+                "text": f"{symbol} has AST definition evidence",
+                "source_agent": "entry_explainer",
+                "risk_level": "low",
+                "test_strategy": "skip",
+                "test_id": None,
+                "status": "pending",
+            },
+            "verified",
+        )
+    ]
+
+    definition_location = _ast_definition_location(definition)
+    if definition_location is not None:
+        claims.append(
+            _claim_with_status(
+                {
+                    "text": f"{symbol} is defined at {definition_location}",
+                    "source_agent": "entry_explainer",
+                    "risk_level": "low",
+                    "test_strategy": "skip",
+                    "test_id": None,
+                    "status": "pending",
+                },
+                "verified",
+            )
+        )
+
+    signature = _ast_signature(ast_index)
+    if signature is not None:
+        claims.append(
+            _claim_with_status(
+                {
+                    "text": f"{symbol} has signature {signature}",
+                    "source_agent": "entry_explainer",
+                    "risk_level": "low",
+                    "test_strategy": "skip",
+                    "test_id": None,
+                    "status": "pending",
+                },
+                "verified",
+            )
+        )
+
+    return tuple(claims)
+
+
+def _test_results_from_ast_claims(claims: Sequence[Claim]) -> dict[str, TestResult]:
+    return {
+        f"ast-evidence-{index}": {
+            "status": "passed",
+            "output": "Verified from deterministic mcp-ast-explorer evidence.",
+            "claim_ref": f"ast-evidence-{index}",
+        }
+        for index, _claim in enumerate(claims)
+    }
+
+
+def _ast_definition_found(definition: object) -> bool:
+    if not isinstance(definition, dict):
+        return False
+
+    definition_dict = cast(dict[str, object], definition)
+    found = definition_dict.get("found")
+    if isinstance(found, bool):
+        return found
+
+    return bool(
+        definition_dict.get("location")
+        or definition_dict.get("path")
+        or definition_dict.get("relative_path")
+    )
+
+
+def _ast_symbol(ast_index: Mapping[str, object], definition: object) -> str:
+    symbol = ast_index.get("symbol")
+    if symbol:
+        return str(symbol)
+
+    if isinstance(definition, dict):
+        definition_symbol = cast(dict[str, object], definition).get("symbol")
+        if definition_symbol:
+            return str(definition_symbol)
+
+    return "symbol"
+
+
+def _ast_definition_location(definition: object) -> str | None:
+    if not isinstance(definition, dict):
+        return None
+
+    definition_dict = cast(dict[str, object], definition)
+    location = definition_dict.get("location")
+    if isinstance(location, dict):
+        location_dict = cast(dict[str, object], location)
+        path = location_dict.get("relative_path") or location_dict.get("path")
+        line = location_dict.get("line")
+        if path and line:
+            return f"{path}:{line}"
+        if path:
+            return str(path)
+
+    path = definition_dict.get("relative_path") or definition_dict.get("path")
+    line = definition_dict.get("line")
+    if path and line:
+        return f"{path}:{line}"
+    if path:
+        return str(path)
+
+    return None
+
+
+def _ast_signature(ast_index: Mapping[str, object]) -> str | None:
+    signature = ast_index.get("signature")
+    if isinstance(signature, str) and signature.strip():
+        return signature.strip()
+
+    if isinstance(signature, dict):
+        signature_dict = cast(dict[str, object], signature)
+        value = signature_dict.get("signature")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    definition = ast_index.get("definition")
+    if isinstance(definition, dict):
+        definition_signature = cast(dict[str, object], definition).get("signature")
+        if isinstance(definition_signature, str) and definition_signature.strip():
+            return definition_signature.strip()
+
+    return None
 
 
 def _repo_path_from_state(state: WayfinderState) -> str | None:

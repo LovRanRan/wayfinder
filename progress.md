@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 14** — Claude Code-style dashboard workbench |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **14 / 14 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video is still pending. Public API/dashboard smoke now uses real reader MCP evidence; dashboard UI has been polished for manual testing. |
-| **Last Activity** | 2026-06-05 · Reworked the dashboard into a dark code-agent workbench, synced the current-run console to submitted jobs, and rendered final output as transcript/evidence/verification blocks. |
+| **Current Commit** | [x] **Commit 15** — AST-backed verified claims |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **15 / 15 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Demo video is still pending. Public API/dashboard can now show real AST-backed verified claims; public test execution remains disabled until sandbox/auth exists. |
+| **Last Activity** | 2026-06-05 · Added verifier support for deterministic AST evidence:found symbol, definition location, and signature now become verified claims while runtime/data-flow claims without tests stay unverified. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Push the dashboard workbench polish, let Railway redeploy from GitHub, then record the 3-min recursive demo. |
-| **Next Action** | Commit/push Commit 14, confirm the public dashboard shows the new workbench style, then record the demo video. |
+| **Today's North Star** | Push AST-backed verified claims so manual dashboard tests show real verified evidence, then confirm Railway redeploy and record the demo. |
+| **Next Action** | Commit/push Commit 15, wait for Railway redeploy, then run the `build_graph` GitHub URL smoke again and confirm verified count is nonzero. |
 
 ---
 
@@ -328,6 +328,13 @@ Guided design mode:
   - [x] Add a compact clickable recent-run list for switching selected jobs ✅ 2026-06-05
   - [x] Frontend gates and browser QA pass ✅ 2026-06-05
 
+- [x] **Commit 15 — AST-backed verified claims** ✅ 2026-06-05
+  - [x] Convert deterministic `mcp-ast-explorer` found-symbol evidence into verified claims ✅ 2026-06-05
+  - [x] Verify definition location and signature from `ast_index` without requiring public test execution ✅ 2026-06-05
+  - [x] Keep runtime/data-flow claims without focused tests as `unverified(no_test_coverage)` ✅ 2026-06-05
+  - [x] Preserve existing test-backed verifier path for explicit pytest/Jest targets ✅ 2026-06-05
+  - [x] Add regression tests for AST-only verified claims and mixed verified/unverified output ✅ 2026-06-05
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -344,6 +351,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 15 closed — `AST-backed verified claims`
+
+- **做了什么**:Updated verifier so deterministic AST evidence from `mcp-ast-explorer` creates real verified claims for found symbol evidence, definition location, and function signature. Runtime/data-flow claims still require focused tests;without a test target they remain `unverified(no_test_coverage)`.
+- **自己设计了什么**:Separated evidence-backed verification into two honest tiers:AST-backed facts can be verified from deterministic reader MCP output, while executable behavior claims still need `mcp-test-runner` and sandbox/auth before public deployment.
+- **Codex 帮了哪里**:Codex implemented this narrow verifier improvement after Haichuan asked for real verified output instead of only unverified placeholder behavior in the deployed manual test.
+- **验证方式**:`uv run pytest tests/test_verifier.py -q`;`uv run ruff check src/wayfinder/graph/verifier.py tests/test_verifier.py`;`uv run mypy src tests`.
+- **问题记录**:Turning on public `mcp-test-runner` alone would not make the current `build_graph` data-flow question verified because no focused pytest node id is available. The safer launch fix is to surface AST-backed verified facts now and keep public command execution disabled.
+- **下一步**:Commit/push Commit 15, wait for Railway API/dashboard redeploy, then rerun the dashboard smoke for `https://github.com/LovRanRan/wayfinder` + `wayfinder.graph.app.build_graph` and confirm verified count is nonzero.
 
 ### 2026-06-05 — Commit 14 closed — `Claude Code-style dashboard workbench`
 
