@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RunActivity } from "@/components/run-activity";
 import { formatSeconds } from "@/lib/metrics";
 import type { DashboardRun } from "@/lib/types";
 
@@ -69,6 +70,9 @@ export function CurrentRunConsole({ run, publicApiBaseUrl, source }: CurrentRunC
           <RunMeta icon={<RadioTower className="h-3.5 w-3.5" />} label="tool" value={run.toolName ?? "none"} />
           <RunMeta icon={<Terminal className="h-3.5 w-3.5" />} label="mcp" value={run.mcpServer ?? "none"} />
           <RunMeta icon={<Clock3 className="h-3.5 w-3.5" />} label="latency" value={formatSeconds(run.latency)} />
+        </div>
+        <div className="mt-3">
+          <RunActivity status={run.status} />
         </div>
       </header>
 

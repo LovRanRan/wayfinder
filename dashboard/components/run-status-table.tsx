@@ -1,4 +1,4 @@
-import { ExternalLink, History } from "lucide-react";
+import { ExternalLink, History, PanelRightOpen } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatSeconds } from "@/lib/metrics";
@@ -40,6 +40,7 @@ export function RunStatusTable({
                 <th className="py-3 pr-4 font-medium">Claims</th>
                 <th className="py-3 pr-4 font-medium">Latency</th>
                 {!compact ? <th className="py-3 pr-4 font-medium">Cost</th> : null}
+                <th className="py-3 pr-4 font-medium">Answer</th>
                 <th className="py-3 pr-4 font-medium">Trace</th>
               </tr>
             </thead>
@@ -49,9 +50,10 @@ export function RunStatusTable({
                   key={run.jobId}
                   className={
                     run.jobId === selectedJobId
-                      ? "border-b border-border bg-primary/10 last:border-0"
-                      : "border-b border-border last:border-0"
+                      ? "cursor-pointer border-b border-border bg-primary/10 last:border-0"
+                      : "cursor-pointer border-b border-border hover:bg-muted/40 last:border-0"
                   }
+                  onClick={() => onSelectRun?.(run)}
                 >
                   <td className="py-3 pr-4 font-medium">
                     {onSelectRun ? (
@@ -83,12 +85,30 @@ export function RunStatusTable({
                   <td className="py-3 pr-4">{formatSeconds(run.latency)}</td>
                   {!compact ? <td className="py-3 pr-4">{formatCurrency(run.costUsd)}</td> : null}
                   <td className="py-3 pr-4">
+                    <a
+                      href={`?job=${encodeURIComponent(run.jobId)}`}
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                      onClick={(event) => {
+                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+                          return;
+                        }
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectRun?.(run);
+                      }}
+                    >
+                      Open
+                      <PanelRightOpen className="h-3 w-3" aria-hidden="true" />
+                    </a>
+                  </td>
+                  <td className="py-3 pr-4">
                     {source === "api" && run.traceUrl ? (
                       <a
                         href={run.traceUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-primary hover:underline"
+                        onClick={(event) => event.stopPropagation()}
                       >
                         Trace
                         <ExternalLink className="h-3 w-3" aria-hidden="true" />

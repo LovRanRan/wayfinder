@@ -154,7 +154,7 @@ Guided design mode:
 | **Current Commit** | [x] **Commit 17** — User workspaces + persistent run history |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **17 / 17 done** · ship **7 / 8 core artifacts done** |
 | **Blocker** | Demo video is still pending. Public test execution remains disabled until sandbox exists. |
-| **Last Activity** | 2026-06-05 · Closed Commit 17 with workspace auth, SQLite-backed user run history, dashboard session proxy, and redesigned login/workspace UI. |
+| **Last Activity** | 2026-06-05 · Added workspace UI polish: live run activity animation and deep-linkable recent-run answer selection. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Convert Wayfinder from a shared public demo console into a user workspace that can analyze public repo links and preserve per-user history. |
 | **Next Action** | Push Commit 17, set Railway auth/run-store variables, mount a persistent volume if using SQLite on Railway, then redeploy and smoke login/history. |
@@ -369,6 +369,13 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Workspace UI polish — `run animation + recent answer links`
+
+- **做了什么**:Added a live activity strip for queued/running jobs and made recent runs easier to reopen. Recent-run rows now select the answer panel, and the `Answer` link writes `?job=<job_id>` so a refreshed page or new tab can return to that run when it is still in the recent history.
+- **自己设计了什么**:Use the same right-side console as the answer surface instead of opening a disconnected page. This keeps the workbench focused while still allowing a shareable/reloadable job URL.
+- **验证方式**:`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`.
+- **下一步**:Push the polish commit and let the dashboard redeploy.
 
 ### 2026-06-05 — Commit 17 closed — `User workspaces + persistent run history`
 

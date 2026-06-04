@@ -13,6 +13,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RunActivity } from "@/components/run-activity";
 import { formatSeconds, toDashboardRun } from "@/lib/metrics";
 import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
 
@@ -208,6 +209,7 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
 
         {run ? (
           <div className="space-y-3 rounded-md border border-border bg-muted/60 p-3">
+            <RunActivity status={run.status} />
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <KeyValue label="Job" value={run.jobId.slice(0, 8)} />
               <KeyValue label="Agent" value={run.agentName} />
