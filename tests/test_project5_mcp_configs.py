@@ -6,6 +6,7 @@ from wayfinder.mcp.adapter import MCPAdapter, MCPToolLike
 from wayfinder.mcp.models import MCPToolCall
 from wayfinder.mcp.project5 import (
     build_project5_mcp_configs,
+    build_project5_mcp_http_configs,
     project5_primary_tool_names,
 )
 
@@ -66,6 +67,37 @@ def test_project5_configs_use_published_stdio_entrypoints() -> None:
             },
         },
     ]
+
+
+def test_project5_http_configs_use_streamable_http_reader_services() -> None:
+    configs = build_project5_mcp_http_configs(
+        {
+            "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL": "https://repo-mapper.example/mcp",
+            "WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL": "https://ast-explorer.example/mcp",
+        }
+    )
+
+    assert [config.to_client_config() for config in configs] == [
+        {
+            "transport": "streamable_http",
+            "url": "https://repo-mapper.example/mcp",
+        },
+        {
+            "transport": "streamable_http",
+            "url": "https://ast-explorer.example/mcp",
+        },
+    ]
+
+
+def test_project5_http_configs_ignore_missing_reader_urls() -> None:
+    configs = build_project5_mcp_http_configs(
+        {
+            "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL": "https://repo-mapper.example/mcp",
+        }
+    )
+
+    assert len(configs) == 1
+    assert configs[0].name == "repo_mapper"
 
 
 def test_project5_primary_tool_contract_is_declared() -> None:

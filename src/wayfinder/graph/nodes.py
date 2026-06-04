@@ -95,6 +95,7 @@ def final_writer_node(state: WayfinderState) -> WayfinderState:
     query = state.get("query", "")
     repo_ref = state.get("repo_url", "unknown repo")
     partial_summaries = state.get("partial_summaries", {})
+    architect_summary = partial_summaries.get("architect_mapper")
     entry_summary = partial_summaries.get("entry_explainer")
     verifier_summary = partial_summaries.get("verifier")
     if entry_summary is not None:
@@ -115,7 +116,13 @@ def final_writer_node(state: WayfinderState) -> WayfinderState:
             f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}",
         )
 
+    if architect_summary is not None:
+        return apply_resilience_to_final_output(
+            state,
+            f"Architecture overview for {repo_ref}: {query}\n\n{architect_summary}",
+        )
+
     return apply_resilience_to_final_output(
         state,
-        f"Placeholder final output for {repo_ref}: {query}",
+        f"Wayfinder could not collect a scanner summary for {repo_ref}: {query}",
     )

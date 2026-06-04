@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 12 + Railway deploy evidence** — backend GitHub ingestion launch hardening is live on split API/dashboard Railway services |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **12 / 12 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video is still pending. GitHub-backed Railway deploys are now connected and both services redeployed successfully from the Railway UI. |
-| **Last Activity** | 2026-06-04 · Connected Railway API/dashboard services to `LovRanRan/wayfinder` on `main`;both GitHub-backed deployments succeeded and live URLs still pass smoke checks. |
+| **Current Commit** | [/] **Commit 13** — Project 5 HTTP reader MCP deploy path |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **13 / 13 in progress** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Demo video is still pending. Commit 13 local Docker/sidecar smoke is passing; Railway redeploy + public smoke still need to run after push. |
+| **Last Activity** | 2026-06-04 · Added `mcp_http` runtime mode, in-container FastMCP HTTP sidecar startup, API Docker packaging, final-output evidence aggregation, `src.` symbol fallback, tests, and deploy docs. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Record the 3-min recursive demo using the live dashboard URL. |
-| **Next Action** | Run the public dashboard demo flow, record the 3-min video, and link it in README/progress. |
+| **Today's North Star** | Deploy Commit 13 so the public API uses real reader MCP evidence over HTTP, then record the 3-min recursive demo. |
+| **Next Action** | Commit/push Commit 13, set Railway API vars for sidecars, redeploy, and smoke the public dashboard on an allowlisted GitHub repo. |
 
 ---
 
@@ -307,6 +307,20 @@ Guided design mode:
   - [x] Add API tests for disabled ingestion, allowed GitHub URL, allowlist rejection, and oversized repo rejection ✅ 2026-06-04
   - [x] Add `git` to the API Docker image and expose GitHub ingestion env vars in Compose/deploy docs ✅ 2026-06-04
 
+- [/] **Commit 13 — Project 5 HTTP reader MCP deploy path** 🚧 2026-06-04
+  - [x] Write deploy design note for replacing placeholder reader scanners with real Project 5 MCP over HTTP ✅ 2026-06-04
+  - [x] Add `streamable_http` Project 5 MCP config helpers for repo mapper and AST explorer ✅ 2026-06-04
+  - [x] Add runtime factories for `WAYFINDER_ARCHITECTURE_SCANNER=mcp_http` and `WAYFINDER_ENTRY_SCANNER=mcp_http` ✅ 2026-06-04
+  - [x] Add API-container localhost FastMCP sidecar startup for read-only Project 5 MCP servers ✅ 2026-06-04
+  - [x] Package public `mcp-repo-mapper` and `mcp-ast-explorer` PyPI releases into the API Docker image ✅ 2026-06-04
+  - [x] Keep `mcp-test-runner` disabled in public deploy until sandbox/auth is designed ✅ 2026-06-04
+  - [x] Add tests for HTTP config generation, runtime mode selection, and sidecar env defaults ✅ 2026-06-04
+  - [x] Remove user-visible final placeholder and show collected MCP evidence in `final_output` ✅ 2026-06-04
+  - [x] Add `src.` layout fallback for common fully qualified Python symbols ✅ 2026-06-04
+  - [x] Build API Docker image with packaged reader MCPs and smoke API-container sidecars locally ✅ 2026-06-04
+  - [ ] Deploy Commit 13 to Railway with sidecars enabled
+  - [ ] Public smoke:dashboard GitHub URL flow uses real reader MCP path instead of placeholder readers
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -323,6 +337,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 13 in progress — `Project 5 HTTP reader MCP deploy path`
+
+- **做了什么**:Added a deploy design note, `mcp_http` runtime mode, Streamable HTTP Project 5 MCP configs, API-container localhost FastMCP sidecar startup, API Docker packaging for public `mcp-repo-mapper` / `mcp-ast-explorer`, final-output evidence aggregation, `src.` layout symbol fallback, and tests/docs.
+- **自己设计了什么**:The reader MCPs run as localhost sidecars inside the API container, not as separate Railway services, because the MCP tools need access to the same cloned repo path that `/explain` resolves.
+- **Codex 帮了哪里**:Codex implemented this Commit 13 slice after Haichuan chose to replace placeholders with real HTTP MCP readers while keeping the public test runner disabled.
+- **验证方式**:Local FastMCP HTTP smoke listed tools and called `health` through `streamable_http`;`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(178 passed,8 skipped);`docker build -f Dockerfile.api -t wayfinder-api:commit13-mcp-http .`;Compose API sidecar smoke started `mcp-repo-mapper` on `127.0.0.1:8101/mcp` and `mcp-ast-explorer` on `127.0.0.1:8102/mcp`;local GitHub URL smoke completed with real architecture evidence and entry evidence for `wayfinder.graph.app.build_graph` via `src.wayfinder.graph.app.build_graph`.
+- **问题记录**:A separate Railway MCP service would not share the API service filesystem, so it would fail on local repo-path inputs unless the MCP tool contract changes to accept repo URLs or shared artifacts. Project 5 AST evidence requires exact qualified symbols, so `src/` layout fallback is needed for common user queries.
+- **下一步**:Commit/push Commit 13, set Railway API vars, redeploy, and smoke the public dashboard.
 
 ### 2026-06-04 — Railway deploy live — `api + dashboard public URLs`
 

@@ -488,3 +488,42 @@
 - "I added `git` to the API image because deploy readiness includes operational dependencies, not just Python imports."
 - "I deployed Wayfinder as split Railway services:FastAPI API plus Next.js dashboard, verified `/health`, `/docs`, dashboard home, proxy submit/status, and an allowlisted GitHub URL flow."
 - "After the first CLI deploy, I connected both Railway services to GitHub so future pushes to `main` can redeploy the split API/dashboard setup."
+
+---
+
+## Commit 13 — Project 5 HTTP Reader MCP Deploy Path
+
+### 📚 Sources
+
+- [x] [MCP Transports spec](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) — stdio vs Streamable HTTP deployment boundary and security concerns ✅ 2026-06-04
+- [x] Project-local design note: [`docs/design_notes/012_project5_http_mcp_deploy.md`](docs/design_notes/012_project5_http_mcp_deploy.md) — HTTP sidecar scope, path-sharing constraint, failure cases, and verifier boundary ✅ 2026-06-04
+- [x] Project-local runtime factory: [`src/wayfinder/graph/runtime.py`](src/wayfinder/graph/runtime.py) — `mcp_http` mode and URL-required config errors ✅ 2026-06-04
+- [x] Project-local MCP config factory: [`src/wayfinder/mcp/project5.py`](src/wayfinder/mcp/project5.py) — Project 5 Streamable HTTP config generation for reader tools ✅ 2026-06-04
+- [x] Project-local final writer and entry scanner: [`src/wayfinder/graph/nodes.py`](src/wayfinder/graph/nodes.py), [`src/wayfinder/graph/entry.py`](src/wayfinder/graph/entry.py) — remove user-visible final placeholder and normalize common `src/` layout symbols ✅ 2026-06-04
+- [x] API deploy image and runner: [`Dockerfile.api`](Dockerfile.api), [`deploy/start_api.py`](deploy/start_api.py), [`deploy/run_fastmcp_http.py`](deploy/run_fastmcp_http.py) — in-container FastMCP HTTP sidecars for Railway ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- HTTP MCP is the right production transport, but path ownership still matters. A separate Railway MCP service cannot read the API container's cloned repo path.
+- The first safe deployment shape is API-container localhost sidecars:the API talks HTTP to MCP servers, while all processes share the same filesystem.
+- Reader tools and executor tools have different public-risk profiles. `mcp-repo-mapper` and `mcp-ast-explorer` can run in public demo mode;`mcp-test-runner` remains placeholder until sandbox/auth exists.
+- Runtime mode names should make transport explicit. `mcp` keeps existing stdio behavior;`mcp_http` opts into Streamable HTTP reader MCPs.
+- Deployment startup should set safe defaults only when explicitly opted in. `WAYFINDER_START_PROJECT5_HTTP_MCP=1` starts the sidecars and fills localhost MCP URLs.
+- Replacing placeholder scanners is not enough if the final writer still emits placeholder text. User-visible aggregation must render the collected MCP evidence as the primary answer.
+- Project 5 AST symbols are exact qualified names. In `src/` layouts, a user may naturally type `wayfinder.graph.app.build_graph`, while the AST index stores `src.wayfinder.graph.app.build_graph`.
+
+### ⚠️ Gotchas Debugged
+
+- Splitting reader MCPs into independent Railway services looked clean but would fail on real GitHub runs because the API's cloned repo path is not shared with other service containers.
+- Local `.venv` state can be misleading after multiple dev/prod syncs. Clean Docker image build is the real proof for packaged PyPI MCP dependencies.
+- FastMCP HTTP uses the `/mcp` endpoint, and `langchain-mcp-adapters` can connect through `transport="streamable_http"` once the URL points there.
+- API startup now needs to manage child MCP processes. `deploy/start_api.py` terminates sidecars when the API process exits.
+- A smoke run can prove transport is live while still returning weak evidence if symbol extraction is too strict. The useful test is the final dashboard answer plus trace metadata, not only "MCP server started".
+- Bare `build_graph` should be accepted as a symbol candidate only when it looks like code, otherwise plain English questions such as "behavior of routing" become false-positive symbol queries.
+
+### 💼 Interview Soundbites
+
+- "I moved the public deploy from placeholder readers to real Project 5 MCP reader tools over HTTP, while keeping the test runner disabled for public safety."
+- "I caught a production design issue before deploying:separate HTTP MCP services cannot read the API container's cloned repo path, so I used localhost HTTP sidecars as the first working production step."
+- "The architecture now supports both stdio MCP for local development and Streamable HTTP MCP for Railway deployment."
+- "I also fixed the user-visible answer path:the dashboard now shows the evidence returned by repo_mapper / ast_explorer instead of a final placeholder string."

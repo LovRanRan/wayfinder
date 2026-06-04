@@ -61,9 +61,12 @@ API service:
 ```bash
 railway add --service wayfinder-api
 railway variable set -s wayfinder-api --skip-deploys \
-  WAYFINDER_ARCHITECTURE_SCANNER=placeholder \
-  WAYFINDER_ENTRY_SCANNER=placeholder \
+  WAYFINDER_START_PROJECT5_HTTP_MCP=1 \
+  WAYFINDER_ARCHITECTURE_SCANNER=mcp_http \
+  WAYFINDER_ENTRY_SCANNER=mcp_http \
   WAYFINDER_VERIFIER_RUNNER=placeholder \
+  WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL=http://127.0.0.1:8101/mcp \
+  WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL=http://127.0.0.1:8102/mcp \
   WAYFINDER_ENABLE_GITHUB_INGESTION=1 \
   WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinder \
   WAYFINDER_GITHUB_MAX_FILES=10000 \
@@ -71,6 +74,16 @@ railway variable set -s wayfinder-api --skip-deploys \
 railway up --service wayfinder-api --detach --message c1c09c4-railway-runtime-fix
 railway domain --service wayfinder-api --port 8000
 ```
+
+`WAYFINDER_START_PROJECT5_HTTP_MCP=1` starts `mcp-repo-mapper` and
+`mcp-ast-explorer` as stateless FastMCP HTTP sidecars inside the API container.
+They intentionally use localhost URLs because they need access to the same
+cloned repository paths as the API process. Do not split these reader MCPs into
+separate Railway services until the tool input contract changes from local path
+to repo URL or shared artifact.
+
+`mcp-test-runner` should stay disabled for public HTTP deployment until remote
+command execution has sandbox/auth controls.
 
 Dashboard service:
 
@@ -97,6 +110,12 @@ For a new Railway project, set:
 ```bash
 WAYFINDER_API_BASE_URL=<internal-or-public-api-url-reachable-from-dashboard>
 NEXT_PUBLIC_WAYFINDER_API_BASE_URL=https://<your-wayfinder-api>.up.railway.app
+WAYFINDER_START_PROJECT5_HTTP_MCP=1
+WAYFINDER_ARCHITECTURE_SCANNER=mcp_http
+WAYFINDER_ENTRY_SCANNER=mcp_http
+WAYFINDER_VERIFIER_RUNNER=placeholder
+WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL=http://127.0.0.1:8101/mcp
+WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL=http://127.0.0.1:8102/mcp
 WAYFINDER_ENABLE_GITHUB_INGESTION=1
 WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinder
 WAYFINDER_GITHUB_MAX_FILES=10000

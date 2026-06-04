@@ -8,7 +8,7 @@ Verifier-backed codebase onboarding copilot for engineers entering an unfamiliar
 
 - Local API/runtime: ready
 - Dashboard: ready with live API fetch and seeded demo fallback
-- Project 5 MCP integration: env-gated integration passing locally
+- Project 5 MCP integration: stdio passing locally; reader HTTP deploy path added
 - Docker/Compose: deploy-ready and Railway-smoked
 - Public live URL: deployed on Railway
 - Demo video: script ready, recording pending
@@ -255,6 +255,30 @@ The Railway services are connected to `LovRanRan/wayfinder` on `main` for
 GitHub-backed deploys. The first deploy was a CLI snapshot deploy from commit
 `c1c09c4`; the GitHub-connected redeploys succeeded from the Railway UI on
 2026-06-04.
+
+Reader MCP services can be started as localhost HTTP sidecars inside the API
+container:
+
+```text
+mcp-repo-mapper     -> http://127.0.0.1:8101/mcp
+mcp-ast-explorer    -> http://127.0.0.1:8102/mcp
+```
+
+Set the API service to:
+
+```env
+WAYFINDER_START_PROJECT5_HTTP_MCP=1
+WAYFINDER_ARCHITECTURE_SCANNER=mcp_http
+WAYFINDER_ENTRY_SCANNER=mcp_http
+WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL=http://127.0.0.1:8101/mcp
+WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL=http://127.0.0.1:8102/mcp
+WAYFINDER_VERIFIER_RUNNER=placeholder
+```
+
+`mcp-test-runner` intentionally remains disabled in public HTTP mode until a
+stronger remote execution sandbox is added. The reader MCPs run in the API
+container, not as separate Railway services, because they need access to the
+same cloned repository path as the API.
 
 Cloud Run:
 

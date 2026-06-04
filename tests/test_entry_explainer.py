@@ -33,6 +33,19 @@ class FakeEntryAdapter:
         )
 
 
+class FakeSequentialEntryAdapter:
+    def __init__(self, contents: list[object]) -> None:
+        self.contents = contents
+        self.calls: list[MCPToolCall] = []
+
+    async def call_tool(self, call: MCPToolCall) -> MCPToolCallResult:
+        self.calls.append(call)
+        return MCPToolCallResult(
+            tool_name=call.tool_name,
+            content=self.contents[len(self.calls) - 1],
+        )
+
+
 class FailingEntryAdapter:
     def __init__(self, error: MCPToolError) -> None:
         self.error = error
@@ -75,6 +88,26 @@ def test_symbol_candidate_from_state_uses_single_explicit_query_symbol() -> None
     )
 
     assert result == "app.service.create_user"
+
+
+def test_symbol_candidate_from_state_uses_backticked_bare_symbol() -> None:
+    result = symbol_candidate_from_state({"query": "Explain `build_graph`"})
+
+    assert result == "build_graph"
+
+
+def test_symbol_candidate_from_state_uses_contextual_bare_code_symbol() -> None:
+    result = symbol_candidate_from_state(
+        {"query": "Explain the behavior and data flow through build_graph"}
+    )
+
+    assert result == "build_graph"
+
+
+def test_symbol_candidate_from_state_ignores_plain_language_context_word() -> None:
+    result = symbol_candidate_from_state({"query": "Explain the behavior of routing"})
+
+    assert result is None
 
 
 def test_symbol_candidate_from_state_rejects_ambiguous_query_symbols() -> None:
@@ -428,6 +461,60 @@ def test_mcp_entry_scanner_collects_definition_before_other_evidence() -> None:
         "depth": 2,
         "language": "python",
     }
+
+
+def test_mcp_entry_scanner_retries_src_layout_symbol_fallback() -> None:
+    adapter = FakeSequentialEntryAdapter(
+        [
+            {
+                "found": False,
+                "symbol": "wayfinder.graph.app.build_graph",
+                "error": "Symbol not found: wayfinder.graph.app.build_graph",
+            },
+            {
+                "found": True,
+                "symbol": "src.wayfinder.graph.app.build_graph",
+                "location": {"relative_path": "src/wayfinder/graph/app.py", "line": 45},
+                "signature": "build_graph(checkpointer)",
+            },
+            {
+                "found": True,
+                "symbol": "src.wayfinder.graph.app.build_graph",
+                "signature": "build_graph(checkpointer)",
+            },
+            {
+                "found": True,
+                "symbol": "src.wayfinder.graph.app.build_graph",
+                "references": [],
+            },
+            {
+                "found": True,
+                "symbol": "src.wayfinder.graph.app.build_graph",
+                "callers": [],
+            },
+        ]
+    )
+    scanner = MCPEntryScanner(adapter)
+
+    result = scanner.explain_symbol(
+        "/tmp/example-repo",
+        "wayfinder.graph.app.build_graph",
+    )
+
+    assert result["status"] == "found"
+    assert result["symbol"] == "src.wayfinder.graph.app.build_graph"
+    assert [call.tool_name for call in adapter.calls] == [
+        "find_definition",
+        "find_definition",
+        "function_signature",
+        "find_references",
+        "call_chain",
+    ]
+    assert adapter.calls[0].arguments["symbol"] == "wayfinder.graph.app.build_graph"
+    assert adapter.calls[1].arguments["symbol"] == "src.wayfinder.graph.app.build_graph"
+    assert adapter.calls[4].arguments["from_symbol"] == (
+        "src.wayfinder.graph.app.build_graph"
+    )
 
 
 def test_mcp_entry_scanner_calls_class_hierarchy_for_class_symbol() -> None:

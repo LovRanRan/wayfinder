@@ -9,6 +9,11 @@ from wayfinder.mcp.adapter import MCPToolCallError
 from wayfinder.mcp.models import MCPToolCall, MCPToolCallResult
 
 _EXPLICIT_SYMBOL_PATTERN = re.compile(r"\b[A-Za-z_]\w*(?:[.:][A-Za-z_]\w*)+\b")
+_CODE_SYMBOL_PATTERN = re.compile(r"[A-Za-z_]\w*(?:[.:][A-Za-z_]\w*)*")
+_BARE_SYMBOL_CONTEXT_PATTERN = re.compile(
+    r"\b(?:through|function|symbol|method|class|of|for)\s+([A-Za-z_]\w*)\b",
+    re.IGNORECASE,
+)
 
 
 class _PlaceholderEntryScanner:
@@ -54,7 +59,14 @@ class MCPEntryScanner:
             )
 
         if not _tool_result_found(definition):
-            return _missing_symbol_evidence(symbol=symbol, definition=definition)
+            fallback = self._find_definition_with_src_layout_fallback(
+                repo_path=repo_path,
+                symbol=symbol,
+            )
+            if fallback is None:
+                return _missing_symbol_evidence(symbol=symbol, definition=definition)
+
+            symbol, definition = fallback
 
         try:
             signature: dict[str, object] | None = None
@@ -127,6 +139,35 @@ class MCPEntryScanner:
             )
 
         return cast(dict[str, object], content)
+
+    def _find_definition_with_src_layout_fallback(
+        self,
+        *,
+        repo_path: str,
+        symbol: str,
+    ) -> tuple[str, dict[str, object]] | None:
+        fallback_symbol = _src_layout_symbol_fallback(symbol)
+        if fallback_symbol is None:
+            return None
+
+        try:
+            definition = self._call_dict(
+                MCPToolCall(
+                    tool_name="find_definition",
+                    arguments={
+                        "path": repo_path,
+                        "symbol": fallback_symbol,
+                        "language": "python",
+                    },
+                )
+            )
+        except MCPToolCallError:
+            return None
+
+        if not _tool_result_found(definition):
+            return None
+
+        return fallback_symbol, definition
 
     def _call_adapter(self, call: MCPToolCall) -> MCPToolCallResult:
         try:
@@ -397,15 +438,33 @@ def _symbol_candidate_from_query(query: str) -> str | None:
     backtick_symbols: list[str] = [
         item.strip()
         for item in re.findall(r"`([^`]+)`", query)
-        if _EXPLICIT_SYMBOL_PATTERN.fullmatch(item.strip())
+        if _CODE_SYMBOL_PATTERN.fullmatch(item.strip())
     ]
     token_symbols: list[str] = _EXPLICIT_SYMBOL_PATTERN.findall(query)
-    candidates: list[str] = list(dict.fromkeys([*backtick_symbols, *token_symbols]))
+    bare_symbols = [
+        item
+        for item in _BARE_SYMBOL_CONTEXT_PATTERN.findall(query)
+        if _looks_like_bare_code_symbol(item)
+    ]
+    candidates: list[str] = list(
+        dict.fromkeys([*backtick_symbols, *token_symbols, *bare_symbols])
+    )
 
     if len(candidates) == 1:
         return candidates[0]
 
     return None
+
+
+def _looks_like_bare_code_symbol(symbol: str) -> bool:
+    return "_" in symbol or any(char.isupper() for char in symbol[1:])
+
+
+def _src_layout_symbol_fallback(symbol: str) -> str | None:
+    if symbol.startswith("src.") or "." not in symbol or ":" in symbol:
+        return None
+
+    return f"src.{symbol}"
 
 
 def _entry_summary_from_ast_index(

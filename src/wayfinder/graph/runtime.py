@@ -5,7 +5,7 @@ from wayfinder.graph.entry import EntryScanner, MCPEntryScanner
 from wayfinder.graph.verifier import MCPTestRunner, TestRunner
 from wayfinder.mcp.adapter import MCPAdapter, build_mcp_client
 from wayfinder.mcp.models import MCPServerConfig
-from wayfinder.mcp.project5 import build_project5_mcp_configs
+from wayfinder.mcp.project5 import build_project5_mcp_configs, build_project5_mcp_http_configs
 
 
 def project5_repo_mapper_config() -> MCPServerConfig:
@@ -32,6 +32,28 @@ def project5_test_runner_config() -> MCPServerConfig:
     raise RuntimeError("Project 5 test_runner MCP config is missing")
 
 
+def project5_repo_mapper_http_config(env: Mapping[str, str] | None = None) -> MCPServerConfig:
+    for config in build_project5_mcp_http_configs(env):
+        if config.name == "repo_mapper":
+            return config
+
+    raise ValueError(
+        "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL is required when "
+        "WAYFINDER_ARCHITECTURE_SCANNER=mcp_http"
+    )
+
+
+def project5_ast_explorer_http_config(env: Mapping[str, str] | None = None) -> MCPServerConfig:
+    for config in build_project5_mcp_http_configs(env):
+        if config.name == "ast_explorer":
+            return config
+
+    raise ValueError(
+        "WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL is required when "
+        "WAYFINDER_ENTRY_SCANNER=mcp_http"
+    )
+
+
 def build_project5_architecture_scanner() -> ArchitectureScanner:
     config = project5_repo_mapper_config()
     client = build_mcp_client([config])
@@ -39,8 +61,26 @@ def build_project5_architecture_scanner() -> ArchitectureScanner:
     return MCPArchitectureScanner(adapter)
 
 
+def build_project5_architecture_http_scanner(
+    env: Mapping[str, str] | None = None,
+) -> ArchitectureScanner:
+    config = project5_repo_mapper_http_config(env)
+    client = build_mcp_client([config])
+    adapter = MCPAdapter(client)
+    return MCPArchitectureScanner(adapter)
+
+
 def build_project5_entry_scanner() -> EntryScanner:
     config = project5_ast_explorer_config()
+    client = build_mcp_client([config])
+    adapter = MCPAdapter(client)
+    return MCPEntryScanner(adapter)
+
+
+def build_project5_entry_http_scanner(
+    env: Mapping[str, str] | None = None,
+) -> EntryScanner:
+    config = project5_ast_explorer_http_config(env)
     client = build_mcp_client([config])
     adapter = MCPAdapter(client)
     return MCPEntryScanner(adapter)
@@ -64,6 +104,9 @@ def architecture_scanner_from_env(
     if mode == "mcp":
         return build_project5_architecture_scanner()
 
+    if mode == "mcp_http":
+        return build_project5_architecture_http_scanner(env)
+
     raise ValueError(f"Unsupported architecture scanner mode: {mode}")
 
 
@@ -77,6 +120,9 @@ def entry_scanner_from_env(
 
     if mode == "mcp":
         return build_project5_entry_scanner()
+
+    if mode == "mcp_http":
+        return build_project5_entry_http_scanner(env)
 
     raise ValueError(f"Unsupported entry scanner mode: {mode}")
 

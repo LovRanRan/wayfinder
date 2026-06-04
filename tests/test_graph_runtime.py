@@ -8,7 +8,9 @@ from wayfinder.graph.runtime import (
     build_project5_verifier_runner,
     entry_scanner_from_env,
     project5_ast_explorer_config,
+    project5_ast_explorer_http_config,
     project5_repo_mapper_config,
+    project5_repo_mapper_http_config,
     project5_test_runner_config,
     verifier_runner_from_env,
 )
@@ -43,6 +45,34 @@ def test_project5_test_runner_config_selects_only_test_runner() -> None:
     assert config.name == "test_runner"
     assert config.command == "mcp-test-runner"
     assert config.transport == "stdio"
+
+
+def test_project5_repo_mapper_http_config_selects_only_repo_mapper_url() -> None:
+    config = project5_repo_mapper_http_config(
+        {
+            "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL": "https://repo-mapper.example/mcp",
+            "WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL": "https://ast-explorer.example/mcp",
+        }
+    )
+
+    assert config.name == "repo_mapper"
+    assert config.command is None
+    assert config.transport == "streamable_http"
+    assert config.url == "https://repo-mapper.example/mcp"
+
+
+def test_project5_ast_explorer_http_config_selects_only_ast_explorer_url() -> None:
+    config = project5_ast_explorer_http_config(
+        {
+            "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL": "https://repo-mapper.example/mcp",
+            "WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL": "https://ast-explorer.example/mcp",
+        }
+    )
+
+    assert config.name == "ast_explorer"
+    assert config.command is None
+    assert config.transport == "streamable_http"
+    assert config.url == "https://ast-explorer.example/mcp"
 
 
 def test_build_project5_architecture_scanner_returns_scanner() -> None:
@@ -99,6 +129,23 @@ def test_architecture_scanner_from_env_builds_mcp_scanner() -> None:
     assert hasattr(scanner, "scan_repo")
 
 
+def test_architecture_scanner_from_env_builds_mcp_http_scanner() -> None:
+    scanner = architecture_scanner_from_env(
+        {
+            "WAYFINDER_ARCHITECTURE_SCANNER": "mcp_http",
+            "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL": "https://repo-mapper.example/mcp",
+        }
+    )
+
+    assert scanner is not None
+    assert hasattr(scanner, "scan_repo")
+
+
+def test_architecture_scanner_from_env_requires_mcp_http_url() -> None:
+    with pytest.raises(ValueError, match="WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL"):
+        architecture_scanner_from_env({"WAYFINDER_ARCHITECTURE_SCANNER": "mcp_http"})
+
+
 def test_architecture_scanner_from_env_rejects_unknown_mode() -> None:
     with pytest.raises(ValueError, match="Unsupported architecture scanner mode"):
         architecture_scanner_from_env({"WAYFINDER_ARCHITECTURE_SCANNER": "banana"})
@@ -117,6 +164,23 @@ def test_entry_scanner_from_env_builds_mcp_scanner() -> None:
 
     assert scanner is not None
     assert hasattr(scanner, "explain_symbol")
+
+
+def test_entry_scanner_from_env_builds_mcp_http_scanner() -> None:
+    scanner = entry_scanner_from_env(
+        {
+            "WAYFINDER_ENTRY_SCANNER": "mcp_http",
+            "WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL": "https://ast-explorer.example/mcp",
+        }
+    )
+
+    assert scanner is not None
+    assert hasattr(scanner, "explain_symbol")
+
+
+def test_entry_scanner_from_env_requires_mcp_http_url() -> None:
+    with pytest.raises(ValueError, match="WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL"):
+        entry_scanner_from_env({"WAYFINDER_ENTRY_SCANNER": "mcp_http"})
 
 
 def test_entry_scanner_from_env_rejects_unknown_mode() -> None:

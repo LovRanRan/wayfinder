@@ -27,7 +27,7 @@ def _sqlite_checkpointer(db_path: Path) -> Iterator[BaseCheckpointSaver[Any]]:
         conn.close()
 
 
-def test_supervisor_graph_routes_architecture_query_to_placeholder_output() -> None:
+def test_supervisor_graph_routes_architecture_query_to_architecture_output() -> None:
     graph = build_graph()
 
     result = graph.invoke(
@@ -45,8 +45,11 @@ def test_supervisor_graph_routes_architecture_query_to_placeholder_output() -> N
         "Placeholder architecture summary"
     )
     assert result["final_output"] == (
-        "Placeholder final output for https://github.com/langchain-ai/langchain: "
-        "Explain architecture"
+        "Architecture overview for https://github.com/langchain-ai/langchain: "
+        "Explain architecture\n\n"
+        "Placeholder architecture summary unavailable: I cannot map "
+        "the repository architecture because no local repo path was "
+        "available from ingestion."
     )
 
 
@@ -110,7 +113,12 @@ def test_mixed_or_missing_query() -> None:
 
     assert result_b["route_decision"]["needs_human_review"] is True
     assert result_b["route_decision"]["next_agent"] == "architect_mapper"
-    assert result_b["final_output"] == "Placeholder final output for unknown repo: "
+    assert result_b["final_output"] == (
+        "Architecture overview for unknown repo: \n\n"
+        "Placeholder architecture summary unavailable: I cannot map "
+        "the repository architecture because no local repo path was "
+        "available from ingestion."
+    )
 
     assert result_a["partial_summaries"]["architect_mapper"].startswith(
         "Placeholder architecture summary"
