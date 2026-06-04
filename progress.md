@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 10** — enterprise workflow case-study MVP + docs complete; external deploy/video still pending account actions |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **10 / 11 done** · ship **5 / 8 local artifacts done** |
+| **Current Commit** | [x] **Commit 11** — frontend launch hardening complete; external deploy/video still pending account actions |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **11 / 11 done** · ship **6 / 8 local artifacts done** |
 | **Blocker** | External deploy is not linked:Railway CLI reports no linked project, so public live URL and recorded demo video cannot be honestly marked complete yet. |
-| **Last Activity** | 2026-06-04 · Completed Commit 10 local enterprise workflow MVP, synthetic data, example outputs, tests, case-study docs, README section, and LEARNINGS. |
+| **Last Activity** | 2026-06-04 · Completed Commit 11 dashboard launcher, Next proxy routes, public/internal API URL split, demo trace cleanup, deploy docs, and frontend smoke. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Finish external ship evidence:authorize Railway GitHub deploy, verify API/dashboard live URLs, update README, and record the recursive demo video. |
-| **Next Action** | Authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard `WAYFINDER_API_BASE_URL`, verify `/health` and dashboard, then record the 3-min demo. |
+| **Today's North Star** | Commit and push Commit 11, then finish external ship evidence once Railway authorization is available. |
+| **Next Action** | Commit/push Commit 11. Then authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard API env vars, verify `/health` and dashboard, then record the 3-min demo. |
 
 ---
 
@@ -290,6 +290,15 @@ Guided design mode:
   - [x] Add a small README section under Wayfinder explaining that the architecture generalizes beyond codebase onboarding ✅ 2026-06-04
   - [x] Add one resume bullet under the existing Wayfinder project;do not create a separate project title ✅ 2026-06-04
 
+- [x] **Commit 11 — Frontend launch hardening** ✅ 2026-06-04
+  - [x] Add a dashboard run launcher so a visitor can submit a repo/question, poll status, refresh, and refine from the UI ✅ 2026-06-04
+  - [x] Add Next.js proxy routes for `/explain`, `/status/{job_id}`, and `/refine/{job_id}` so browser actions do not require direct API CORS access ✅ 2026-06-04
+  - [x] Split dashboard server API URL from public browser API URL for Railway/internal-service deployment ✅ 2026-06-04
+  - [x] Replace stale Commit 8 badge with launch-ready dashboard labeling ✅ 2026-06-04
+  - [x] Disable fake trace links in demo data mode and show pending/sample trace states honestly ✅ 2026-06-04
+  - [x] Add `dashboard` production `start` script and update README/deploy notes for proxy/env behavior ✅ 2026-06-04
+  - [x] Frontend gates and local proxy smoke pass:build,typecheck,lint,submit,status,refine ✅ 2026-06-04
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -306,6 +315,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 11 closed — `frontend launch hardening`
+
+- **做了什么**:Added the dashboard run launcher, browser-safe Next proxy routes for explain/status/refine, split server/internal API URL from browser public API URL, replaced the stale Commit 8 badge, disabled fake demo trace links, added a dashboard production `start` script, and updated README/deploy notes.
+- **自己设计了什么**:Commit 11 keeps the dashboard as the main Project 6 product surface. Browser actions go to `/api/wayfinder/*` on the dashboard service, and the dashboard server forwards to FastAPI through `WAYFINDER_API_BASE_URL`, so Railway can use an internal API URL without exposing CORS problems to users.
+- **Codex 帮了哪里**:Codex implemented this frontend hardening directly after Haichuan asked to start Commit 11, while preserving the core agent/backend architecture and treating this as launch polish rather than a new product.
+- **验证方式**:`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;local production smoke with FastAPI + dashboard standalone server;`POST /api/wayfinder/explain` returned `queued`;`GET /api/wayfinder/status/{job_id}` returned `completed`;`POST /api/wayfinder/refine/{job_id}` queued a correction and subsequent status returned `phase=refine`.
+- **问题记录**:GitHub URL submit currently works through the proxy but the backend still returns `missing_repo_path` unless repo ingestion resolves a local handle. The launcher defaults to `repo_url="."`, which works in local/dev container contexts and avoids making the first demo click hit the weak GitHub-URL path.
+- **下一步**:Commit/push Commit 11, then finish the external Railway deploy once authorization is available and update README with the real public URLs.
 
 ### 2026-06-04 — Commit 10 closed — `enterprise workflow case-study MVP`
 

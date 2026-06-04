@@ -7,9 +7,10 @@ import type { DashboardRun } from "@/lib/types";
 
 type RunStatusTableProps = {
   runs: DashboardRun[];
+  source?: "api" | "demo";
 };
 
-export function RunStatusTable({ runs }: RunStatusTableProps) {
+export function RunStatusTable({ runs, source = "api" }: RunStatusTableProps) {
   return (
     <Card>
       <CardHeader>
@@ -49,14 +50,18 @@ export function RunStatusTable({ runs }: RunStatusTableProps) {
                   <td className="py-3 pr-4">{formatSeconds(run.latency)}</td>
                   <td className="py-3 pr-4">{formatCurrency(run.costUsd)}</td>
                   <td className="py-3 pr-4">
-                    {run.traceUrl ? (
+                    {source === "api" && run.traceUrl ? (
                       <a
                         href={run.traceUrl}
+                        target="_blank"
+                        rel="noreferrer"
                         className="inline-flex items-center gap-1 text-primary hover:underline"
                       >
                         Trace
                         <ExternalLink className="h-3 w-3" aria-hidden="true" />
                       </a>
+                    ) : source === "demo" ? (
+                      <span className="text-muted-foreground">Sample</span>
                     ) : (
                       <span className="text-muted-foreground">Pending</span>
                     )}

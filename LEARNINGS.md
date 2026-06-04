@@ -408,3 +408,38 @@
 - "The model can draft and propose actions, but deterministic policy decides whether an action runs, waits for approval, or is blocked."
 - "Every node/tool decision writes an audit event, so the final report is backed by operational evidence rather than free-form agent narration."
 - "I documented eval metrics separately from results;the MVP has smoke evidence and focused tests, but no fake benchmark numbers."
+
+---
+
+## Commit 11 — Frontend Launch Hardening
+
+### 📚 Sources
+
+- [x] Project-local dashboard page: [`dashboard/app/page.tsx`](dashboard/app/page.tsx) — existing server-rendered dashboard, stale header badge, trace buttons, current-run card, and live/demo data badges ✅ 2026-06-04
+- [x] Project-local API client: [`dashboard/lib/api.ts`](dashboard/lib/api.ts) — dashboard server fetch path, demo fallback behavior, and API URL environment boundary ✅ 2026-06-04
+- [x] Project-local table component: [`dashboard/components/run-status-table.tsx`](dashboard/components/run-status-table.tsx) — trace link rendering and demo-mode sample state ✅ 2026-06-04
+- [x] FastAPI runtime contract: [`src/wayfinder/api/main.py`](src/wayfinder/api/main.py) / [`src/wayfinder/api/schemas.py`](src/wayfinder/api/schemas.py) — `/explain`, `/status/{job_id}`, `/refine/{job_id}`, and `RunSummary` response shape ✅ 2026-06-04
+- [x] Deploy notes: [`docs/deploy/README.md`](docs/deploy/README.md) — Railway dashboard/API env setup and public/internal URL split ✅ 2026-06-04
+- [x] Project-local README: [`README.md`](README.md) — dashboard/API quickstart, dashboard panels, and launch evidence wording ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- A launch dashboard needs an action path, not only an observability path. Recent runs and metrics prove monitoring, but a recruiter/product reviewer needs a first-click way to submit a run.
+- For split services, the API URL has two audiences. `WAYFINDER_API_BASE_URL` is for dashboard server-to-API fetches;`NEXT_PUBLIC_WAYFINDER_API_BASE_URL` is for browser-visible docs/links.
+- Browser actions should go through dashboard-owned proxy routes when the API may be internal, protected by service networking, or missing CORS headers.
+- Demo data is acceptable only when it is labeled and does not expose fake external links as if they were real traces.
+- The frontend should preserve the same `RunSummary` contract as the backend. The launcher converts API snake_case payloads through the same `toDashboardRun()` mapper as the dashboard list.
+
+### ⚠️ Gotchas Debugged
+
+- `npm run build` initially failed because local `node_modules` contained duplicate/corrupt package folders such as `fdir 2` and `@types/estree 2`. Re-running `npm ci --cache /private/tmp/wayfinder-npm-cache` rebuilt a clean dependency tree.
+- The dashboard package had no production `start` script. Commit 11 adds `npm run start` for the same standalone server path used by the Docker image.
+- A GitHub URL run can pass through the frontend proxy but still return `missing_repo_path` from the backend if API ingestion has not materialized the repo into a local handle. The launcher default now uses `repo_url="."` so local/container demos hit the working local-path contract.
+- Route handlers should keep backend errors visible. The proxy returns the FastAPI JSON payload and status code instead of hiding 404/409/422 details behind a generic frontend error.
+
+### 💼 Interview Soundbites
+
+- "I converted the dashboard from read-only observability into a launchable product surface:submit a run, poll status, refresh, and refine from the UI."
+- "The frontend talks to the backend through Next route proxies, so Railway can keep the API on an internal service URL while browser links still point to the public API docs."
+- "I kept demo fallback honest:demo rows are labeled and sample LangSmith URLs no longer appear as real traces."
+- "The launcher reuses the backend `RunSummary` contract and the dashboard's existing mapping layer, so interactive runs and recent-run metrics stay schema-aligned."

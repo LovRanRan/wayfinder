@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "start": "node .next/standalone/server.js",
     "build": "next build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"

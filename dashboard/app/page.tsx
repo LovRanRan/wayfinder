@@ -2,6 +2,7 @@ import {
   Activity,
   AlertTriangle,
   CircleDollarSign,
+  ExternalLink,
   GitBranch,
   ListChecks,
   RadioTower,
@@ -9,6 +10,7 @@ import {
   TimerReset,
 } from "lucide-react";
 
+import { RunLauncher } from "@/components/run-launcher";
 import { RunStatusTable } from "@/components/run-status-table";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +28,7 @@ import {
 } from "@/lib/metrics";
 
 export default async function DashboardPage() {
-  const { runs, source, apiBaseUrl } = await getDashboardData();
+  const { runs, source, publicApiBaseUrl } = await getDashboardData();
   const latest = runs[0];
   const metrics = buildDashboardMetrics(runs);
   const routeRows = groupedCounts(runs, (run) => run.intent);
@@ -40,7 +42,7 @@ export default async function DashboardPage() {
         <header className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Badge variant="success">Commit 8 dashboard</Badge>
+              <Badge variant="success">Wayfinder live dashboard</Badge>
               <Badge variant={source === "api" ? "success" : "warning"}>
                 {source === "api" ? "Live API" : "Demo data"}
               </Badge>
@@ -51,15 +53,28 @@ export default async function DashboardPage() {
                 Monitor codebase onboarding runs, verification status, traces, latency, cost, routing
                 decisions, and resilience failure modes.
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">API: {apiBaseUrl}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Public API: {publicApiBaseUrl}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <a href={latest?.traceUrl ?? "https://smith.langchain.com/"}>View traces</a>
-            </Button>
+          <div className="flex flex-wrap gap-2">
+            {source === "api" && latest?.traceUrl ? (
+              <Button variant="outline" asChild>
+                <a href={latest.traceUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                  View traces
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" disabled>
+                <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                Trace pending
+              </Button>
+            )}
             <Button asChild>
-              <a href={`${apiBaseUrl}/docs`}>API docs</a>
+              <a href={`${publicApiBaseUrl}/docs`} target="_blank" rel="noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                API docs
+              </a>
             </Button>
           </div>
         </header>
@@ -91,8 +106,8 @@ export default async function DashboardPage() {
           />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-          <RunStatusTable runs={runs} />
+        <section className="grid gap-4 xl:grid-cols-[minmax(340px,0.95fr)_minmax(0,1.05fr)]">
+          <RunLauncher />
           <Card>
             <CardHeader>
               <CardTitle>Current run</CardTitle>
@@ -120,6 +135,8 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </section>
+
+        <RunStatusTable runs={runs} source={source} />
 
         <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <MetricList

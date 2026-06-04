@@ -15,7 +15,9 @@ Open:
 - Dashboard: `http://localhost:3000`
 
 The dashboard reads `WAYFINDER_API_BASE_URL=http://api:8000` inside Compose and
-falls back to seeded demo data when there are no runs.
+falls back to seeded demo data when there are no runs. Browser actions submit
+through dashboard proxy routes, so the public UI does not need direct CORS
+access to the API service.
 
 ## Optional MCP Profile
 
@@ -46,9 +48,13 @@ railway up
 After deploy, set:
 
 ```bash
-WAYFINDER_API_BASE_URL=https://<your-wayfinder-api>.up.railway.app
+WAYFINDER_API_BASE_URL=<internal-or-public-api-url-reachable-from-dashboard>
 NEXT_PUBLIC_WAYFINDER_API_BASE_URL=https://<your-wayfinder-api>.up.railway.app
 ```
+
+If Railway gives the dashboard an internal service DNS for the API, use that for
+`WAYFINDER_API_BASE_URL` and keep the public API URL in
+`NEXT_PUBLIC_WAYFINDER_API_BASE_URL` for browser links.
 
 Then update the live URL section in `README.md`.
 

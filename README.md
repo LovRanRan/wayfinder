@@ -153,10 +153,20 @@ curl "http://localhost:8000/runs?limit=10"
 ## Dashboard
 
 The dashboard reads `GET /runs?limit=10` from `WAYFINDER_API_BASE_URL`.
+The browser-facing launcher uses dashboard proxy routes:
+
+- `POST /api/wayfinder/explain`
+- `GET /api/wayfinder/status/{job_id}`
+- `POST /api/wayfinder/refine/{job_id}`
+
+For split-service deploys, set `WAYFINDER_API_BASE_URL` to the API address the
+dashboard server can reach, and set `NEXT_PUBLIC_WAYFINDER_API_BASE_URL` to the
+public API URL shown in browser links.
 
 Panels:
 
 - recent runs table with trace links;
+- run launcher with submit, polling, refresh, and refine actions;
 - per-agent P50/P95 latency;
 - token usage and cost overview;
 - routing decision flow;
