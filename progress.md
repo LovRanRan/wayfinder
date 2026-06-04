@@ -153,11 +153,11 @@ Guided design mode:
 |---|---|
 | **Current Commit** | [x] **Commit 16** — Grounded LLM synthesis + community context policy |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **16 / 16 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Railway API still needs OpenAI runtime flags/redeploy; demo video is still pending. Public test execution remains disabled until sandbox/auth exists. |
-| **Last Activity** | 2026-06-05 · Added env-gated OpenAI Responses routing/final synthesis plus optional Tavily/GitHub community context provider; local live LLM smoke passed. |
+| **Blocker** | Demo video is still pending. Public test execution remains disabled until sandbox/auth exists. |
+| **Last Activity** | 2026-06-05 · Hotfixed architecture scanner resilience so repo-mapper decode/tool failures degrade into limitations instead of failed API jobs. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Convert Wayfinder from deterministic evidence panel into a grounded LLM copilot while preserving MCP/verifier evidence boundaries. |
-| **Next Action** | Set Railway API variables for `OPENAI_API_KEY`, `WAYFINDER_FINAL_WRITER=openai`, `WAYFINDER_LLM_ROUTING=openai`, and optional `WAYFINDER_COMMUNITY_CONTEXT=mcp`, then redeploy and smoke the public dashboard. |
+| **Next Action** | Push/redeploy the scanner-resilience hotfix, rerun `langchain-ai/langchain` architecture smoke, then record the recursive demo. |
 
 ---
 
@@ -364,6 +364,8 @@ Guided design mode:
 
 ### 2026-06-05 — Commit 16 closed — `Grounded LLM synthesis + community context policy`
 
+- **Hotfix after public smoke**:A `langchain-ai/langchain` architecture run exposed a `mcp-repo-mapper scan_repo` UTF-8 decode failure. Added architecture scanner degradation so tool exceptions become `architecture_scan_tool_error` limitations and the graph can still complete instead of returning a failed API job.
+- **Hotfix verification**:`uv run pytest -q`(200 passed,8 skipped);`uv run ruff check .`;`uv run mypy src tests`.
 - **做了什么**:Added `docs/design_notes/013_grounded_llm_synthesis.md`, OpenAI Responses API client boundary, LLM routing fallback for mixed queries, grounded final synthesis, optional Tavily/GitHub community context provider, runtime `.env` fallback, and env-gated API wiring.
 - **自己设计了什么**:Re-centered Wayfinder as a grounded LLM copilot:Project 5 MCPs produce repo/AST/test facts, verifier labels truth status, community MCPs provide supporting external context, and the LLM only composes a bounded evidence packet into a readable onboarding answer.
 - **Codex 帮了哪里**:Codex implemented the local TODO slice after the Commit 16 design boundary was written:protocols, factories, tests, docs, and tracker updates.

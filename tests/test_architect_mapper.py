@@ -8,6 +8,7 @@ from wayfinder.graph import build_graph
 from wayfinder.graph.architecture import (
     MCPArchitectureScanner,
     architecture_state_from_scan_result,
+    scan_repo_for_architecture,
 )
 from wayfinder.graph.nodes import architect_mapper_node
 from wayfinder.ingestion.models import RepoHandle, RepoSource
@@ -37,6 +38,14 @@ class FakeArchitectureScanner:
             "dependency_graph": {"nodes": ["app.main"], "edges": []},
             "frameworks": ["FastAPI"],
         }
+
+
+class ExplodingArchitectureScanner:
+    def scan_repo(self, repo_path: str) -> dict[str, object]:
+        del repo_path
+        raise RuntimeError(
+            "'utf-8' codec can't decode byte 0xb1 in position 23: invalid start byte"
+        )
 
 
 def test_architecture_state_from_scan_result_maps_structured_fields() -> None:
@@ -82,6 +91,23 @@ def test_architecture_state_from_scan_result_rejects_invalid_shape() -> None:
     assert result["errors"][0]["node"] == "architect_mapper"
     assert result["errors"][0]["error_type"] == "invalid_scan_result"
     assert result["next_agent"] == "final_writer"
+
+
+def test_architecture_state_from_scan_result_degrades_tool_error() -> None:
+    result = architecture_state_from_scan_result(
+        {
+            "status": "tool_error",
+            "root": "/tmp/langchain",
+            "message": "'utf-8' codec can't decode byte 0xb1",
+            "retryable": True,
+        }
+    )
+
+    assert result["next_agent"] == "final_writer"
+    assert result["repo_metadata"]["root"] == "/tmp/langchain"
+    assert result["module_dep_graph"] is None
+    assert result["errors"][0]["error_type"] == "architecture_scan_tool_error"
+    assert "could not scan the full repository" in result["partial_summaries"]["architect_mapper"]
 
 
 def test_architect_mapper_node_uses_repo_handle_path_boundary(tmp_path: Path) -> None:
@@ -147,6 +173,17 @@ def test_mcp_architecture_scanner_rejects_non_dict_content() -> None:
     assert adapter.calls[0].arguments == {"path": "/tmp/example-repo"}
 
 
+def test_scan_repo_for_architecture_converts_scanner_failure_to_tool_error() -> None:
+    result = scan_repo_for_architecture(
+        "/tmp/langchain",
+        scanner=ExplodingArchitectureScanner(),
+    )
+
+    assert result["status"] == "tool_error"
+    assert result["root"] == "/tmp/langchain"
+    assert "utf-8" in str(result["message"])
+
+
 def test_mcp_architecture_scanner_rejects_active_event_loop() -> None:
     adapter = FakeArchitectureAdapter({"root": "/tmp/example-repo"})
     scanner = MCPArchitectureScanner(adapter)
@@ -179,3 +216,25 @@ def test_graph_can_inject_architecture_scanner(tmp_path: Path) -> None:
     assert scanner.calls == [str(tmp_path)]
     assert "partial_summaries" in result
     assert "FastAPI" in result["partial_summaries"]["architect_mapper"]
+
+
+def test_graph_degrades_architecture_scanner_failure(tmp_path: Path) -> None:
+    graph = build_graph(architecture_scanner=ExplodingArchitectureScanner())
+
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = graph.invoke(
+        {
+            "query": "Explain architecture",
+            "repo_url": "repo",
+            "repo_handle": repo_handle,
+        }
+    )
+
+    assert result["errors"][0]["error_type"] == "architecture_scan_tool_error"
+    assert result["final_output"] is not None
+    assert "Architecture summary degraded" in result["final_output"]
+    assert "Resilience limitations" in result["final_output"]

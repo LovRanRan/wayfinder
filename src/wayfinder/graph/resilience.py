@@ -260,6 +260,7 @@ def _states_verification_success(output: str) -> bool:
 def _is_resilience_relevant_error(error: GraphError) -> bool:
     return error["error_type"] in {
         "repo_oversized",
+        "architecture_scan_tool_error",
         "unsupported_language",
         "ast_parse_error",
         "ast_tool_error",

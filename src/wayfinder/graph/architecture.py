@@ -83,6 +83,10 @@ def architecture_state_from_scan_result(scan_result: object) -> WayfinderState:
         return _architect_mapper_invalid_scan_result()
 
     scan_data = cast(dict[str, object], scan_result)
+    status = scan_data.get("status")
+    if status == "tool_error":
+        return _architect_mapper_tool_error(scan_data)
+
     root = scan_data.get("root")
     raw_languages = scan_data.get("languages")
     languages: list[str] = (
@@ -140,7 +144,10 @@ def scan_repo_for_architecture(
     scanner: ArchitectureScanner | None = None,
 ) -> dict[str, object]:
     active_scanner = scanner or _PlaceholderArchitectureScanner()
-    return active_scanner.scan_repo(repo_path)
+    try:
+        return active_scanner.scan_repo(repo_path)
+    except Exception as exc:
+        return _architecture_tool_error_result(repo_path=repo_path, exc=exc)
 
 
 def _architecture_summary_from_fields(
@@ -183,6 +190,49 @@ def _architect_mapper_invalid_scan_result() -> WayfinderState:
             )
         },
         "next_agent": "final_writer",
+    }
+
+
+def _architect_mapper_tool_error(scan_data: dict[str, object]) -> WayfinderState:
+    message = str(scan_data.get("message", "mcp-repo-mapper scan_repo failed."))
+    root = str(scan_data.get("root", "unknown"))
+    return {
+        "repo_metadata": {
+            "root": root,
+            "languages": [],
+            "frameworks": [],
+        },
+        "module_dep_graph": None,
+        "entry_points": [],
+        "errors": [
+            {
+                "node": "architect_mapper",
+                "error_type": "architecture_scan_tool_error",
+                "message": message,
+                "retryable": bool(scan_data.get("retryable", True)),
+            }
+        ],
+        "partial_summaries": {
+            "architect_mapper": (
+                "Architecture summary degraded: mcp-repo-mapper could not "
+                f"scan the full repository at {root}. Tool limitation: {message}. "
+                "Wayfinder cannot claim a complete architecture map from this run."
+            )
+        },
+        "next_agent": "final_writer",
+    }
+
+
+def _architecture_tool_error_result(
+    *,
+    repo_path: str,
+    exc: Exception,
+) -> dict[str, object]:
+    return {
+        "status": "tool_error",
+        "root": repo_path,
+        "message": str(exc) or type(exc).__name__,
+        "retryable": True,
     }
 
 
