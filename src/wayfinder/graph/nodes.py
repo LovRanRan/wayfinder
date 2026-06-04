@@ -6,8 +6,21 @@ from wayfinder.graph.architecture import (
     ArchitectureScanner,
     architect_mapper_missing_repo_path,
     architecture_state_from_scan_result,
-    repo_path_from_state,
     scan_repo_for_architecture,
+)
+from wayfinder.graph.architecture import (
+    repo_path_from_state as architecture_repo_path_from_state,
+)
+from wayfinder.graph.entry import (
+    EntryScanner,
+    entry_explainer_missing_repo_path,
+    entry_explainer_missing_symbol_candidate,
+    entry_state_from_ast_result,
+    scan_symbol_for_entry,
+    symbol_candidate_from_state,
+)
+from wayfinder.graph.entry import (
+    repo_path_from_state as entry_repo_path_from_state,
 )
 from wayfinder.graph.routing import build_route_decision
 from wayfinder.graph.state import WayfinderState
@@ -26,7 +39,7 @@ def build_architect_mapper_node(
     scanner: ArchitectureScanner | None = None,
 ) -> Callable[[WayfinderState], WayfinderState]:
     def _node(state: WayfinderState) -> WayfinderState:
-        repo_path = repo_path_from_state(state)
+        repo_path = architecture_repo_path_from_state(state)
 
         if repo_path is None:
             return architect_mapper_missing_repo_path()
@@ -41,13 +54,26 @@ def architect_mapper_node(state: WayfinderState) -> WayfinderState:
     return build_architect_mapper_node()(state)
 
 
+def build_entry_explainer_node(
+    scanner: EntryScanner | None = None,
+) -> Callable[[WayfinderState], WayfinderState]:
+    def _node(state: WayfinderState) -> WayfinderState:
+        repo_path = entry_repo_path_from_state(state)
+        if repo_path is None:
+            return entry_explainer_missing_repo_path()
+
+        symbol = symbol_candidate_from_state(state)
+        if symbol is None:
+            return entry_explainer_missing_symbol_candidate()
+
+        ast_result = scan_symbol_for_entry(repo_path, symbol, scanner=scanner)
+        return entry_state_from_ast_result(ast_result)
+
+    return _node
+
+
 def entry_explainer_node(state: WayfinderState) -> WayfinderState:
-    return {
-        "partial_summaries": {
-            "entry_explainer": "Placeholder entry explanation; real AST evidence comes later."
-        },
-        "next_agent": "final_writer",
-    }
+    return build_entry_explainer_node()(state)
 
 
 def verifier_node(state: WayfinderState) -> WayfinderState:
@@ -62,6 +88,14 @@ def verifier_node(state: WayfinderState) -> WayfinderState:
 def final_writer_node(state: WayfinderState) -> WayfinderState:
     query = state.get("query", "")
     repo_ref = state.get("repo_url", "unknown repo")
+    partial_summaries = state.get("partial_summaries", {})
+    entry_summary = partial_summaries.get("entry_explainer")
+    if entry_summary is not None:
+        return {
+            "final_output": f"Entry explanation for {repo_ref}: {query}\n\n{entry_summary}",
+            "next_agent": None,
+        }
+
     return {
         "final_output": f"Placeholder final output for {repo_ref}: {query}",
         "next_agent": None,

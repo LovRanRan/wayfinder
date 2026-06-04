@@ -2,6 +2,7 @@
 
 import os
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import cast
 from uuid import uuid4
 
@@ -9,8 +10,10 @@ from fastapi import FastAPI, HTTPException, status
 
 from wayfinder.api.schemas import ExplainRequest, RefineRequest, RunSummary
 from wayfinder.graph import build_graph
-from wayfinder.graph.runtime import architecture_scanner_from_env
+from wayfinder.graph.runtime import architecture_scanner_from_env, entry_scanner_from_env
 from wayfinder.graph.state import WayfinderState
+from wayfinder.ingestion.models import RepoHandle, RepoSource
+from wayfinder.ingestion.resolver import resolve_repo_source
 
 app = FastAPI(
     title="wayfinder",
@@ -43,11 +46,12 @@ def explain(request: ExplainRequest) -> RunSummary:
 
     try:
         architecture_scanner = architecture_scanner_from_env(os.environ)
-        graph = build_graph(architecture_scanner=architecture_scanner)
-        graph_input = cast(
-            WayfinderState,
-            {"repo_url": request.repo_url, "query": request.query},
+        entry_scanner = entry_scanner_from_env(os.environ)
+        graph = build_graph(
+            architecture_scanner=architecture_scanner,
+            entry_scanner=entry_scanner,
         )
+        graph_input = _graph_input_from_request(request)
         typed_result = graph.invoke(graph_input)
         completed = run.model_copy(
             update={
@@ -67,6 +71,26 @@ def explain(request: ExplainRequest) -> RunSummary:
 
     _RUNS[job_id] = completed
     return completed
+
+
+def _graph_input_from_request(request: ExplainRequest) -> WayfinderState:
+    graph_input: dict[str, object] = {
+        "repo_url": request.repo_url,
+        "query": request.query,
+    }
+    repo_handle = _local_repo_handle_from_ref(request.repo_url)
+    if repo_handle is not None:
+        graph_input["repo_handle"] = repo_handle
+
+    return cast(WayfinderState, graph_input)
+
+
+def _local_repo_handle_from_ref(repo_ref: str) -> RepoHandle | None:
+    candidate = Path(repo_ref).expanduser()
+    if not candidate.exists():
+        return None
+
+    return resolve_repo_source(RepoSource(kind="local", original_ref=repo_ref))
 
 
 @app.get("/status/{job_id}", response_model=RunSummary)

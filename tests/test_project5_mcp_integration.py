@@ -1,4 +1,5 @@
 import asyncio
+import importlib.util
 import json
 import os
 import shutil
@@ -7,7 +8,11 @@ from pathlib import Path
 import pytest
 
 from wayfinder.graph.architecture import architecture_state_from_scan_result
-from wayfinder.graph.runtime import build_project5_architecture_scanner
+from wayfinder.graph.entry import entry_state_from_ast_result
+from wayfinder.graph.runtime import (
+    build_project5_architecture_scanner,
+    build_project5_entry_scanner,
+)
 from wayfinder.mcp.adapter import MCPAdapter, build_mcp_client
 from wayfinder.mcp.models import MCPServerConfig, MCPToolCall
 from wayfinder.mcp.project5 import build_project5_mcp_configs
@@ -17,6 +22,11 @@ pytestmark = pytest.mark.integration
 PROJECT5_INTEGRATION_ENABLED = (
     os.getenv("WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION") == "1"
 )
+COMMAND_MODULES = {
+    "mcp-repo-mapper": "mcp_repo_mapper",
+    "mcp-ast-explorer": "mcp_ast_explorer",
+    "mcp-test-runner": "mcp_test_runner",
+}
 
 
 def _config_by_name(name: str) -> MCPServerConfig:
@@ -38,6 +48,23 @@ def _skip_if_command_missing(config: MCPServerConfig) -> None:
 
     if shutil.which(config.command) is None:
         pytest.skip(f"Project 5 MCP command is not installed: {config.command}")
+
+    module_name = COMMAND_MODULES.get(config.command)
+    if module_name is not None and not _module_is_available(module_name, config):
+        pytest.skip(
+            f"Project 5 MCP command is present but package is not importable: {module_name}"
+        )
+
+
+def _module_is_available(module_name: str, config: MCPServerConfig) -> bool:
+    if importlib.util.find_spec(module_name) is not None:
+        return True
+
+    pythonpath = config.env.get("PYTHONPATH")
+    if pythonpath is None:
+        return False
+
+    return any((Path(path) / module_name).exists() for path in pythonpath.split(os.pathsep))
 
 
 def _write_fixture_repo(tmp_path: Path) -> Path:
@@ -145,3 +172,25 @@ def test_project5_architecture_scanner_scans_fixture_repo(tmp_path: Path) -> Non
     assert "entry_points" in state
     assert "partial_summaries" in state
     assert "Repository root:" in state["partial_summaries"]["architect_mapper"]
+
+
+def test_project5_entry_scanner_explains_fixture_symbol(tmp_path: Path) -> None:
+    _skip_if_integration_disabled()
+
+    config = _config_by_name("ast_explorer")
+    _skip_if_command_missing(config)
+
+    repo_path = _write_fixture_repo(tmp_path)
+    scanner = build_project5_entry_scanner()
+
+    ast_result = scanner.explain_symbol(str(repo_path), "sample_app.main.greet")
+    state = entry_state_from_ast_result(ast_result)
+
+    assert ast_result["status"] == "found"
+    assert "definition" in ast_result
+    assert "signature" in ast_result
+    assert "references" in ast_result
+    assert "call_chain" in ast_result
+    assert "ast_index" in state
+    assert "partial_summaries" in state
+    assert "Source citations:" in state["partial_summaries"]["entry_explainer"]

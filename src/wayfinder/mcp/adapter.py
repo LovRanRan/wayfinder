@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import Protocol, TypeAlias, cast
 
 from langchain_mcp_adapters.client import (
@@ -114,7 +115,10 @@ class MCPAdapter:
                 retryable=True,
             ) from exc
 
-        return MCPToolCallResult(tool_name=call.tool_name, content=result)
+        return MCPToolCallResult(
+            tool_name=call.tool_name,
+            content=_normalize_tool_content(result),
+        )
 
     async def _invoke_tool(self, tool: MCPToolLike, call: MCPToolCall) -> object:
         retrying = AsyncRetrying(
@@ -160,3 +164,29 @@ def build_mcp_client(configs: list[MCPServerConfig]) -> MCPClientLike:
         config.name: cast(MCPConnection, config.to_client_config()) for config in configs
     }
     return cast(MCPClientLike, MultiServerMCPClient(client_config))
+
+
+def _normalize_tool_content(content: object) -> object:
+    if isinstance(content, dict):
+        return _normalize_text_content_item(content) or content
+
+    if isinstance(content, list) and len(content) == 1:
+        item = content[0]
+        if isinstance(item, dict):
+            return _normalize_text_content_item(item) or content
+
+    return content
+
+
+def _normalize_text_content_item(item: dict[object, object]) -> object | None:
+    if item.get("type") != "text":
+        return None
+
+    text = item.get("text")
+    if not isinstance(text, str):
+        return None
+
+    try:
+        return cast(object, json.loads(text))
+    except json.JSONDecodeError:
+        return text

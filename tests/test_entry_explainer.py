@@ -1,0 +1,596 @@
+import asyncio
+from pathlib import Path
+from typing import cast
+
+import pytest
+
+from wayfinder.graph import build_graph
+from wayfinder.graph.entry import (
+    MCPEntryScanner,
+    entry_explainer_missing_repo_path,
+    entry_explainer_missing_symbol_candidate,
+    entry_state_from_ast_result,
+    repo_path_from_state,
+    scan_symbol_for_entry,
+    symbol_candidate_from_state,
+)
+from wayfinder.graph.nodes import build_entry_explainer_node, entry_explainer_node
+from wayfinder.ingestion.models import RepoHandle, RepoSource
+from wayfinder.mcp.adapter import MCPToolCallError
+from wayfinder.mcp.models import MCPToolCall, MCPToolCallResult, MCPToolError
+
+
+class FakeEntryAdapter:
+    def __init__(self, content_by_tool: dict[str, object]) -> None:
+        self.content_by_tool = content_by_tool
+        self.calls: list[MCPToolCall] = []
+
+    async def call_tool(self, call: MCPToolCall) -> MCPToolCallResult:
+        self.calls.append(call)
+        return MCPToolCallResult(
+            tool_name=call.tool_name,
+            content=self.content_by_tool[call.tool_name],
+        )
+
+
+class FailingEntryAdapter:
+    def __init__(self, error: MCPToolError) -> None:
+        self.error = error
+        self.calls: list[MCPToolCall] = []
+
+    async def call_tool(self, call: MCPToolCall) -> MCPToolCallResult:
+        self.calls.append(call)
+        raise MCPToolCallError(self.error)
+
+
+class FakeEntryScanner:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    def explain_symbol(self, repo_path: str, symbol: str) -> dict[str, object]:
+        self.calls.append((repo_path, symbol))
+        return {"symbol": symbol, "definition": {"path": "app/main.py", "line": 12}}
+
+
+def test_repo_path_from_state_reads_repo_handle_local_path(tmp_path: Path) -> None:
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    assert repo_path_from_state({"repo_handle": repo_handle}) == str(tmp_path)
+
+
+def test_symbol_candidate_from_state_uses_first_entry_point() -> None:
+    result = symbol_candidate_from_state(
+        {"entry_points": ["app.main:create_app", "app.cli:main"]}
+    )
+
+    assert result == "app.main:create_app"
+
+
+def test_symbol_candidate_from_state_uses_single_explicit_query_symbol() -> None:
+    result = symbol_candidate_from_state(
+        {"query": "Explain the data flow through app.service.create_user"}
+    )
+
+    assert result == "app.service.create_user"
+
+
+def test_symbol_candidate_from_state_rejects_ambiguous_query_symbols() -> None:
+    result = symbol_candidate_from_state(
+        {"query": "Compare app.service.create_user and app.api.create_user"}
+    )
+
+    assert result is None
+
+
+def test_entry_explainer_missing_repo_path_returns_degraded_state() -> None:
+    result = entry_explainer_missing_repo_path()
+    errors = result.get("errors")
+    next_agent = result.get("next_agent")
+    partial_summaries = result.get("partial_summaries")
+
+    assert errors is not None
+    assert next_agent is not None
+    assert partial_summaries is not None
+    assert errors[0]["node"] == "entry_explainer"
+    assert errors[0]["error_type"] == "missing_repo_path"
+    assert next_agent == "final_writer"
+    assert "no local repo path" in partial_summaries["entry_explainer"]
+
+
+def test_entry_explainer_missing_symbol_candidate_returns_degraded_state() -> None:
+    result = entry_explainer_missing_symbol_candidate()
+    errors = result.get("errors")
+    next_agent = result.get("next_agent")
+    partial_summaries = result.get("partial_summaries")
+
+    assert errors is not None
+    assert next_agent is not None
+    assert partial_summaries is not None
+    assert errors[0]["node"] == "entry_explainer"
+    assert errors[0]["error_type"] == "missing_symbol_candidate"
+    assert next_agent == "final_writer"
+    assert "no symbol candidate" in partial_summaries["entry_explainer"]
+
+
+def test_entry_state_from_ast_result_maps_minimal_ast_evidence() -> None:
+    ast_result = {
+        "symbol": "app.main:create_app",
+        "definition": {"path": "app/main.py", "line": 12},
+        "signature": "create_app() -> FastAPI",
+        "references": [{"path": "tests/test_app.py", "line": 4}],
+        "call_chain": [{"caller": "app.cli:main", "callee": "app.main:create_app"}],
+    }
+
+    result = entry_state_from_ast_result(ast_result)
+    ast_index = result.get("ast_index")
+    next_agent = result.get("next_agent")
+    partial_summaries = result.get("partial_summaries")
+
+    assert ast_index is not None
+    assert next_agent is not None
+    assert partial_summaries is not None
+    assert ast_index == ast_result
+    assert next_agent == "final_writer"
+    assert "app.main:create_app" in partial_summaries["entry_explainer"]
+
+
+def test_entry_state_from_ast_result_writes_entry_path_explanation() -> None:
+    ast_result: dict[str, object] = {
+        "status": "found",
+        "symbol": "app.main:create_app",
+        "definition": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "kind": "function",
+            "location": {"relative_path": "app/main.py", "line": 12},
+            "source_code": "def create_app() -> FastAPI:\n    return FastAPI()\n",
+        },
+        "signature": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "signature": "create_app() -> FastAPI",
+        },
+        "references": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "references": [
+                {"location": {"relative_path": "tests/test_app.py", "line": 4}},
+            ],
+        },
+        "call_chain": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "callers": [{"symbol": "app.cli:main"}],
+        },
+        "limitations": [],
+    }
+
+    result = entry_state_from_ast_result(ast_result)
+    partial_summaries = result.get("partial_summaries")
+
+    assert partial_summaries is not None
+    summary = partial_summaries["entry_explainer"]
+    assert "Definition: app/main.py:12" in summary
+    assert "Signature: create_app() -> FastAPI" in summary
+    assert "Call chain: app.cli:main -> app.main:create_app" in summary
+    assert "References: tests/test_app.py:4" in summary
+    assert "Data flow evidence" in summary
+    assert "Source citations: app/main.py:12; tests/test_app.py:4" in summary
+    assert "Assumptions" in summary
+
+
+def test_entry_state_from_ast_result_does_not_treat_empty_call_chain_as_unused() -> None:
+    ast_result: dict[str, object] = {
+        "status": "found",
+        "symbol": "app.main:create_app",
+        "definition": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "kind": "function",
+            "location": {"relative_path": "app/main.py", "line": 12},
+        },
+        "signature": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "signature": "create_app() -> FastAPI",
+        },
+        "references": {"found": True, "symbol": "app.main:create_app", "references": []},
+        "call_chain": {"found": True, "symbol": "app.main:create_app", "callers": []},
+        "limitations": [],
+    }
+
+    result = entry_state_from_ast_result(ast_result)
+    partial_summaries = result.get("partial_summaries")
+
+    assert partial_summaries is not None
+    summary = partial_summaries["entry_explainer"]
+    assert "Call chain: none returned" in summary
+    assert "References: none returned" in summary
+    assert "not proof of unused code" in summary
+
+
+def test_entry_state_from_ast_result_maps_missing_symbol_evidence() -> None:
+    ast_result: dict[str, object] = {
+        "status": "missing",
+        "symbol": "app.main:missing",
+        "definition": {
+            "found": False,
+            "symbol": "app.main:missing",
+            "error": "Symbol not found: app.main:missing",
+        },
+        "signature": None,
+        "references": [],
+        "call_chain": [],
+        "limitations": ["Symbol not found: app.main:missing"],
+    }
+
+    result = entry_state_from_ast_result(ast_result)
+    ast_index = result.get("ast_index")
+    errors = result.get("errors")
+    partial_summaries = result.get("partial_summaries")
+
+    assert ast_index == ast_result
+    assert errors is not None
+    assert partial_summaries is not None
+    assert errors[0]["node"] == "entry_explainer"
+    assert errors[0]["error_type"] == "missing_symbol"
+    assert errors[0]["retryable"] is False
+    assert "app.main:missing" in partial_summaries["entry_explainer"]
+    assert "not found" in partial_summaries["entry_explainer"]
+    assert "call chain" in partial_summaries["entry_explainer"]
+
+
+def test_entry_state_from_ast_result_maps_unsupported_language_evidence() -> None:
+    ast_result: dict[str, object] = {
+        "status": "unsupported",
+        "symbol": "app.main:create_app",
+        "definition": {
+            "found": False,
+            "symbol": "app.main:create_app",
+            "error": "Unsupported language: javascript",
+        },
+        "signature": None,
+        "references": [],
+        "call_chain": [],
+        "limitations": ["Unsupported language: javascript"],
+    }
+
+    result = entry_state_from_ast_result(ast_result)
+    ast_index = result.get("ast_index")
+    errors = result.get("errors")
+    partial_summaries = result.get("partial_summaries")
+
+    assert ast_index == ast_result
+    assert errors is not None
+    assert partial_summaries is not None
+    assert errors[0]["node"] == "entry_explainer"
+    assert errors[0]["error_type"] == "unsupported_language"
+    assert errors[0]["retryable"] is False
+    assert "unsupported" in partial_summaries["entry_explainer"]
+    assert "python" in partial_summaries["entry_explainer"]
+
+
+def test_entry_state_from_ast_result_maps_parse_error_evidence() -> None:
+    ast_result: dict[str, object] = {
+        "status": "tool_error",
+        "symbol": "app.bad:broken",
+        "definition": None,
+        "signature": None,
+        "references": [],
+        "call_chain": [],
+        "retryable": False,
+        "limitations": ["AST parse error in app/bad.py: invalid syntax"],
+    }
+
+    result = entry_state_from_ast_result(ast_result)
+    errors = result.get("errors")
+    partial_summaries = result.get("partial_summaries")
+
+    assert errors is not None
+    assert partial_summaries is not None
+    assert errors[0]["error_type"] == "ast_parse_error"
+    assert errors[0]["retryable"] is False
+    assert "parse error" in partial_summaries["entry_explainer"]
+
+
+def test_entry_state_from_ast_result_maps_retryable_tool_error() -> None:
+    ast_result: dict[str, object] = {
+        "status": "tool_error",
+        "symbol": "app.main:create_app",
+        "definition": None,
+        "signature": None,
+        "references": [],
+        "call_chain": [],
+        "retryable": True,
+        "limitations": ["mcp-ast-explorer find_definition timed out"],
+    }
+
+    result = entry_state_from_ast_result(ast_result)
+    errors = result.get("errors")
+
+    assert errors is not None
+    assert errors[0]["error_type"] == "ast_tool_error"
+    assert errors[0]["retryable"] is True
+
+
+def test_scan_symbol_for_entry_uses_injected_scanner() -> None:
+    scanner = FakeEntryScanner()
+
+    result = scan_symbol_for_entry(
+        "/tmp/example-repo",
+        "app.main:create_app",
+        scanner=scanner,
+    )
+
+    assert scanner.calls == [("/tmp/example-repo", "app.main:create_app")]
+    assert result["symbol"] == "app.main:create_app"
+
+
+def test_build_entry_explainer_node_scans_symbol_and_shapes_state(tmp_path: Path) -> None:
+    scanner = FakeEntryScanner()
+    node = build_entry_explainer_node(scanner)
+
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = node(
+        {
+            "repo_handle": repo_handle,
+            "entry_points": ["app.main:create_app"],
+        }
+    )
+    ast_index = result.get("ast_index")
+    partial_summaries = result.get("partial_summaries")
+    next_agent = result.get("next_agent")
+
+    assert scanner.calls == [(str(tmp_path), "app.main:create_app")]
+    assert ast_index is not None
+    assert partial_summaries is not None
+    assert next_agent == "final_writer"
+    assert ast_index["symbol"] == "app.main:create_app"
+    assert "app.main:create_app" in partial_summaries["entry_explainer"]
+
+
+def test_entry_explainer_node_uses_placeholder_scanner_by_default(tmp_path: Path) -> None:
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = entry_explainer_node(
+        {
+            "repo_handle": repo_handle,
+            "entry_points": ["app.main:create_app"],
+        }
+    )
+    ast_index = result.get("ast_index")
+    partial_summaries = result.get("partial_summaries")
+
+    assert ast_index is not None
+    assert partial_summaries is not None
+    assert ast_index["symbol"] == "app.main:create_app"
+    assert "app.main:create_app" in partial_summaries["entry_explainer"]
+
+
+def test_mcp_entry_scanner_collects_definition_before_other_evidence() -> None:
+    content_by_tool: dict[str, object] = {
+        "find_definition": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "location": {"relative_path": "app/main.py", "line": 12},
+            "signature": "create_app() -> FastAPI",
+        },
+        "function_signature": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "signature": "create_app() -> FastAPI",
+        },
+        "find_references": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "references": [{"location": {"relative_path": "tests/test_app.py"}}],
+        },
+        "call_chain": {
+            "found": True,
+            "symbol": "app.main:create_app",
+            "callers": [{"symbol": "app.cli:main"}],
+        },
+    }
+    adapter = FakeEntryAdapter(content_by_tool)
+    scanner = MCPEntryScanner(adapter)
+
+    result = scanner.explain_symbol("/tmp/example-repo", "app.main:create_app")
+
+    assert result["status"] == "found"
+    assert result["definition"] == content_by_tool["find_definition"]
+    assert result["signature"] == content_by_tool["function_signature"]
+    assert result["references"] == content_by_tool["find_references"]
+    assert result["call_chain"] == content_by_tool["call_chain"]
+    assert [call.tool_name for call in adapter.calls] == [
+        "find_definition",
+        "function_signature",
+        "find_references",
+        "call_chain",
+    ]
+    assert adapter.calls[0].arguments == {
+        "path": "/tmp/example-repo",
+        "symbol": "app.main:create_app",
+        "language": "python",
+    }
+    assert adapter.calls[3].arguments == {
+        "path": "/tmp/example-repo",
+        "from_symbol": "app.main:create_app",
+        "depth": 2,
+        "language": "python",
+    }
+
+
+def test_mcp_entry_scanner_calls_class_hierarchy_for_class_symbol() -> None:
+    content_by_tool: dict[str, object] = {
+        "find_definition": {
+            "found": True,
+            "symbol": "app.models:User",
+            "kind": "class",
+            "location": {"relative_path": "app/models.py", "line": 3},
+        },
+        "find_references": {
+            "found": True,
+            "symbol": "app.models:User",
+            "references": [],
+        },
+        "call_chain": {
+            "found": True,
+            "symbol": "app.models:User",
+            "callers": [],
+        },
+        "class_hierarchy": {
+            "found": True,
+            "class_name": "app.models:User",
+            "subclasses": [{"class_name": "app.models:AdminUser"}],
+        },
+    }
+    adapter = FakeEntryAdapter(content_by_tool)
+    scanner = MCPEntryScanner(adapter)
+
+    result = scanner.explain_symbol("/tmp/example-repo", "app.models:User")
+
+    assert result["class_hierarchy"] == content_by_tool["class_hierarchy"]
+    assert [call.tool_name for call in adapter.calls] == [
+        "find_definition",
+        "find_references",
+        "call_chain",
+        "class_hierarchy",
+    ]
+    assert adapter.calls[3].arguments == {
+        "path": "/tmp/example-repo",
+        "class_name": "app.models:User",
+        "language": "python",
+    }
+
+
+def test_mcp_entry_scanner_stops_when_definition_is_missing() -> None:
+    content_by_tool: dict[str, object] = {
+        "find_definition": {
+            "found": False,
+            "symbol": "app.main:missing",
+            "error": "Symbol not found: app.main:missing",
+        },
+    }
+    adapter = FakeEntryAdapter(content_by_tool)
+    scanner = MCPEntryScanner(adapter)
+
+    result = scanner.explain_symbol("/tmp/example-repo", "app.main:missing")
+
+    limitations = cast(list[str], result["limitations"])
+    assert result["status"] == "missing"
+    assert result["definition"] == content_by_tool["find_definition"]
+    assert result["references"] == []
+    assert result["call_chain"] == []
+    assert "Symbol not found" in limitations[0]
+    assert [call.tool_name for call in adapter.calls] == ["find_definition"]
+
+
+def test_mcp_entry_scanner_marks_unsupported_language_result() -> None:
+    content_by_tool: dict[str, object] = {
+        "find_definition": {
+            "found": False,
+            "symbol": "app.main:create_app",
+            "error": "Unsupported language: javascript",
+        },
+    }
+    adapter = FakeEntryAdapter(content_by_tool)
+    scanner = MCPEntryScanner(adapter)
+
+    result = scanner.explain_symbol("/tmp/example-repo", "app.main:create_app")
+
+    assert result["status"] == "unsupported"
+    assert [call.tool_name for call in adapter.calls] == ["find_definition"]
+
+
+def test_mcp_entry_scanner_marks_parse_error_result_as_tool_error() -> None:
+    content_by_tool: dict[str, object] = {
+        "find_definition": {
+            "found": False,
+            "symbol": "app.bad:broken",
+            "error": "AST parse error in app/bad.py: invalid syntax",
+        },
+    }
+    adapter = FakeEntryAdapter(content_by_tool)
+    scanner = MCPEntryScanner(adapter)
+
+    result = scanner.explain_symbol("/tmp/example-repo", "app.bad:broken")
+
+    assert result["status"] == "tool_error"
+    assert result["retryable"] is False
+    assert [call.tool_name for call in adapter.calls] == ["find_definition"]
+
+
+def test_mcp_entry_scanner_normalizes_adapter_tool_error() -> None:
+    adapter = FailingEntryAdapter(
+        MCPToolError(
+            tool_name="find_definition",
+            error_type="timeout",
+            message="mcp-ast-explorer find_definition timed out",
+            retryable=True,
+        )
+    )
+    scanner = MCPEntryScanner(adapter)
+
+    result = scanner.explain_symbol("/tmp/example-repo", "app.main:create_app")
+
+    assert result["status"] == "tool_error"
+    assert result["retryable"] is True
+    assert result["limitations"] == ["mcp-ast-explorer find_definition timed out"]
+    assert [call.tool_name for call in adapter.calls] == ["find_definition"]
+
+
+def test_mcp_entry_scanner_rejects_non_dict_tool_content() -> None:
+    adapter = FakeEntryAdapter({"find_definition": ["not", "a", "dict"]})
+    scanner = MCPEntryScanner(adapter)
+
+    with pytest.raises(TypeError, match="find_definition returned non-dict content"):
+        scanner.explain_symbol("/tmp/example-repo", "app.main:create_app")
+
+    assert len(adapter.calls) == 1
+    assert adapter.calls[0].tool_name == "find_definition"
+
+
+def test_mcp_entry_scanner_rejects_active_event_loop() -> None:
+    adapter = FakeEntryAdapter({"find_definition": {"found": True}})
+    scanner = MCPEntryScanner(adapter)
+
+    async def call_inside_event_loop() -> None:
+        with pytest.raises(RuntimeError, match="cannot run inside an active event loop"):
+            scanner.explain_symbol("/tmp/example-repo", "app.main:create_app")
+
+    asyncio.run(call_inside_event_loop())
+
+    assert adapter.calls == []
+
+
+def test_graph_can_inject_entry_scanner(tmp_path: Path) -> None:
+    scanner = FakeEntryScanner()
+    graph = build_graph(entry_scanner=scanner)
+
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = graph.invoke(
+        {
+            "query": "Where does the application start at runtime?",
+            "repo_handle": repo_handle,
+            "entry_points": ["app.main:create_app"],
+        }
+    )
+    partial_summaries = result.get("partial_summaries")
+
+    assert scanner.calls == [(str(tmp_path), "app.main:create_app")]
+    assert partial_summaries is not None
+    assert "app.main:create_app" in partial_summaries["entry_explainer"]

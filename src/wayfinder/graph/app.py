@@ -6,9 +6,10 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import StateSnapshot
 
 from wayfinder.graph.architecture import ArchitectureScanner
+from wayfinder.graph.entry import EntryScanner
 from wayfinder.graph.nodes import (
     build_architect_mapper_node,
-    entry_explainer_node,
+    build_entry_explainer_node,
     final_writer_node,
     supervisor_node,
     verifier_node,
@@ -44,6 +45,7 @@ def build_graph(
     checkpointer: GraphCheckpointer = None,
     *,
     architecture_scanner: ArchitectureScanner | None = None,
+    entry_scanner: EntryScanner | None = None,
 ) -> WayfinderGraph:
     """Build the Commit 2 Supervisor graph skeleton."""
     # LangGraph's builder exposes incomplete type information to static checkers.
@@ -55,7 +57,10 @@ def build_graph(
         "architect_mapper",
         build_architect_mapper_node(architecture_scanner),
     )
-    graph.add_node("entry_explainer", entry_explainer_node)
+    graph.add_node(
+        "entry_explainer",
+        build_entry_explainer_node(entry_scanner),
+    )
     graph.add_node("verifier", verifier_node)
     graph.add_node("final_writer", final_writer_node)
 

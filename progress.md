@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [ ] **Commit 4** — Entry explanation + AST anti-hallucination kickoff |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **3 / 11 done** · ship **0 / 8 done** |
-| **Blocker** | none |
-| **Last Activity** | 2026-06-02 · Closed Commit 3 and committed architect mapper MCP scanner path. |
+| **Current Commit** | [ ] **Commit 5** — Verifier + HITL test approval kickoff pending |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **4 / 11 done** · ship **0 / 8 done** |
+| **Blocker** | none for Commit 5;real Project 5 MCP integration now passes after local install and runtime `PYTHONPATH` hardening. |
+| **Last Activity** | 2026-06-04 · Closed Commit 4 entry explanation + AST anti-hallucination path. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Start Commit 4 with the `entry_explainer` material/design boundary; keep AST evidence isolated behind Project 5 `mcp-ast-explorer`. |
-| **Next Action** | Run Commit 4 kickoff gate:capture sources, then write the Haichuan-owned `entry_explainer` design/skeleton before production changes. |
+| **Today's North Star** | Prepare Commit 5 verifier kickoff:turn high-risk entry explanations into testable claims and design HITL test approval before code. |
+| **Next Action** | Run Commit 5 kickoff gate:read verifier/HITL materials, capture sources in `LEARNINGS.md`, then write Haichuan-owned verifier design note before production code. |
 
 ---
 
@@ -220,13 +220,13 @@ Guided design mode:
   - [x] Tests cover supported repo shaping, missing local path, invalid/non-dict scanner output, scanner injection, API env wiring, runtime scanner factory, and skip-safe real Project 5 MCP integration ✅ 2026-06-02
   - Deferred by boundary:oversized repo sampling remains ingestion/resilience scope;unsupported-language fallback and AST parse flag propagation move to `entry_explainer` / resilience work.
 
-- [ ] **Commit 4 — Entry explanation + AST anti-hallucination (`entry_explainer`)**
-  - [ ] `entry_explainer` uses `mcp-ast-explorer` for definitions, references, signatures, call chains, class hierarchy
-  - [ ] Produces entry-path explanation:call chain, key functions, data flow, assumptions, source citations
-  - [ ] AST validation gate rejects hallucinated functions/classes before final output
-  - [ ] `ast_index` and key symbol evidence are persisted into `WayfinderState`
-  - [ ] Behavioral query works through `/explain` on a real fixture repo
-  - [ ] Tests cover existing symbol, missing symbol, parse error skip + flag, and unsupported language degraded answer
+- [x] **Commit 4 — Entry explanation + AST anti-hallucination (`entry_explainer`)** ✅ 2026-06-04
+  - [x] `entry_explainer` uses `mcp-ast-explorer` for definitions, references, signatures, call chains, class hierarchy ✅ 2026-06-04
+  - [x] Produces entry-path explanation:call chain, key functions, data flow, assumptions, source citations ✅ 2026-06-04
+  - [x] AST validation gate rejects hallucinated functions/classes before final output ✅ 2026-06-04
+  - [x] `ast_index` and key symbol evidence are persisted into `WayfinderState` ✅ 2026-06-04
+  - [x] Behavioral query works through `/explain` on a real fixture repo ✅ 2026-06-04
+  - [x] Tests cover existing symbol, missing symbol, parse error skip + flag, and unsupported language degraded answer ✅ 2026-06-04
 
 - [ ] **Commit 5 — Verifier + HITL test approval**
   - [ ] Claim extractor turns high-risk output statements into `pending_claims`
@@ -304,6 +304,150 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 4 closed — `entry explainer complete`
+
+- **做了什么**:Closed Commit 4. `entry_explainer` now extracts explicit query symbols, rejects ambiguous/missing symbols, calls `MCPEntryScanner` through the injected scanner boundary, gates on `find_definition`, collects signature/references/call-chain evidence, calls `class_hierarchy` only for class symbols, persists raw `ast_index`, writes degraded errors for missing/unsupported/parse/tool-failure cases, and produces entry-path summaries with call chain, key functions, data-flow evidence, assumptions, and source citations.
+- **自己设计了什么**:The anti-hallucination boundary is definition-first. If AST evidence cannot prove the symbol exists, Wayfinder does not infer references, call chain, usage, or data flow. Empty references/call-chain are described as no evidence returned, not as unused code.
+- **Codex 帮了哪里**:Codex implemented the accepted local TODOs, added scanner/state/API/fixture tests, updated runtime/API wiring, made Project 5 ast-explorer env selection explicit, and hardened skip-safe MCP integration tests.
+- **验证方式**:`uv run pytest -q`(115 passed,7 skipped);`uv run ruff check .`;`uv run mypy src tests`;`git diff --check`;`WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_integration.py -q -rs`(5 passed).
+- **问题记录**:Real MCP integration exposed two transport/runtime edges:FastMCP through LangChain returns JSON as text content wrappers, and macOS hidden `.pth` flags can make editable installs unreliable. Wayfinder now normalizes MCP text JSON in `MCPAdapter` and gives Project 5 MCP subprocesses explicit `PYTHONPATH`.
+- **明天计划**:Start Commit 5 kickoff gate:Verifier + HITL test approval design, sources first, then Haichuan-owned design/skeleton.
+
+### 2026-06-04 — Commit 4 — `degraded ast evidence shaping passed`
+
+- **做了什么**:Added missing/unsupported AST evidence shaping in `entry_state_from_ast_result()`. Scanner results with `status=missing` now write `errors[0].error_type=missing_symbol`;`status=unsupported` writes `unsupported_language`;both preserve raw `ast_index`, keep `next_agent=final_writer`, and produce a degraded `partial_summaries["entry_explainer"]` that explicitly says no references or call chain are asserted without definition evidence.
+- **自己设计了什么**:This keeps the anti-hallucination gate at the state boundary. Missing symbols and unsupported language are not treated as empty call chains or unused functions;they become explicit degraded evidence with limitations.
+- **Codex 帮了哪里**:Codex added the focused state-shaping tests, implemented the local helper functions, fixed one ruff line-length issue, and ran verification.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py tests/test_graph_runtime.py tests/test_api.py -q`(34 passed);`uv run ruff check src/wayfinder/graph/entry.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py tests/test_entry_explainer.py tests/test_graph_runtime.py tests/test_api.py`;`uv run mypy src/wayfinder/graph/entry.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py tests/test_entry_explainer.py tests/test_graph_runtime.py tests/test_api.py`;`uv run pytest -q`(103 passed,6 skipped);`git diff --check`.
+- **问题记录**:Tool timeout / MCP tool failure / AST parse error are still not normalized by `MCPEntryScanner`;those may currently escape as adapter errors instead of becoming `status=tool_error` evidence.
+- **明天计划**:Add a fake-adapter test for tool failure / parse-error normalization, then convert scanner failures into degraded AST evidence without changing node wiring.
+
+### 2026-06-04 — Commit 4 — `mcp entry scanner bridge passed`
+
+- **做了什么**:Implemented the first real `entry_explainer` scanner bridge slice. `MCPEntryScanner` now calls `find_definition` first;missing or unsupported definition results stop there and return degraded evidence;found definitions continue to `function_signature`, `find_references`, and `call_chain`. Added `WAYFINDER_ENTRY_SCANNER` runtime factory in `graph/runtime.py`, graph `entry_scanner` injection, and API pass-through wiring.
+- **自己设计了什么**:The scanner keeps MCP async details inside `entry.py`:it uses the same sync bridge rule as Commit 3 and raises if called from an active event loop. Runtime env parsing is isolated in `graph/runtime.py`;nodes still only see an injected `EntryScanner`.
+- **Codex 帮了哪里**:Codex filled the local TODO implementation, added fake-adapter tests, graph/runtime/API injection tests, and ran verification gates.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py tests/test_graph_runtime.py tests/test_api.py -q`(32 passed);`uv run ruff check src/wayfinder/graph/entry.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py tests/test_entry_explainer.py tests/test_graph_runtime.py tests/test_api.py`;`uv run mypy src/wayfinder/graph/entry.py src/wayfinder/graph/app.py src/wayfinder/graph/runtime.py src/wayfinder/api/main.py tests/test_entry_explainer.py tests/test_graph_runtime.py tests/test_api.py`;`uv run pytest tests/test_graph_contract.py tests/test_routing.py tests/test_api.py -q`(29 passed);`uv run pytest -q`(101 passed,6 skipped);`git diff --check`.
+- **问题记录**:State shaping still only stores raw `ast_index`;missing/unsupported evidence is not yet converted into `WayfinderState.errors` / richer `partial_summaries`. `class_hierarchy` remains intentionally not default, and real fixture `/explain` coverage is still pending.
+- **明天计划**:Add missing/unsupported AST evidence state-shaping tests, then implement degraded summary/errors before adding class-gated hierarchy or real fixture integration.
+
+### 2026-06-02 — Commit 4 — `real entry scanner bridge designed`
+
+- **做了什么**:Captured the real `mcp-ast-explorer` scanner bridge boundary in `docs/design_notes/006_entry_explainer.md`.
+- **自己设计了什么**:The real scanner must call `find_definition` first as the symbol-existence gate, then collect `function_signature`, `find_references`, and `call_chain` only when the symbol exists;`class_hierarchy` is query/class-gated rather than default. Scanner output uses required `status` values:found,missing,unsupported,tool_error.
+- **Codex 帮了哪里**:Codex formatted Haichuan's scanner bridge rules into the design note and checked formatting.
+- **验证方式**:Design/tracker update only;`git diff --check`.
+- **问题记录**:No real scanner production code, runtime/env parser, API wiring, or real MCP process call has been implemented yet.
+- **明天计划**:Add the first fake-adapter red test for `MCPEntryScanner`:it should call `find_definition` first with repo path and symbol.
+
+### 2026-06-02 — Commit 4 — `placeholder entry scanner passed`
+
+- **做了什么**:Added the next `entry_explainer` red/green slice:default `entry_explainer_node()` now runs through a placeholder `EntryScanner` without fake/real MCP injection.
+- **自己设计了什么**:The placeholder scanner preserves the same scanner contract as fake and future real MCP scanners:given repo path and symbol, return AST-like evidence with symbol, repo path, empty references/call chain, and an explicit limitation that real `mcp-ast-explorer` evidence is not wired yet.
+- **Codex 帮了哪里**:Codex reviewed the implementation and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(8 passed);`uv run ruff check src/wayfinder/graph/entry.py src/wayfinder/graph/nodes.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py src/wayfinder/graph/nodes.py tests/test_entry_explainer.py`;`uv run pytest tests/test_graph_contract.py tests/test_api.py -q`(8 passed);`git diff --check`.
+- **问题记录**:Real `mcp-ast-explorer` scanner, invalid AST result branch, missing symbol tool-result branch, env/runtime selection, and API real mode wiring have not been implemented yet.
+- **明天计划**:Design the real `mcp-ast-explorer` scanner bridge boundary before implementation, then add the first fake-adapter red test.
+
+### 2026-06-02 — Commit 4 — `entry node orchestration passed`
+
+- **做了什么**:Added the next `entry_explainer` red/green slice:`build_entry_explainer_node()` now wires repo path -> symbol candidate -> injected scanner -> AST result shaping.
+- **自己设计了什么**:The node now owns only orchestration. `entry.py` still owns repo/symbol helpers, scanner delegation, degraded-state helpers, and state shaping;fake/real scanner details stay outside the graph node.
+- **Codex 帮了哪里**:Codex reviewed the implementation, cleaned import/test formatting, and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(7 passed);`uv run ruff check src/wayfinder/graph/entry.py src/wayfinder/graph/nodes.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py src/wayfinder/graph/nodes.py tests/test_entry_explainer.py`;`uv run pytest tests/test_graph_contract.py tests/test_api.py -q`(8 passed).
+- **问题记录**:Default `entry_explainer_node()` still has no placeholder scanner behavior for a full default AST path;real MCP runtime wiring is also not implemented yet.
+- **明天计划**:Add the next red test for default placeholder `EntryScanner`, then implement only the placeholder scanner path before real MCP wiring.
+
+### 2026-06-02 — Commit 4 — `scanner delegation helper passed`
+
+- **做了什么**:Added the next `entry_explainer` red/green slice:`scan_symbol_for_entry()` now delegates to an injected `EntryScanner` and returns scanner evidence;also cleaned Pylance `TypedDict` access warnings in entry tests by narrowing optional keys with `.get()`.
+- **自己设计了什么**:This keeps AST evidence lookup behind the scanner boundary. Unit tests can pass a fake scanner now, while real `mcp-ast-explorer` runtime wiring remains a later slice.
+- **Codex 帮了哪里**:Codex reviewed the implementation, fixed test typing/format issues, and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(6 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
+- **问题记录**:No node orchestration, default placeholder scanner, real MCP scanner, invalid AST result branch, or API/runtime wiring has been implemented yet.
+- **明天计划**:Add the next red test for `build_entry_explainer_node()` with an injected fake scanner, then wire only repo path -> symbol candidate -> scan -> state shaping.
+
+### 2026-06-02 — Commit 4 — `ast result shaping happy path passed`
+
+- **做了什么**:Added the next `entry_explainer` red/green slice:`entry_state_from_ast_result()` now maps a dict AST result into `ast_index`, `partial_summaries["entry_explainer"]`, and `next_agent`.
+- **自己设计了什么**:This is minimal happy-path shaping only. The state preserves raw AST evidence as `ast_index` and writes a small summary containing the symbol, without yet adding invalid-shape degraded output or full explanation formatting.
+- **Codex 帮了哪里**:Codex reviewed the implementation and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(5 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
+- **问题记录**:No scanner delegation, node orchestration, invalid AST result branch, missing symbol branch, or MCP runtime wiring has been implemented yet.
+- **明天计划**:Add the next red test for `scan_symbol_for_entry()` with an injected fake scanner, then implement only scanner delegation.
+
+### 2026-06-02 — Commit 4 — `missing symbol candidate degraded state passed`
+
+- **做了什么**:Added the next `entry_explainer` red/green slice:`entry_explainer_missing_symbol_candidate()` now returns a degraded state with structured error, summary, and `next_agent`.
+- **自己设计了什么**:This failure branch keeps symbol selection explicit:if no user symbol and no `architect_mapper` entry point candidate exists, `entry_explainer` does not guess a function/class and reports the missing target boundary.
+- **Codex 帮了哪里**:Codex reviewed the implementation and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(4 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
+- **问题记录**:No AST scanner calls, result shaping, node orchestration, or MCP runtime wiring has been implemented yet.
+- **明天计划**:Add the next red test for `entry_state_from_ast_result()` happy-path shaping, then implement only minimal AST evidence state output.
+
+### 2026-06-02 — Commit 4 — `missing repo path degraded state passed`
+
+- **做了什么**:Added the next `entry_explainer` red/green slice:`entry_explainer_missing_repo_path()` now returns a degraded state with structured error, summary, and `next_agent`.
+- **自己设计了什么**:This failure branch keeps ingestion responsibility separate:if no local repo path exists, `entry_explainer` does not call AST tools and explains the missing input boundary.
+- **Codex 帮了哪里**:Codex reviewed the implementation and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(3 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
+- **问题记录**:No missing-symbol-candidate degraded state, AST scanner calls, result shaping, or MCP runtime wiring has been implemented yet.
+- **明天计划**:Add the next red test for `entry_explainer_missing_symbol_candidate()`, then implement only that degraded-state helper.
+
+### 2026-06-02 — Commit 4 — `symbol candidate helper passed`
+
+- **做了什么**:Added the next `entry_explainer` red/green slice:`symbol_candidate_from_state()` now falls back to the first `entry_points` candidate.
+- **自己设计了什么**:This is a v1 deterministic fallback, not final ranking logic. If no explicit query symbol parser exists yet, `entry_explainer` can use `entry_points[0]` to keep the semantic path testable.
+- **Codex 帮了哪里**:Codex reviewed the implementation and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(2 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
+- **问题记录**:No query symbol parser, ambiguity ranking, AST scanner calls, result shaping, or MCP runtime wiring has been implemented yet.
+- **明天计划**:Add the next red test for `entry_explainer_missing_repo_path()`, then implement only the degraded-state helper.
+
+### 2026-06-02 — Commit 4 — `repo path helper passed`
+
+- **做了什么**:Added the first `entry_explainer` red/green slice: `repo_path_from_state()` now reads `repo_handle.local_path` and returns it as a string.
+- **自己设计了什么**:This helper mirrors the accepted entry boundary:ingestion owns repo resolution;`entry_explainer` only reads the already-prepared local path from `WayfinderState`.
+- **Codex 帮了哪里**:Codex reviewed the tiny implementation and ran focused checks.
+- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(1 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
+- **问题记录**:No symbol candidate selection, AST scanner calls, result shaping, or MCP runtime wiring has been implemented yet.
+- **明天计划**:Add the next red test for `symbol_candidate_from_state()`, starting with explicit user symbol/query handling before any scanner work.
+
+### 2026-06-02 — Commit 4 — `entry explainer reverse explanation passed`
+
+- **做了什么**:Haichuan reverse-explained the accepted `entry_explainer` skeleton after focused checks passed.
+- **自己设计了什么**:Haichuan explained that `entry.py` owns semantic evidence helpers and state shaping, `nodes.py` owns LangGraph node wiring, and `EntryScanner` injection keeps fake/test/real MCP lookup outside the node boundary.
+- **Codex 帮了哪里**:Codex reviewed the explanation and updated tracker state only.
+- **验证方式**:Explanation gate;no code verification required beyond the earlier skeleton checks.
+- **问题记录**:Implementation has not started yet. The next slice should stay tiny and test-first.
+- **明天计划**:Add the first red test for `repo_path_from_state()`, then implement only that helper before moving to symbol candidate selection.
+
+### 2026-06-02 — Commit 4 — `entry explainer skeleton reviewed`
+
+- **做了什么**:Reviewed Haichuan's minimal `entry_explainer` skeleton:created the `graph/entry.py` boundary, imported `EntryScanner` into `nodes.py`, and kept `entry_explainer_node()` on the placeholder output path.
+- **自己设计了什么**:The skeleton separates semantic-entry helpers from graph orchestration. `entry.py` owns scanner protocol, repo/symbol extraction, degraded-state helpers, AST result shaping, and symbol scan boundary;`nodes.py` owns only graph node wiring.
+- **Codex 帮了哪里**:Codex reviewed the skeleton and ran focused verification without changing production code.
+- **验证方式**:`uv run ruff check src/wayfinder/graph/entry.py src/wayfinder/graph/nodes.py`;`uv run mypy src/wayfinder/graph/entry.py src/wayfinder/graph/nodes.py`;`uv run pytest tests/test_graph_contract.py tests/test_api.py`(8 passed).
+- **问题记录**:`entry.py` intentionally contains typed placeholders and does not yet implement repo-path extraction, symbol candidate selection, AST scanner calls, MCP runtime wiring, or result shaping.
+- **明天计划**:Haichuan reverse-explains the skeleton, then start the first red/green slice, likely `repo_path_from_state()` or `symbol_candidate_from_state()`.
+
+### 2026-06-02 — Commit 4 — `entry explainer design note complete`
+
+- **做了什么**:Completed `docs/design_notes/006_entry_explainer.md` with problem, input, output, rules, failure cases, tests, and interview explanation.
+- **自己设计了什么**:Haichuan defined `entry_explainer` as a symbol-grounded explanation layer:use Project 5 `mcp-ast-explorer` to verify concrete functions/classes and collect definition/signature/references/call-chain evidence before writing entry-path explanations.
+- **Codex 帮了哪里**:Codex only formatted Haichuan's plain-language answers into the design note and updated tracker state.
+- **验证方式**:Design/tracker update only;no production code or tests changed.
+- **问题记录**:Skeleton is not written yet. Do not implement scanner/runtime/API code until Haichuan writes the minimal function/state/TODO boundary.
+- **明天计划**:Haichuan writes the minimal `entry_explainer` skeleton, then Codex reviews signatures, state writes, and scope boundaries before any local TODO fill.
+
+### 2026-06-02 — Commit 4 — `materials captured`
+
+- **做了什么**:Haichuan confirmed Commit 4 materials are read. Captured `entry_explainer` sources in `LEARNINGS.md` and moved the tracker from kickoff pending to design boundary.
+- **自己设计了什么**:Commit 4 starts from the semantic path:use Project 5 `mcp-ast-explorer` for AST-backed symbol evidence, keep missing symbols as hard not-found / hallucination gates, and preserve unsupported-language / parse-error cases as explicit degraded outputs.
+- **Codex 帮了哪里**:Codex updated tracker/LEARNINGS only;no production code, tests, schema, or graph files were touched.
+- **验证方式**:Recordkeeping-only update;no code verification required.
+- **问题记录**:Before implementation, Haichuan still needs to define the `entry_explainer` module problem, input, output, rules, failure cases, tests, and interview explanation.
+- **明天计划**:Write `docs/design_notes/006_entry_explainer.md` through guided design, then Haichuan writes the minimal skeleton before any local TODO fill.
 
 ### 2026-06-02 — Commit 3 — `architect mapper commit closed`
 

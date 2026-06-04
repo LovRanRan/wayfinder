@@ -123,6 +123,32 @@ def test_adapter_calls_named_tool() -> None:
     assert tool.calls == [{"repo_path": "/tmp/repo"}]
 
 
+def test_adapter_decodes_single_text_json_content_item() -> None:
+    tool = FakeTool(
+        "scan_repo",
+        "Scan repository",
+        [{"type": "text", "text": '{"modules": 3}'}],
+    )
+    adapter = MCPAdapter(FakeClient([tool]))
+
+    result = asyncio.run(adapter.call_tool(MCPToolCall(tool_name="scan_repo")))
+
+    assert result.content == {"modules": 3}
+
+
+def test_adapter_preserves_single_text_content_item_when_not_json() -> None:
+    tool = FakeTool(
+        "scan_repo",
+        "Scan repository",
+        [{"type": "text", "text": "plain text result"}],
+    )
+    adapter = MCPAdapter(FakeClient([tool]))
+
+    result = asyncio.run(adapter.call_tool(MCPToolCall(tool_name="scan_repo")))
+
+    assert result.content == "plain text result"
+
+
 def test_adapter_rejects_unknown_tool_with_structured_error() -> None:
     adapter = MCPAdapter(FakeClient([FakeTool("map_repo", "Map repository", {})]))
 

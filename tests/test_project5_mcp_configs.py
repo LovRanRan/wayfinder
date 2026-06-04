@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Sequence
+from pathlib import Path
 
 from wayfinder.mcp.adapter import MCPAdapter, MCPToolLike
 from wayfinder.mcp.models import MCPToolCall
@@ -31,22 +32,38 @@ class FakeClient:
 
 def test_project5_configs_use_published_stdio_entrypoints() -> None:
     configs = build_project5_mcp_configs()
+    project5_root = Path(__file__).resolve().parents[1] / "../project5"
 
     assert [config.to_client_config() for config in configs] == [
         {
             "transport": "stdio",
             "command": "mcp-repo-mapper",
             "args": [],
+            "env": {
+                "PYTHONPATH": str(
+                    (project5_root / "mcp-repo-mapper" / "src").resolve()
+                )
+            },
         },
         {
             "transport": "stdio",
             "command": "mcp-ast-explorer",
             "args": [],
+            "env": {
+                "PYTHONPATH": str(
+                    (project5_root / "mcp-ast-explorer" / "src").resolve()
+                )
+            },
         },
         {
             "transport": "stdio",
             "command": "mcp-test-runner",
             "args": [],
+            "env": {
+                "PYTHONPATH": str(
+                    (project5_root / "mcp-test-runner" / "src").resolve()
+                )
+            },
         },
     ]
 
@@ -61,6 +78,7 @@ def test_project5_primary_tool_contract_is_declared() -> None:
         "find_references",
         "function_signature",
         "call_chain",
+        "class_hierarchy",
         "run_pytest",
         "run_jest",
         "run_single_test",

@@ -148,3 +148,39 @@
 - "The MCP-specific work is isolated behind `MCPArchitectureScanner`, so tests can inject fakes and production can select the real Project 5 repo mapper with an env flag."
 - "The default runtime stays safe and deterministic because real MCP mode is opt-in;normal tests use placeholder or fake scanners, while integration tests are env-gated."
 - "Commit 3 deliberately does not claim runtime behavior or AST-level facts. The architecture summary states what it can prove from repo structure and what it cannot prove yet."
+
+---
+
+## Commit 4 — Entry Explanation + AST Anti-Hallucination (`entry_explainer`)
+
+### 📚 Sources
+
+- [x] Project-local tracker: `progress.md` Dashboard and Commit 4 roadmap — entry explanation scope, AST evidence persistence, missing-symbol gate, parse-error flag, unsupported-language degraded answer ✅ 2026-06-02
+- [x] Project 6 four-step method: `planning/codebase_onboarding_theme/project6_four_step_method.md` — Haichuan-owned design/skeleton/test boundary before production code ✅ 2026-06-02
+- [x] Project 5 `mcp-ast-explorer` README: `Final_checklist_phase_projects/project5/mcp-ast-explorer/README.md` — tool contract, anti-hallucination guarantee, v1 limitations ✅ 2026-06-02
+- [x] Project 5 `mcp-ast-explorer` server contract: `src/mcp_ast_explorer/server.py` — `find_definition`, `function_signature`, `find_references`, `call_chain`, `class_hierarchy` input/output/failure behavior ✅ 2026-06-02
+- [x] Project 5 `mcp-ast-explorer` models: `src/mcp_ast_explorer/models.py` — definition, reference, call-chain, hierarchy, and structured not-found result shapes ✅ 2026-06-02
+
+### 🧠 Concepts Internalized
+
+- `entry_explainer` is a symbol-grounded explanation layer, not a naming guesser. It must validate a function/class/method through AST evidence before explaining an entry path.
+- `find_definition` is the hard existence gate. If definition evidence is missing, unsupported, parse-failed, or tool-failed, Wayfinder should return degraded evidence rather than invent references or call chains.
+- Empty `references` or `call_chain` means "no evidence returned by the AST tool", not "unused code". The summary must preserve that uncertainty.
+- Scanner injection keeps graph nodes stable. `nodes.py` only sees `EntryScanner.explain_symbol(repo_path, symbol)`; MCP async bridge, env selection, and tool parameter details stay outside the node.
+- Class hierarchy is class-gated in v1. `class_hierarchy` is useful for class relationship questions, but it should not be a default tool call for every function explanation.
+
+### ⚠️ Gotchas Debugged
+
+- Sync LangGraph nodes cannot safely nest an async MCP call inside an already-running event loop. The scanner owns the `asyncio.run(...)` bridge and raises clearly when an active loop exists.
+- Tool failures and parse errors need a normalized AST evidence shape (`status=tool_error`) so the graph can still write errors/limitations and continue to `final_writer`.
+- Query symbol extraction must reject ambiguity. If a user names two symbols, falling back to `entry_points[0]` would be another form of hallucination.
+- API `/explain` needed local path ingestion for fixture runs;otherwise behavioral queries routed to `entry_explainer` but had no `repo_handle`.
+- Project 5 console scripts can exist in the venv even when the backing packages are not importable. Integration tests need to skip on both missing command and missing module.
+- Real Project 5 MCP calls exposed transport details that fake adapters cannot show:FastMCP responses arrive through LangChain as text JSON content wrappers, and editable `.pth` imports can be unstable under macOS hidden flags. The fix belongs in adapter/config boundaries, not graph nodes.
+
+### 💼 Interview Soundbites
+
+- "For entry explanations, I made `find_definition` the anti-hallucination gate:if the AST tool cannot prove the symbol exists, the agent returns a missing-symbol degraded answer instead of explaining a fake call chain."
+- "The scanner collects deterministic evidence:definition, signature, references, call chain, and class hierarchy only when the symbol type calls for it. The LLM layer would only organize that evidence into prose."
+- "I explicitly distinguish empty evidence from negative evidence:an empty call-chain result is not proof a function is unused."
+- "The graph node stays simple because fake scanners, placeholder scanners, and real Project 5 MCP scanners all implement the same `EntryScanner` protocol."
