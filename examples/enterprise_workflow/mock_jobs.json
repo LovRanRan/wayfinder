@@ -1,0 +1,22 @@
+[
+  {"job_id":"job_001","company":"Salesforce","title":"AI Agent Engineer","requirements":["Python","FastAPI","LangGraph","RAG"],"nice_to_have":["CRM","enterprise workflow","audit logs"],"location":"San Francisco"},
+  {"job_id":"job_002","company":"OpenAI","title":"LLM Application Engineer","requirements":["Python","RAG","Evaluation","APIs"],"nice_to_have":["LangGraph","tool calling"],"location":"San Francisco"},
+  {"job_id":"job_003","company":"Anthropic","title":"AI Safety Engineer","requirements":["Python","Evaluation","Policy","Audit Logs"],"nice_to_have":["HITL","risk analysis"],"location":"San Francisco"},
+  {"job_id":"job_004","company":"Google","title":"Backend Engineer","requirements":["Java","APIs","PostgreSQL","Docker"],"nice_to_have":["Kubernetes","CI"],"location":"Seattle"},
+  {"job_id":"job_005","company":"Meta","title":"Data Engineer","requirements":["Python","SQL","Airflow","Data Pipelines"],"nice_to_have":["SQS","DynamoDB"],"location":"New York"},
+  {"job_id":"job_006","company":"Amazon","title":"Cloud Engineer","requirements":["AWS","Terraform","Docker","CI/CD"],"nice_to_have":["Kubernetes","Monitoring"],"location":"Austin"},
+  {"job_id":"job_007","company":"Cursor","title":"Developer Tools Engineer","requirements":["MCP","AST","Code Intelligence","Python"],"nice_to_have":["Repo Mapping","Testing"],"location":"San Francisco"},
+  {"job_id":"job_008","company":"LangChain","title":"Agent Framework Engineer","requirements":["LangGraph","Tool Calling","Python","RAG"],"nice_to_have":["MCP","HITL"],"location":"Remote"},
+  {"job_id":"job_009","company":"Cohere","title":"ML Engineer","requirements":["PyTorch","NLP","Evaluation","Python"],"nice_to_have":["MLOps","Monitoring"],"location":"Seattle"},
+  {"job_id":"job_010","company":"Databricks","title":"Analytics Engineer","requirements":["SQL","dbt","Python","Airflow"],"nice_to_have":["Stakeholder Reporting"],"location":"Chicago"},
+  {"job_id":"job_011","company":"Stripe","title":"Platform Engineer","requirements":["Go","APIs","PostgreSQL","Observability"],"nice_to_have":["Kubernetes","OpenTelemetry"],"location":"Seattle"},
+  {"job_id":"job_012","company":"Vercel","title":"Frontend Engineer","requirements":["React","TypeScript","Next.js","Testing"],"nice_to_have":["Tailwind","Accessibility"],"location":"Remote"},
+  {"job_id":"job_013","company":"Snowflake","title":"Data Platform Engineer","requirements":["SQL","Python","Distributed Systems","APIs"],"nice_to_have":["dbt","Airflow"],"location":"San Mateo"},
+  {"job_id":"job_014","company":"Datadog","title":"Observability Engineer","requirements":["OpenTelemetry","Python","APIs","Monitoring"],"nice_to_have":["LangSmith","Tracing"],"location":"New York"},
+  {"job_id":"job_015","company":"MongoDB","title":"Backend Engineer","requirements":["Java","Distributed Systems","APIs","Docker"],"nice_to_have":["Kafka","AWS"],"location":"Austin"},
+  {"job_id":"job_016","company":"Notion","title":"Full Stack Engineer","requirements":["React","TypeScript","Node.js","PostgreSQL"],"nice_to_have":["GraphQL","Testing"],"location":"San Francisco"},
+  {"job_id":"job_017","company":"Asana","title":"Product Data Scientist","requirements":["Python","SQL","Experimentation","Causal Inference"],"nice_to_have":["Dashboards","Forecasting"],"location":"San Francisco"},
+  {"job_id":"job_018","company":"Roblox","title":"Systems Engineer","requirements":["C++","Python","Linux","Distributed Systems"],"nice_to_have":["Networking"],"location":"San Mateo"},
+  {"job_id":"job_019","company":"Scale AI","title":"AI Platform Engineer","requirements":["Python","RAG","LLM Gateway","Rate Limits"],"nice_to_have":["Cost Tracking","Evaluation"],"location":"San Francisco"},
+  {"job_id":"job_020","company":"HubSpot","title":"CRM Automation Engineer","requirements":["Python","APIs","CRM","Workflow Automation"],"nice_to_have":["Audit Logs","Approval Queue"],"location":"Remote"}
+]

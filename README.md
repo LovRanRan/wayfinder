@@ -249,6 +249,28 @@ pending: no Railway project is linked in this checkout yet
 - Bilingual launch draft: [`docs/blog/wayfinder_launch_post.md`](docs/blog/wayfinder_launch_post.md)
 - Deploy notes: [`docs/deploy/README.md`](docs/deploy/README.md)
 
+## Enterprise Workflow Case Study
+
+To show that Wayfinder's agent architecture generalizes beyond codebase
+onboarding, the repo includes a permission-gated recruiting CRM workflow demo.
+
+The demo simulates an enterprise agent that parses synthetic candidate profiles,
+matches roles, drafts referral outreach, routes high-risk actions through human
+approval, writes audit logs, and blocks unsafe actions. It uses only local mock
+data and does not connect to Gmail, Salesforce, a real CRM, login, or external
+accounts.
+
+Run it locally:
+
+```bash
+uv run python examples/enterprise_workflow/recruiting_crm_demo.py
+```
+
+Case-study docs:
+
+- [`docs/case_studies/enterprise_workflow_agent.md`](docs/case_studies/enterprise_workflow_agent.md)
+- [`docs/case_studies/enterprise_eval_report.md`](docs/case_studies/enterprise_eval_report.md)
+
 ## Lessons Learned
 
 - Deterministic tools should own source truth;LLMs should not invent structure or symbols.

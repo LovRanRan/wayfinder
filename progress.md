@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 9** — enterprise workflow case-study design contract complete; external deploy/video still pending account actions |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **9 / 11 done** · ship **5 / 8 local artifacts done** |
+| **Current Commit** | [x] **Commit 10** — enterprise workflow case-study MVP + docs complete; external deploy/video still pending account actions |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **10 / 11 done** · ship **5 / 8 local artifacts done** |
 | **Blocker** | External deploy is not linked:Railway CLI reports no linked project, so public live URL and recorded demo video cannot be honestly marked complete yet. |
-| **Last Activity** | 2026-06-04 · Completed Commit 9 enterprise workflow case-study design note, LEARNINGS, and roadmap closure without production code. |
+| **Last Activity** | 2026-06-04 · Completed Commit 10 local enterprise workflow MVP, synthetic data, example outputs, tests, case-study docs, README section, and LEARNINGS. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Finish external ship evidence when Railway authorization is available; otherwise only start Commit 10 after Haichuan-owned enterprise skeleton is written and approved. |
-| **Next Action** | Authorize Railway and connect GitHub deploy, or if continuing the case study, write the minimal `src/wayfinder/enterprise` skeleton from `docs/design_notes/011_enterprise_workflow_case_study.md` before any implementation. |
+| **Today's North Star** | Finish external ship evidence:authorize Railway GitHub deploy, verify API/dashboard live URLs, update README, and record the recursive demo video. |
+| **Next Action** | Authorize Railway, connect GitHub deploy for API/dashboard services, set dashboard `WAYFINDER_API_BASE_URL`, verify `/health` and dashboard, then record the 3-min demo. |
 
 ---
 
@@ -281,14 +281,14 @@ Guided design mode:
   - [x] Define eval contract:50 candidates,20 jobs,20 contacts,10 risky cases;metrics include approval_routing_accuracy,unsafe_action_blocking_rate,cost_per_candidate_usd,human_intervention_rate ✅ 2026-06-04
   - [x] Skeleton gate documented:actual minimal skeleton is deferred until Haichuan writes and approves it for Commit 10 ✅ 2026-06-04
 
-- [ ] **Commit 10 — Enterprise workflow case study MVP + docs(post-mainline)**
-  - [ ] Implement from Haichuan-owned skeleton:permission-gated recruiting CRM demo,not a standalone recruiting product
-  - [ ] Add mock CRM / mock email draft / mock policy store / approval queue / audit log;no real Gmail,Salesforce,login,or frontend dashboard
-  - [ ] Add example runner under `examples/enterprise_workflow/` that loads synthetic JSON,prints final report,and writes sample audit / approval outputs
-  - [ ] Add focused tests for policy decisions,approval routing,unsafe email blocking,audit event creation,missing contact handling,high-risk CRM update requiring approval
-  - [ ] Add `docs/case_studies/enterprise_workflow_agent.md` and `enterprise_eval_report.md`;do not publish fake benchmark numbers
-  - [ ] Add a small README section under Wayfinder explaining that the architecture generalizes beyond codebase onboarding
-  - [ ] Add one resume bullet under the existing Wayfinder project;do not create a separate project title
+- [x] **Commit 10 — Enterprise workflow case study MVP + docs(post-mainline)** ✅ 2026-06-04
+  - [x] Implement permission-gated recruiting CRM demo under `src/wayfinder/enterprise`,not a standalone recruiting product ✅ 2026-06-04
+  - [x] Add mock CRM / mock email draft / mock policy store / approval queue / audit log;no real Gmail,Salesforce,login,or frontend dashboard ✅ 2026-06-04
+  - [x] Add example runner under `examples/enterprise_workflow/` that loads synthetic JSON,prints final report,and writes sample audit / approval outputs ✅ 2026-06-04
+  - [x] Add focused tests for policy decisions,approval routing,unsafe email blocking,audit event creation,missing contact handling,high-risk CRM update requiring approval ✅ 2026-06-04
+  - [x] Add `docs/case_studies/enterprise_workflow_agent.md` and `enterprise_eval_report.md`;do not publish fake benchmark numbers ✅ 2026-06-04
+  - [x] Add a small README section under Wayfinder explaining that the architecture generalizes beyond codebase onboarding ✅ 2026-06-04
+  - [x] Add one resume bullet under the existing Wayfinder project;do not create a separate project title ✅ 2026-06-04
 
 ### Ship
 
@@ -306,6 +306,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-04 — Commit 10 closed — `enterprise workflow case-study MVP`
+
+- **做了什么**:Added the local Permission-Gated Recruiting CRM Agent MVP under `src/wayfinder/enterprise`, including state models, deterministic policy, audit helper, mock tools, workflow runner, focused tests, 50 synthetic candidates,20 jobs,20 contacts, sample outputs, case-study docs, eval report placeholder, README section, and LEARNINGS.
+- **自己设计了什么**:The implementation keeps enterprise actions local and permission-gated. Drafting/matching can run automatically, `send_email` and referral requests always create approval tasks, high-risk CRM updates require approval, and denied actions like `invent_contact` write blocked audit events.
+- **Codex 帮了哪里**:Codex implemented this commit directly after Haichuan explicitly requested starting Commit 10, while preserving the Commit 9 boundaries:no real Gmail/Salesforce/CRM/login, no standalone dashboard, and no fake benchmark numbers.
+- **验证方式**:`python -m json.tool examples/enterprise_workflow/mock_candidates.json`;`python -m json.tool examples/enterprise_workflow/mock_jobs.json`;`python -m json.tool examples/enterprise_workflow/mock_contacts.json`;`uv run python examples/enterprise_workflow/recruiting_crm_demo.py`;`uv run pytest tests/test_enterprise_policy.py tests/test_enterprise_workflow.py -q`;`uv run ruff check src/wayfinder/enterprise tests/test_enterprise_policy.py tests/test_enterprise_workflow.py examples/enterprise_workflow/recruiting_crm_demo.py`;`uv run mypy src/wayfinder/enterprise tests/test_enterprise_policy.py tests/test_enterprise_workflow.py`.
+- **问题记录**:The first demo runner could not import `wayfinder` from the example directory, so it now inserts repo `src/` for local runs. Sample outputs originally used wall-clock timestamps;the workflow now accepts a fixed `created_at` for reproducible artifacts.
+- **下一步**:Run full backend gates, commit/push Commit 10, then return to Railway GitHub deploy + live demo video once authorization is available.
 
 ### 2026-06-04 — Commit 9 closed — `enterprise workflow case-study design contract`
 

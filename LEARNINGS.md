@@ -375,3 +375,36 @@
 - "The model proposes actions, but policy controls execution:read and draft actions can be automatic, while email sends, referral requests, and risky CRM mutations require approval or are blocked."
 - "Every node/tool decision writes an audit event, so the final report is backed by operational evidence instead of free-form narration."
 - "The eval contract measures workflow safety:approval-routing accuracy, unsafe-action blocking, cost per candidate, latency, and human intervention rate."
+
+---
+
+## Commit 10 — Enterprise Workflow Case Study MVP + Docs
+
+### 📚 Sources
+
+- [x] Project-local design note: [`011_enterprise_workflow_case_study.md`](docs/design_notes/011_enterprise_workflow_case_study.md) — implementation boundary, state schema, policy table, approval/audit schemas, failure handling, eval contract, and no-real-CRM constraints ✅ 2026-06-04
+- [x] Project-local tracker: [`progress.md`](progress.md) Commit 10 roadmap — mock CRM/email/policy store, approval queue, audit log, example runner, tests, case-study docs, and README/resume integration scope ✅ 2026-06-04
+- [x] Project-local architecture baseline: [`DESIGN.md`](DESIGN.md) — Wayfinder's HITL, verifier, observability, dashboard, and failure-mode principles to reuse in the enterprise case study ✅ 2026-06-04
+- [x] Project-local case-study plan: [`project6_enterprise_workflow_case_study_plan.md`](project6_enterprise_workflow_case_study_plan.md) — original enterprise workflow gap analysis and Permission-Gated Recruiting CRM Agent demo shape ✅ 2026-06-04
+
+### 🧠 Concepts Internalized
+
+- Enterprise workflow realism can be proven without real external integrations. The MVP uses synthetic local data, deterministic mock tools, approval tasks, and audit events to show the safety boundary.
+- Policy should be deterministic and separate from graph narration. `allow_if_low_risk` depends on a prior risk check; `requires_approval` creates a task; `deny` blocks and writes an audit event.
+- Audit events are not optional logs. They are the evidence artifact that lets a final report explain why an action executed, waited for approval, or was blocked.
+- A reproducible demo needs fixed inputs and fixed sample timestamps. The example runner now generates stable sample audit / approval / report artifacts from committed JSON.
+- Eval docs should distinguish smoke evidence from aggregate benchmark numbers. Commit 10 documents pending metrics instead of inventing results.
+
+### ⚠️ Gotchas Debugged
+
+- Running `uv run python examples/enterprise_workflow/recruiting_crm_demo.py` initially could not import `wayfinder` because scripts run with the example directory on `sys.path`;the runner now inserts repo `src/` explicitly for local demo use.
+- The first sample artifacts used wall-clock timestamps, which made outputs non-reproducible. `run_enterprise_workflow()` now accepts `created_at` so the committed demo uses a fixed timestamp.
+- The workflow must not treat `send_email` as just another high-risk action. It always creates an approval task and never executes in the mock CRM step.
+- The `invent_contact` path is deliberately denied. Missing contacts should be blocked, not silently converted into fake CRM data.
+
+### 💼 Interview Soundbites
+
+- "I extended Wayfinder with a local enterprise workflow case study:50 synthetic candidates,20 jobs,20 contacts,policy-gated mock tools,approval tasks,and audit logs."
+- "The model can draft and propose actions, but deterministic policy decides whether an action runs, waits for approval, or is blocked."
+- "Every node/tool decision writes an audit event, so the final report is backed by operational evidence rather than free-form agent narration."
+- "I documented eval metrics separately from results;the MVP has smoke evidence and focused tests, but no fake benchmark numbers."

@@ -1,0 +1,22 @@
+[
+  {
+    "action_name": "create_referral_request",
+    "action_summary": "Create referral request for Salesforce.",
+    "created_at": "2026-06-04T12:00:00Z",
+    "reason": "Action requires human approval before execution.",
+    "risk_level": "medium",
+    "run_id": "run_demo_001",
+    "status": "pending",
+    "task_id": "approval-001"
+  },
+  {
+    "action_name": "send_email",
+    "action_summary": "Send outreach draft for Salesforce.",
+    "created_at": "2026-06-04T12:00:00Z",
+    "reason": "Action requires human approval before execution.",
+    "risk_level": "high",
+    "run_id": "run_demo_001",
+    "status": "pending",
+    "task_id": "approval-002"
+  }
+]

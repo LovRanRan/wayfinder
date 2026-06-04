@@ -1,0 +1,22 @@
+[
+  {"contact_id":"contact_001","company":"Salesforce","role":"Software Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_002","company":"OpenAI","role":"Member of Technical Staff","relationship":"second_degree","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_003","company":"Anthropic","role":"AI Safety Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_004","company":"Google","role":"Software Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_005","company":"Meta","role":"Data Engineer","relationship":"friend_of_friend","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_006","company":"Amazon","role":"Cloud Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_007","company":"Cursor","role":"Developer Tools Engineer","relationship":"community","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_008","company":"LangChain","role":"Solutions Engineer","relationship":"open_source","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_009","company":"Cohere","role":"ML Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_010","company":"Databricks","role":"Analytics Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_011","company":"Stripe","role":"Platform Engineer","relationship":"second_degree","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_012","company":"Vercel","role":"Frontend Engineer","relationship":"community","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_013","company":"Snowflake","role":"Data Platform Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_014","company":"Datadog","role":"Observability Engineer","relationship":"second_degree","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_015","company":"MongoDB","role":"Backend Engineer","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_016","company":"Notion","role":"Full Stack Engineer","relationship":"friend_of_friend","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_017","company":"Asana","role":"Data Scientist","relationship":"alumni","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_018","company":"Roblox","role":"Systems Engineer","relationship":"second_degree","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_019","company":"Scale AI","role":"AI Platform Engineer","relationship":"community","allowed_contact_method":"draft_only"},
+  {"contact_id":"contact_020","company":"HubSpot","role":"CRM Automation Engineer","relationship":"alumni","allowed_contact_method":"draft_only"}
+]
