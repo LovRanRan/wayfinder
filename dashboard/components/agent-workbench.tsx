@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { CurrentRunConsole } from "@/components/current-run-console";
 import { RunLauncher } from "@/components/run-launcher";
@@ -14,7 +14,18 @@ type AgentWorkbenchProps = {
 };
 
 export function AgentWorkbench({ runs, source, publicApiBaseUrl }: AgentWorkbenchProps) {
-  const [selectedRun, setSelectedRun] = useState<DashboardRun | null>(null);
+  const [selectedRun, setSelectedRun] = useState<DashboardRun | null>(() => runs[0] ?? null);
+
+  useEffect(() => {
+    setSelectedRun((currentRun) => {
+      if (currentRun === null) {
+        return runs[0] ?? null;
+      }
+
+      return runs.find((run) => run.jobId === currentRun.jobId) ?? currentRun;
+    });
+  }, [runs]);
+
   const visibleRuns = useMemo(() => {
     if (selectedRun === null) {
       return runs;
