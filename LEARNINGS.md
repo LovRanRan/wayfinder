@@ -465,7 +465,7 @@
 - File-count limits belong immediately after materialization. If a repo exceeds `WAYFINDER_GITHUB_MAX_FILES`, the API returns 413 before graph nodes scan it.
 - Deployment images must include operational dependencies. A Python API image that calls `git clone` must install `git`, or local tests pass while Railway fails at runtime.
 - Production container start commands should use the installed runtime, not package-manager launchers that may resync dev dependencies. Railway exposed this when `uv run` tried to resolve local editable Project 5 packages at container startup.
-- Railway CLI snapshot deploy is not the same as GitHub auto-deploy. The live services are deployed, but push-to-deploy still requires connecting the repo in Railway UI because the CLI repo integration returned `Unauthorized`.
+- Railway CLI snapshot deploy is not the same as GitHub auto-deploy. The first live services were deployed by CLI, then Haichuan connected both services to `LovRanRan/wayfinder` in the Railway UI and triggered successful GitHub-backed redeploys.
 - Failing fast is better than placeholder ambiguity. Disabled or disallowed GitHub URLs now return explicit 403 errors instead of silently falling through to `missing_repo_path`.
 
 ### ⚠️ Gotchas Debugged
@@ -478,6 +478,7 @@
 - Haichuan reran `docker build -f Dockerfile.api -t wayfinder-api:commit12 .` successfully after the initial metadata-pull stall;the build finished 11/11, including `apt-get install git` and `uv sync --frozen --no-dev`.
 - Railway API startup first failed because `CMD ["uv", "run", ...]` re-entered dependency resolution and looked for `../project5/mcp-test-runner`. Calling `.venv/bin/uvicorn` uses the image's already-installed production environment.
 - Railway dashboard deployment must treat `dashboard/` as the archive root. Running `railway up` without `--path-as-root dashboard` built the root `Dockerfile.api` into the dashboard service.
+- GitHub-backed Railway deploys need service-level build boundaries:API root stays at repo root with `RAILWAY_DOCKERFILE_PATH=Dockerfile.api`;dashboard root directory is `/dashboard`.
 
 ### 💼 Interview Soundbites
 
@@ -486,3 +487,4 @@
 - "Disabled or disallowed GitHub URLs fail fast with 403 instead of producing confusing placeholder output."
 - "I added `git` to the API image because deploy readiness includes operational dependencies, not just Python imports."
 - "I deployed Wayfinder as split Railway services:FastAPI API plus Next.js dashboard, verified `/health`, `/docs`, dashboard home, proxy submit/status, and an allowlisted GitHub URL flow."
+- "After the first CLI deploy, I connected both Railway services to GitHub so future pushes to `main` can redeploy the split API/dashboard setup."

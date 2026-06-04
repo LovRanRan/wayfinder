@@ -45,10 +45,10 @@ Current Railway project:
 - API: <https://wayfinder-api-production.up.railway.app>
 - Dashboard: <https://wayfinder-dashboard-production-f8d7.up.railway.app>
 
-Current deploy mode is CLI snapshot deploy from commit `c1c09c4`. GitHub
-auto-deploy is still pending because `railway add --repo LovRanRan/wayfinder`
-returned `Unauthorized` from the CLI account path. Connect both services to the
-GitHub repo in the Railway UI before relying on push-to-deploy updates.
+Current deploy mode is GitHub-backed deploy from `LovRanRan/wayfinder` on
+`main`. The first deploy was a CLI snapshot deploy from commit `c1c09c4`;
+Railway UI GitHub connection was completed on 2026-06-04 and both services
+redeployed successfully.
 
 Create or link the project:
 
@@ -87,6 +87,10 @@ railway domain --service wayfinder-dashboard --port 3000
 Do not deploy the dashboard from the repo root without `--path-as-root
 dashboard`; otherwise Railway reads the root `railway.json` and builds
 `Dockerfile.api`.
+
+For GitHub-backed deploys, keep the dashboard service root directory set to
+`/dashboard` in Railway Settings. Keep the API service root directory at the
+repo root and set `RAILWAY_DOCKERFILE_PATH=Dockerfile.api`.
 
 For a new Railway project, set:
 

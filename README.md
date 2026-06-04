@@ -251,10 +251,10 @@ railway up --service wayfinder-api
 railway up --service wayfinder-dashboard --path-as-root dashboard
 ```
 
-The current Railway services were first deployed with CLI snapshot deploys from
-commit `c1c09c4`. GitHub auto-deploy still needs the Railway UI GitHub repo
-connection; `railway add --repo LovRanRan/wayfinder` returned `Unauthorized`
-from the CLI in this account.
+The Railway services are connected to `LovRanRan/wayfinder` on `main` for
+GitHub-backed deploys. The first deploy was a CLI snapshot deploy from commit
+`c1c09c4`; the GitHub-connected redeploys succeeded from the Railway UI on
+2026-06-04.
 
 Cloud Run:
 
