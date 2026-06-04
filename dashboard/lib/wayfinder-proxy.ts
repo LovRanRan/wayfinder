@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiBaseUrlFromEnv } from "@/lib/api";
+import { authorizationHeader, sessionTokenFromCookies } from "@/lib/session";
 
 type JsonBody = Record<string, unknown> | unknown[];
 
@@ -12,11 +13,16 @@ export async function proxyWayfinderJson(
   } = {},
 ) {
   const method = init.method ?? "GET";
+  const token = await sessionTokenFromCookies();
+  const headers = {
+    ...authorizationHeader(token),
+    ...(init.body ? { "content-type": "application/json" } : {}),
+  };
 
   try {
     const response = await fetch(`${apiBaseUrlFromEnv()}${path}`, {
       method,
-      headers: init.body ? { "content-type": "application/json" } : undefined,
+      headers,
       body: init.body ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
     });

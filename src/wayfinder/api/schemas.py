@@ -18,6 +18,23 @@ class RefineRequest(BaseModel):
     correction: str = Field(min_length=1)
 
 
+class AuthRequest(BaseModel):
+    workspace_id: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=8)
+    display_name: str | None = Field(default=None, max_length=80)
+
+
+class UserProfile(BaseModel):
+    user_id: str
+    workspace_id: str
+    display_name: str
+
+
+class AuthResponse(BaseModel):
+    user: UserProfile
+    token: str
+
+
 class RunError(BaseModel):
     node: str
     error_type: str
@@ -27,6 +44,7 @@ class RunError(BaseModel):
 
 class RunSummary(BaseModel):
     job_id: str
+    user_id: str = "local-dev"
     repo_url: str
     query: str
     status: RunStatus

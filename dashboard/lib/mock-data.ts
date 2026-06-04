@@ -2,6 +2,7 @@ import type { DashboardRun } from "@/lib/types";
 
 export const mockRuns: DashboardRun[] = [
   {
+    userId: "demo-user",
     jobId: "run_langchain_bootstrap",
     repoName: "langchain-ai/langchain",
     repoUrl: "https://github.com/langchain-ai/langchain",
@@ -42,6 +43,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T17:00:04Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_fixture_architecture",
     repoName: "fixture/python-service",
     repoUrl: "local://fixture/python-service",
@@ -81,6 +83,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T16:51:03Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_verifier_timeout",
     repoName: "fixture/slow-tests",
     repoUrl: "local://fixture/slow-tests",
@@ -109,6 +112,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T16:40:09Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_ast_missing_symbol",
     repoName: "fixture/api-service",
     repoUrl: "local://fixture/api-service",
@@ -137,6 +141,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T16:30:02Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_route_correction",
     repoName: "fixture/routing",
     repoUrl: "local://fixture/routing",
@@ -165,6 +170,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T16:20:02Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_unsupported_language",
     repoName: "fixture/typescript-lib",
     repoUrl: "local://fixture/typescript-lib",
@@ -193,6 +199,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T16:10:02Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_contradicted_claim",
     repoName: "fixture/payments",
     repoUrl: "local://fixture/payments",
@@ -221,6 +228,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T16:00:06Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_repo_too_large",
     repoName: "fixture/monorepo",
     repoUrl: "local://fixture/monorepo",
@@ -249,6 +257,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T15:50:07Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_failed_api",
     repoName: "fixture/broken-path",
     repoUrl: "local://fixture/broken-path",
@@ -277,6 +286,7 @@ export const mockRuns: DashboardRun[] = [
     updatedAt: "2026-06-04T15:40:00Z",
   },
   {
+    userId: "demo-user",
     jobId: "run_current_queue",
     repoName: "local/current",
     repoUrl: "local://current",

@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 16** — Grounded LLM synthesis + community context policy |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **16 / 16 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video is still pending. Public test execution remains disabled until sandbox/auth exists. |
-| **Last Activity** | 2026-06-05 · Hotfixed architecture scanner resilience and reflection matching so repo-mapper decode/tool failures complete as clean limitations without reflection-cap noise. |
+| **Current Commit** | [x] **Commit 17** — User workspaces + persistent run history |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **17 / 17 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Demo video is still pending. Public test execution remains disabled until sandbox exists. |
+| **Last Activity** | 2026-06-05 · Closed Commit 17 with workspace auth, SQLite-backed user run history, dashboard session proxy, and redesigned login/workspace UI. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Convert Wayfinder from deterministic evidence panel into a grounded LLM copilot while preserving MCP/verifier evidence boundaries. |
-| **Next Action** | Push/redeploy the scanner-resilience hotfix, rerun `langchain-ai/langchain` architecture smoke, then record the recursive demo. |
+| **Today's North Star** | Convert Wayfinder from a shared public demo console into a user workspace that can analyze public repo links and preserve per-user history. |
+| **Next Action** | Push Commit 17, set Railway auth/run-store variables, mount a persistent volume if using SQLite on Railway, then redeploy and smoke login/history. |
 
 ---
 
@@ -290,7 +290,7 @@ Guided design mode:
   - [x] Add a small README section under Wayfinder explaining that the architecture generalizes beyond codebase onboarding ✅ 2026-06-04
   - [x] Add one resume bullet under the existing Wayfinder project;do not create a separate project title ✅ 2026-06-04
 
-- [x] **Commit 11 — Frontend launch hardening** ✅ 2026-06-04
+- [x] **Commit 11 — Frontend launch hardening** ✅ 2026-06-05
   - [x] Add a dashboard run launcher so a visitor can submit a repo/question, poll status, refresh, and refine from the UI ✅ 2026-06-04
   - [x] Add Next.js proxy routes for `/explain`, `/status/{job_id}`, and `/refine/{job_id}` so browser actions do not require direct API CORS access ✅ 2026-06-04
   - [x] Split dashboard server API URL from public browser API URL for Railway/internal-service deployment ✅ 2026-06-04
@@ -345,6 +345,14 @@ Guided design mode:
   - [x] Add regression tests for LLM routing, synthesis fallback, community context policy, env factories, and default deterministic behavior ✅ 2026-06-05
   - [x] Run one bounded live OpenAI smoke with `WAYFINDER_FINAL_WRITER=openai` / `WAYFINDER_LLM_ROUTING=openai` ✅ 2026-06-05
 
+- [x] **Commit 17 — User workspaces + persistent run history** ✅ 2026-06-05
+  - [x] Write `docs/design_notes/014_user_workspaces_persistent_history.md` defining auth, persistence, public repo, and test-runner sandbox boundaries ✅ 2026-06-05
+  - [x] Add workspace register/login/session auth with user-scoped `/explain`, `/runs`, `/status/{job_id}`, and `/refine/{job_id}` ✅ 2026-06-05
+  - [x] Add SQLite-backed persistent run history selected by env ✅ 2026-06-05
+  - [x] Redesign dashboard around login, workspace account state, run composer, current run, and per-user history ✅ 2026-06-05
+  - [x] Update README/DESIGN/deploy docs and Railway env guidance ✅ 2026-06-05
+  - [x] Run backend/frontend quality gates and push ✅ 2026-06-05
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -361,6 +369,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 17 closed — `User workspaces + persistent run history`
+
+- **做了什么**:Replaced the shared demo run list with workspace auth and persistent run history. Added the design note, backend auth/store modules, user-scoped API routes, dashboard session proxy, login/register/logout routes, and a redesigned workspace UI.
+- **自己设计了什么**:Auth + DB solves user separation and saved history;it does not make online test execution safe. Public repo analysis can use auth plus `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`, while `mcp-test-runner` remains sandbox-gated.
+- **Codex 帮了哪里**:Codex is implementing this commit directly after Haichuan explicitly delegated Commit 17 and requested a redesigned login/workspace frontend.
+- **验证方式**:`uv run pytest -q`(204 passed,8 skipped);`uv run ruff check .`;`uv run mypy src tests`;`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`;local browser QA with auth-required API + temporary SQLite store verified login/register, workspace page, run submit, current console, and user history.
+- **问题记录**:SQLite persistence needs a Railway volume path such as `/data/wayfinder/runs.sqlite`;without a mounted volume, the DB is container-local.
+- **下一步**:Commit/push Commit 17, set Railway variables, mount a persistent `/data` volume if using SQLite, redeploy, and smoke login/history on the public dashboard.
 
 ### 2026-06-05 — Commit 16 closed — `Grounded LLM synthesis + community context policy`
 

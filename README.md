@@ -91,6 +91,14 @@ export WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinde
 export WAYFINDER_GITHUB_MAX_FILES=10000
 ```
 
+Private workspace mode:
+
+```bash
+export WAYFINDER_REQUIRE_AUTH=1
+export WAYFINDER_RUN_STORE=sqlite
+export WAYFINDER_RUN_STORE_PATH=.wayfinder/runs.sqlite
+```
+
 Run dashboard:
 
 ```bash
@@ -132,10 +140,11 @@ curl -X POST http://localhost:8000/explain \
   -d '{"repo_url":".","query":"Map the architecture and entry points"}'
 ```
 
-GitHub URLs are supported when `WAYFINDER_ENABLE_GITHUB_INGESTION=1` and the
-repo is present in `WAYFINDER_GITHUB_REPO_ALLOWLIST`. The API shallow-clones the
-repo into the Wayfinder cache and rejects repos over `WAYFINDER_GITHUB_MAX_FILES`
-files.
+GitHub URLs are supported when `WAYFINDER_ENABLE_GITHUB_INGESTION=1`. The API
+shallow-clones the repo into the Wayfinder cache and rejects repos over
+`WAYFINDER_GITHUB_MAX_FILES` files. Set
+`WAYFINDER_GITHUB_REPO_ALLOWLIST=*` for authenticated public-repo workspace mode;
+keep a narrow list for anonymous public demos.
 
 ### `GET /status/{job_id}`
 
@@ -267,13 +276,24 @@ mcp-ast-explorer    -> http://127.0.0.1:8102/mcp
 Set the API service to:
 
 ```env
+WAYFINDER_REQUIRE_AUTH=1
+WAYFINDER_RUN_STORE=sqlite
+WAYFINDER_RUN_STORE_PATH=/data/wayfinder/runs.sqlite
 WAYFINDER_START_PROJECT5_HTTP_MCP=1
 WAYFINDER_ARCHITECTURE_SCANNER=mcp_http
 WAYFINDER_ENTRY_SCANNER=mcp_http
 WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL=http://127.0.0.1:8101/mcp
 WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL=http://127.0.0.1:8102/mcp
 WAYFINDER_VERIFIER_RUNNER=placeholder
+WAYFINDER_ENABLE_GITHUB_INGESTION=1
+WAYFINDER_GITHUB_REPO_ALLOWLIST=*
+WAYFINDER_GITHUB_MAX_FILES=10000
+WAYFINDER_GITHUB_CACHE_ROOT=/tmp/wayfinder/repos
 ```
+
+For Railway, mount a persistent volume at `/data` before relying on
+`/data/wayfinder/runs.sqlite`;otherwise the SQLite database is container-local
+and can be lost on rebuild.
 
 Optional grounded LLM synthesis:
 

@@ -18,6 +18,7 @@ export function toDashboardRun(run: ApiRunSummary): DashboardRun {
 
   return {
     jobId: run.job_id,
+    userId: run.user_id,
     repoName: repoNameFromUrl(run.repo_url),
     repoUrl: run.repo_url,
     query: run.query,

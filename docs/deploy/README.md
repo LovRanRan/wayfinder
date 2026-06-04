@@ -120,10 +120,20 @@ WAYFINDER_VERIFIER_RUNNER=placeholder
 WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL=http://127.0.0.1:8101/mcp
 WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL=http://127.0.0.1:8102/mcp
 WAYFINDER_ENABLE_GITHUB_INGESTION=1
-WAYFINDER_GITHUB_REPO_ALLOWLIST=langchain-ai/langchain,LovRanRan/wayfinder
+WAYFINDER_GITHUB_REPO_ALLOWLIST=*
 WAYFINDER_GITHUB_MAX_FILES=10000
 WAYFINDER_GITHUB_CACHE_ROOT=/tmp/wayfinder/repos
+WAYFINDER_REQUIRE_AUTH=1
+WAYFINDER_RUN_STORE=sqlite
+WAYFINDER_RUN_STORE_PATH=/data/wayfinder/runs.sqlite
+WAYFINDER_SESSION_TTL_DAYS=30
 ```
+
+Mount a Railway volume at `/data` before using the SQLite run store path above.
+Without a volume, the database is only container-local and may be lost during
+rebuilds. For an anonymous portfolio demo, keep `WAYFINDER_REQUIRE_AUTH=0` and
+use a narrow `WAYFINDER_GITHUB_REPO_ALLOWLIST`;for the workspace product shape,
+use auth plus `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`.
 
 `WAYFINDER_VERIFIER_RUNNER=placeholder` disables test execution only. AST-backed
 definition/signature verification still works when `WAYFINDER_ENTRY_SCANNER` is
@@ -133,9 +143,9 @@ If Railway gives the dashboard an internal service DNS for the API, use that for
 `WAYFINDER_API_BASE_URL` and keep the public API URL in
 `NEXT_PUBLIC_WAYFINDER_API_BASE_URL` for browser links.
 
-Keep `WAYFINDER_GITHUB_REPO_ALLOWLIST` narrow for a public portfolio demo. Use
-`*` only for a private trusted deployment; otherwise any visitor can make the
-API spend time cloning arbitrary GitHub repos.
+Keep `mcp-test-runner` disabled in public deploy until an execution sandbox is
+available. Auth separates users and preserves history; it does not make
+untrusted repository test commands safe to run in the API container.
 
 Smoke checks:
 

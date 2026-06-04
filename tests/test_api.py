@@ -5,7 +5,10 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from wayfinder.api.auth import AuthenticatedUser
 from wayfinder.api.main import app
+from wayfinder.api.run_store import InMemoryRunStore, SQLiteRunStore
+from wayfinder.api.schemas import ExplainRequest
 from wayfinder.graph.architecture import ArchitectureScanner
 from wayfinder.graph.entry import EntryScanner
 from wayfinder.graph.state import WayfinderState
@@ -148,6 +151,101 @@ def test_runs_lists_recent_jobs() -> None:
     assert runs_response.status_code == 200
     job_ids = [run["job_id"] for run in runs_response.json()]
     assert job_id in job_ids
+
+
+def test_auth_required_blocks_anonymous_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")
+
+    client = TestClient(app)
+    response = client.get("/runs")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "login required"
+
+
+def test_workspace_auth_scopes_runs_to_owner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")
+
+    client = TestClient(app)
+    alice_register = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "alice",
+            "password": "correct-horse",
+            "display_name": "Alice",
+        },
+    )
+    bob_register = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "bob",
+            "password": "correct-horse",
+            "display_name": "Bob",
+        },
+    )
+
+    assert alice_register.status_code == 201
+    assert bob_register.status_code == 201
+    alice_token = alice_register.json()["token"]
+    bob_token = bob_register.json()["token"]
+
+    alice_headers = {"Authorization": f"Bearer {alice_token}"}
+    bob_headers = {"Authorization": f"Bearer {bob_token}"}
+    me_response = client.get("/auth/me", headers=alice_headers)
+    assert me_response.status_code == 200
+    assert me_response.json()["workspace_id"] == "alice"
+
+    explain_response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+        headers=alice_headers,
+    )
+    assert explain_response.status_code == 202
+    job_id = explain_response.json()["job_id"]
+    assert explain_response.json()["user_id"] == alice_register.json()["user"]["user_id"]
+
+    alice_runs = client.get("/runs", headers=alice_headers).json()
+    bob_runs = client.get("/runs", headers=bob_headers).json()
+    assert [run["job_id"] for run in alice_runs] == [job_id]
+    assert bob_runs == []
+
+    bob_status = client.get(f"/status/{job_id}", headers=bob_headers)
+    assert bob_status.status_code == 404
+
+
+def test_sqlite_run_store_persists_user_run_history(tmp_path: Path) -> None:
+    db_path = tmp_path / "runs.sqlite"
+    user = AuthenticatedUser(
+        user_id="user-1",
+        workspace_id="alice",
+        display_name="Alice",
+    )
+    store = SQLiteRunStore(db_path)
+    run = store.create(
+        user=user,
+        request=ExplainRequest(repo_url="local", query="Map architecture"),
+        graph_input={"repo_url": "local", "query": "Map architecture"},
+    )
+    store.mark_completed(
+        run.job_id,
+        result={
+            "final_output": "done",
+            "partial_summaries": {},
+            "verified_claims": [],
+            "unverified_claims": [],
+            "contradicted_claims": [],
+        },
+        trace_metadata={"phase": "explain"},
+    )
+
+    reopened = SQLiteRunStore(db_path)
+    runs = reopened.list_recent(user_id=user.user_id, limit=5)
+
+    assert len(runs) == 1
+    assert runs[0].job_id == run.job_id
+    assert runs[0].final_output == "done"
 
 
 def test_explain_rejects_github_url_when_ingestion_disabled(

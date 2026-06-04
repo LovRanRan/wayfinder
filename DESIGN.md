@@ -283,3 +283,22 @@ mode is enabled, the model receives a bounded synthesis packet:
 The LLM is not allowed to invent files, symbols, tests, or behavior. It may only
 compose the evidence into a readable onboarding answer and must preserve
 `verified`, `unverified`, and `contradicted` labels.
+
+## 14. User Workspaces and Persistent History
+
+Wayfinder now supports a workspace-auth mode for public repo analysis. When
+`WAYFINDER_REQUIRE_AUTH=1`, `/explain`, `/runs`, `/status/{job_id}`, and
+`/refine/{job_id}` require a session token and only return runs owned by that
+user. The dashboard stores the session in an HTTP-only cookie and forwards it to
+the API as a bearer token through its proxy routes.
+
+Persistent history is enabled with:
+
+```env
+WAYFINDER_RUN_STORE=sqlite
+WAYFINDER_RUN_STORE_PATH=/data/wayfinder/runs.sqlite
+```
+
+This commit deliberately keeps online test execution separate from auth. Public
+GitHub repo analysis can use `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`, but
+`mcp-test-runner` remains sandbox-gated because it executes untrusted repo code.

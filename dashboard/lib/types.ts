@@ -4,6 +4,18 @@ export type RunIntent = "architectural" | "runtime" | "behavioral" | "debug" | "
 
 export type TraceMetadataValue = string | number | boolean | null;
 
+export type DashboardUser = {
+  userId: string;
+  workspaceId: string;
+  displayName: string;
+};
+
+export type ApiUserProfile = {
+  user_id: string;
+  workspace_id: string;
+  display_name: string;
+};
+
 export type RunError = {
   node: string;
   errorType: string;
@@ -20,6 +32,7 @@ export type ApiRunError = {
 
 export type ApiRunSummary = {
   job_id: string;
+  user_id: string;
   repo_url: string;
   query: string;
   status: RunStatus;
@@ -40,6 +53,7 @@ export type ApiRunSummary = {
 
 export type DashboardRun = {
   jobId: string;
+  userId: string;
   repoName: string;
   repoUrl: string;
   query: string;
