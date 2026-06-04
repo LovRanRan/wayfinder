@@ -275,6 +275,27 @@ WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL=http://127.0.0.1:8102/mcp
 WAYFINDER_VERIFIER_RUNNER=placeholder
 ```
 
+Optional grounded LLM synthesis:
+
+```env
+OPENAI_API_KEY=...
+WAYFINDER_LLM_ROUTING=openai
+WAYFINDER_FINAL_WRITER=openai
+WAYFINDER_OPENAI_MODEL=gpt-5.5
+```
+
+Optional community context:
+
+```env
+WAYFINDER_COMMUNITY_CONTEXT=mcp
+TAVILY_API_KEY=...
+GITHUB_PERSONAL_ACCESS_TOKEN=...
+```
+
+Project 5 MCP output remains the code fact layer. Tavily/GitHub search results
+are external supporting context only;they do not create verified code claims and
+cannot override repository/AST/test evidence.
+
 `mcp-test-runner` intentionally remains disabled in public HTTP mode until a
 stronger remote execution sandbox is added. The reader MCPs run in the API
 container, not as separate Railway services, because they need access to the
@@ -329,6 +350,7 @@ Case-study docs:
 ## Lessons Learned
 
 - Deterministic tools should own source truth;LLMs should not invent structure or symbols.
+- LLMs are the synthesis layer:use them to turn bounded MCP/verifier evidence into a readable answer, not to create new facts.
 - `unverified` is a product state. It prevents missing coverage from becoming fake confidence.
 - Graph resume needs the same `thread_id` in API state, LangGraph config, and trace metadata.
 - Observability should start as a schema contract before dashboards and evals depend on it.

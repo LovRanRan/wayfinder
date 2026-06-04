@@ -49,6 +49,15 @@ class TestResult(TypedDict, total=False):
     claim_ref: str | None
 
 
+class CommunityContextItem(TypedDict):
+    """External context that supports but never verifies code facts."""
+
+    source: str
+    title: str
+    snippet: str
+    url: str | None
+
+
 class WayfinderState(TypedDict, total=False):
     query: str
     repo_url: str
@@ -70,6 +79,7 @@ class WayfinderState(TypedDict, total=False):
     contradicted_claims: list[Claim]
 
     test_results: dict[str, TestResult]
+    community_context: list[CommunityContextItem]
     partial_summaries: dict[str, str]
     user_corrections: list[str]
     errors: list[GraphError]

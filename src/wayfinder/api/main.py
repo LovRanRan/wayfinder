@@ -22,7 +22,11 @@ from wayfinder.graph import build_graph
 from wayfinder.graph.app import WayfinderGraph
 from wayfinder.graph.runtime import (
     architecture_scanner_from_env,
+    community_context_provider_from_env,
     entry_scanner_from_env,
+    env_with_local_dotenv,
+    final_synthesizer_from_env,
+    llm_router_from_env,
     verifier_runner_from_env,
 )
 from wayfinder.graph.state import WayfinderState
@@ -198,7 +202,7 @@ def _graph_input_from_request(request: ExplainRequest) -> WayfinderState:
         "repo_url": request.repo_url,
         "query": request.query,
     }
-    repo_handle = _repo_handle_from_ref(request.repo_url, os.environ)
+    repo_handle = _repo_handle_from_ref(request.repo_url, _runtime_env())
     if repo_handle is not None:
         graph_input["repo_handle"] = repo_handle
 
@@ -348,11 +352,12 @@ def _execute_job(job_id: str, phase: str) -> None:
     current_node = "supervisor"
     graph_input = _RUNS.graph_input(job_id)
     _RUNS.mark_running(job_id, current_node=current_node)
+    env = _runtime_env()
     trace_context = start_trace_context(
         job_id=job_id,
         phase=phase,
         state=graph_input,
-        env=os.environ,
+        env=env,
     )
 
     try:
@@ -375,15 +380,26 @@ def _execute_job(job_id: str, phase: str) -> None:
 
 
 def _build_runtime_graph() -> WayfinderGraph:
-    architecture_scanner = architecture_scanner_from_env(os.environ)
-    entry_scanner = entry_scanner_from_env(os.environ)
-    verifier_runner = verifier_runner_from_env(os.environ)
+    env = _runtime_env()
+    architecture_scanner = architecture_scanner_from_env(env)
+    entry_scanner = entry_scanner_from_env(env)
+    verifier_runner = verifier_runner_from_env(env)
+    llm_router = llm_router_from_env(env)
+    final_synthesizer = final_synthesizer_from_env(env)
+    community_context_provider = community_context_provider_from_env(env)
     return build_graph(
         checkpointer=_CHECKPOINTER,
         architecture_scanner=architecture_scanner,
         entry_scanner=entry_scanner,
         verifier_runner=verifier_runner,
+        llm_router=llm_router,
+        final_synthesizer=final_synthesizer,
+        community_context_provider=community_context_provider,
     )
+
+
+def _runtime_env() -> dict[str, str]:
+    return env_with_local_dotenv(os.environ)
 
 
 def _copy_graph_input(graph_input: WayfinderState) -> WayfinderState:

@@ -2,12 +2,29 @@ import pytest
 
 from wayfinder.graph.app import route_from_supervisor
 from wayfinder.graph.routing import (
+    LLMRouter,
     build_route_decision,
     choose_next_agent,
     classify_intent,
     parse_llm_route_decision,
 )
 from wayfinder.graph.state import AgentName, Intent, WayfinderState
+
+
+class FakeLLMRouter:
+    def __init__(self, raw_response: str) -> None:
+        self.raw_response = raw_response
+        self.calls: list[WayfinderState] = []
+
+    def route(self, state: WayfinderState) -> str:
+        self.calls.append(state)
+        return self.raw_response
+
+
+class ExplodingLLMRouter:
+    def route(self, state: WayfinderState) -> str:
+        del state
+        raise RuntimeError("llm unavailable")
 
 
 @pytest.mark.parametrize(
@@ -54,6 +71,51 @@ def test_build_route_decision_marks_mixed_query_for_human_review() -> None:
         "reason": "matched deterministic keyword routing",
         "needs_human_review": True,
     }
+
+
+def test_build_route_decision_uses_llm_router_for_mixed_query() -> None:
+    router = FakeLLMRouter(
+        '{"intent": "runtime", "reason": "User asks where to start"}'
+    )
+
+    decision = build_route_decision(
+        {"query": "Where should a new contributor begin?"},
+        llm_router=router,
+    )
+
+    assert decision == {
+        "intent": "runtime",
+        "next_agent": "entry_explainer",
+        "source": "llm",
+        "reason": "User asks where to start",
+        "needs_human_review": False,
+    }
+    assert router.calls == [{"query": "Where should a new contributor begin?"}]
+
+
+def test_build_route_decision_keeps_rule_hit_without_calling_llm() -> None:
+    router: LLMRouter = ExplodingLLMRouter()
+
+    decision = build_route_decision(
+        {"query": "Explain the architecture"},
+        llm_router=router,
+    )
+
+    assert decision["intent"] == "architectural"
+    assert decision["source"] == "rule"
+
+
+def test_build_route_decision_falls_back_when_llm_router_fails() -> None:
+    decision = build_route_decision(
+        {"query": "Help me understand this repo"},
+        llm_router=ExplodingLLMRouter(),
+    )
+
+    assert decision["intent"] == "mixed"
+    assert decision["next_agent"] == "architect_mapper"
+    assert decision["source"] == "safe_default"
+    assert decision["needs_human_review"] is True
+    assert "LLM routing fallback unavailable" in decision["reason"]
 
 
 def test_parse_llm_route_decision_accepts_supported_intent_json() -> None:

@@ -1,11 +1,24 @@
 from collections.abc import Mapping
+from pathlib import Path
 
 from wayfinder.graph.architecture import ArchitectureScanner, MCPArchitectureScanner
+from wayfinder.graph.community_context import (
+    CommunityContextProvider,
+    MCPCommunityContextProvider,
+)
 from wayfinder.graph.entry import EntryScanner, MCPEntryScanner
+from wayfinder.graph.llm import OpenAIResponsesClient
+from wayfinder.graph.routing import LLMRouter, PromptedLLMRouter
+from wayfinder.graph.synthesis import FinalSynthesizer, LLMFinalSynthesizer
 from wayfinder.graph.verifier import MCPTestRunner, TestRunner
 from wayfinder.mcp.adapter import MCPAdapter, build_mcp_client
+from wayfinder.mcp.community import build_community_mcp_configs
 from wayfinder.mcp.models import MCPServerConfig
 from wayfinder.mcp.project5 import build_project5_mcp_configs, build_project5_mcp_http_configs
+
+_TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_DEFAULT_OPENAI_MODEL = "gpt-5.5"
 
 
 def project5_repo_mapper_config() -> MCPServerConfig:
@@ -93,6 +106,25 @@ def build_project5_verifier_runner() -> TestRunner:
     return MCPTestRunner(adapter)
 
 
+def build_community_context_provider(
+    env: Mapping[str, str] | None = None,
+) -> CommunityContextProvider:
+    client = build_mcp_client(build_community_mcp_configs(env))
+    adapter = MCPAdapter(client)
+    return MCPCommunityContextProvider(adapter)
+
+
+def build_openai_responses_client(
+    env: Mapping[str, str],
+) -> OpenAIResponsesClient:
+    api_key = env.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is required for OpenAI LLM mode")
+
+    model = env.get("WAYFINDER_OPENAI_MODEL", _DEFAULT_OPENAI_MODEL).strip()
+    return OpenAIResponsesClient(api_key=api_key, model=model)
+
+
 def architecture_scanner_from_env(
     env: Mapping[str, str] | None = None,
 ) -> ArchitectureScanner | None:
@@ -139,3 +171,86 @@ def verifier_runner_from_env(
         return build_project5_verifier_runner()
 
     raise ValueError(f"Unsupported verifier runner mode: {mode}")
+
+
+def llm_router_from_env(
+    env: Mapping[str, str] | None = None,
+) -> LLMRouter | None:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_LLM_ROUTING", "off").strip().lower()
+
+    if mode in ("", "off", "placeholder", "deterministic"):
+        return None
+
+    if mode in ("openai", "llm") or mode in _TRUE_ENV_VALUES:
+        return PromptedLLMRouter(build_openai_responses_client(active_env))
+
+    raise ValueError(f"Unsupported LLM routing mode: {mode}")
+
+
+def final_synthesizer_from_env(
+    env: Mapping[str, str] | None = None,
+) -> FinalSynthesizer | None:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_FINAL_WRITER", "deterministic").strip().lower()
+
+    if mode in ("", "deterministic", "placeholder", "local"):
+        return None
+
+    if mode in ("openai", "llm") or mode in _TRUE_ENV_VALUES:
+        return LLMFinalSynthesizer(build_openai_responses_client(active_env))
+
+    raise ValueError(f"Unsupported final writer mode: {mode}")
+
+
+def community_context_provider_from_env(
+    env: Mapping[str, str] | None = None,
+) -> CommunityContextProvider | None:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_COMMUNITY_CONTEXT", "off").strip().lower()
+
+    if mode in ("", "off", "placeholder", "none"):
+        return None
+
+    if mode == "mcp":
+        return build_community_context_provider(active_env)
+
+    raise ValueError(f"Unsupported community context mode: {mode}")
+
+
+def env_with_local_dotenv(
+    env: Mapping[str, str] | None = None,
+    *,
+    dotenv_path: Path | None = None,
+) -> dict[str, str]:
+    merged = dict(env or {})
+    path = dotenv_path or (_PROJECT_ROOT / ".env")
+    if not path.exists():
+        return merged
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        parsed = _parse_dotenv_line(raw_line)
+        if parsed is None:
+            continue
+        key, value = parsed
+        merged.setdefault(key, value)
+
+    return merged
+
+
+def _parse_dotenv_line(raw_line: str) -> tuple[str, str] | None:
+    line = raw_line.strip()
+    if not line or line.startswith("#"):
+        return None
+    if line.startswith("export "):
+        line = line[len("export ") :].strip()
+    if "=" not in line:
+        return None
+
+    key, value = line.split("=", 1)
+    key = key.strip()
+    value = value.strip().strip('"').strip("'")
+    if not key:
+        return None
+
+    return key, value

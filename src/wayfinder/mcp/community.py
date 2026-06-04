@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from wayfinder.mcp.models import MCPServerConfig
@@ -49,23 +50,29 @@ COMMUNITY_MCP_SERVERS: tuple[CommunityMCPServer, ...] = (
 )
 
 
-def _env_for_server(server: CommunityMCPServer) -> dict[str, str]:
+def _env_for_server(
+    server: CommunityMCPServer,
+    env: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    active_env = env or os.environ
     env = dict(server.extra_env)
     for env_var in server.required_env:
-        value = os.getenv(env_var)
+        value = active_env.get(env_var)
         if value:
             env[env_var] = value
     return env
 
 
-def build_community_mcp_configs() -> list[MCPServerConfig]:
+def build_community_mcp_configs(
+    env: Mapping[str, str] | None = None,
+) -> list[MCPServerConfig]:
     return [
         MCPServerConfig(
             name=server.name,
             transport="stdio",
             command=server.command,
             args=list(server.args),
-            env=_env_for_server(server),
+            env=_env_for_server(server, env),
         )
         for server in COMMUNITY_MCP_SERVERS
     ]

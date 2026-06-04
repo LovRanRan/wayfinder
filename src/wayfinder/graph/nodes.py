@@ -11,6 +11,7 @@ from wayfinder.graph.architecture import (
 from wayfinder.graph.architecture import (
     repo_path_from_state as architecture_repo_path_from_state,
 )
+from wayfinder.graph.community_context import CommunityContextProvider
 from wayfinder.graph.entry import (
     EntryScanner,
     entry_explainer_missing_repo_path,
@@ -23,18 +24,32 @@ from wayfinder.graph.entry import (
     repo_path_from_state as entry_repo_path_from_state,
 )
 from wayfinder.graph.resilience import apply_resilience_to_final_output
-from wayfinder.graph.routing import build_route_decision
+from wayfinder.graph.routing import LLMRouter, build_route_decision
 from wayfinder.graph.state import WayfinderState
+from wayfinder.graph.synthesis import (
+    FinalSynthesizer,
+    collect_community_context_for_state,
+    synthesize_or_fallback,
+)
 from wayfinder.graph.verifier import TestRunner, verifier_state_from_state
 
 
+def build_supervisor_node(
+    llm_router: LLMRouter | None = None,
+) -> Callable[[WayfinderState], WayfinderState]:
+    def _node(state: WayfinderState) -> WayfinderState:
+        route_decision = build_route_decision(state, llm_router=llm_router)
+        return {
+            "intent": route_decision["intent"],
+            "next_agent": route_decision["next_agent"],
+            "route_decision": route_decision,
+        }
+
+    return _node
+
+
 def supervisor_node(state: WayfinderState) -> WayfinderState:
-    route_decision = build_route_decision(state)
-    return {
-        "intent": route_decision["intent"],
-        "next_agent": route_decision["next_agent"],
-        "route_decision": route_decision,
-    }
+    return build_supervisor_node()(state)
 
 
 def build_architect_mapper_node(
@@ -91,7 +106,31 @@ def verifier_node(state: WayfinderState) -> WayfinderState:
     return build_verifier_node()(state)
 
 
+def build_final_writer_node(
+    synthesizer: FinalSynthesizer | None = None,
+    community_context_provider: CommunityContextProvider | None = None,
+) -> Callable[[WayfinderState], WayfinderState]:
+    def _node(state: WayfinderState) -> WayfinderState:
+        state_with_context = collect_community_context_for_state(
+            state,
+            community_context_provider,
+        )
+        deterministic_output = deterministic_final_writer_output(state_with_context)
+        final_output, synthesis_state = synthesize_or_fallback(
+            state=state_with_context,
+            deterministic_output=deterministic_output,
+            synthesizer=synthesizer,
+        )
+        return apply_resilience_to_final_output(synthesis_state, final_output)
+
+    return _node
+
+
 def final_writer_node(state: WayfinderState) -> WayfinderState:
+    return build_final_writer_node()(state)
+
+
+def deterministic_final_writer_output(state: WayfinderState) -> str:
     query = state.get("query", "")
     repo_ref = state.get("repo_url", "unknown repo")
     partial_summaries = state.get("partial_summaries", {})
@@ -102,27 +141,15 @@ def final_writer_node(state: WayfinderState) -> WayfinderState:
         verification_section = (
             f"\n\n{verifier_summary}" if verifier_summary is not None else ""
         )
-        return apply_resilience_to_final_output(
-            state,
-            (
-                f"Entry explanation for {repo_ref}: {query}\n\n"
-                f"{entry_summary}{verification_section}"
-            ),
+        return (
+            f"Entry explanation for {repo_ref}: {query}\n\n"
+            f"{entry_summary}{verification_section}"
         )
 
     if verifier_summary is not None:
-        return apply_resilience_to_final_output(
-            state,
-            f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}",
-        )
+        return f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}"
 
     if architect_summary is not None:
-        return apply_resilience_to_final_output(
-            state,
-            f"Architecture overview for {repo_ref}: {query}\n\n{architect_summary}",
-        )
+        return f"Architecture overview for {repo_ref}: {query}\n\n{architect_summary}"
 
-    return apply_resilience_to_final_output(
-        state,
-        f"Wayfinder could not collect a scanner summary for {repo_ref}: {query}",
-    )
+    return f"Wayfinder could not collect a scanner summary for {repo_ref}: {query}"

@@ -1,11 +1,34 @@
 """Routing decisions for the Wayfinder Supervisor graph."""
 
 import json
-from typing import cast
+from typing import Protocol, cast
 
+from wayfinder.graph.llm import LLMClient
 from wayfinder.graph.state import AgentName, Intent, RouteDecision, WayfinderState
 
 _SUPPORTED_INTENTS = {"architectural", "runtime", "behavioral", "debug", "mixed"}
+
+
+class LLMRouter(Protocol):
+    def route(self, state: WayfinderState) -> str: ...
+
+
+class PromptedLLMRouter:
+    def __init__(self, client: LLMClient) -> None:
+        self._client = client
+
+    def route(self, state: WayfinderState) -> str:
+        return self._client.complete(
+            instructions=_ROUTING_INSTRUCTIONS,
+            input_text=json.dumps(
+                {
+                    "query": state.get("query", ""),
+                    "repo_url": state.get("repo_url", ""),
+                    "user_corrections": state.get("user_corrections", []),
+                },
+                sort_keys=True,
+            ),
+        )
 
 
 def classify_intent(state: WayfinderState) -> Intent:
@@ -40,7 +63,11 @@ def choose_next_agent(intent: Intent) -> AgentName:
     return "architect_mapper"
 
 
-def build_route_decision(state: WayfinderState) -> RouteDecision:
+def build_route_decision(
+    state: WayfinderState,
+    *,
+    llm_router: LLMRouter | None = None,
+) -> RouteDecision:
     """Build the state-attached routing decision used by the Supervisor node."""
     corrected_intent = _intent_from_user_corrections(state.get("user_corrections", []))
     if corrected_intent is not None:
@@ -54,6 +81,13 @@ def build_route_decision(state: WayfinderState) -> RouteDecision:
 
     intent = classify_intent(state)
     next_agent = choose_next_agent(intent)
+    if intent == "mixed" and llm_router is not None:
+        try:
+            return parse_llm_route_decision(llm_router.route(state))
+        except (RuntimeError, TypeError, ValueError) as exc:
+            return build_safe_default_route_decision(
+                f"LLM routing fallback unavailable: {exc}"
+            )
 
     return {
         "intent": intent,
@@ -116,3 +150,19 @@ def _intent_from_user_corrections(corrections: list[str]) -> Intent | None:
             if f"intent={intent}" in lowered or f"intent: {intent}" in lowered:
                 return cast(Intent, intent)
     return None
+
+
+_ROUTING_INSTRUCTIONS = """
+Classify a codebase onboarding query into one intent.
+
+Return only JSON with:
+- intent: one of architectural, runtime, behavioral, debug, mixed
+- reason: one short reason
+
+Definitions:
+- architectural: repo structure, modules, overview
+- runtime: how to run, start, configure, entrypoint
+- behavioral: what a function/class/path does
+- debug: errors, tracebacks, failing tests
+- mixed: genuinely unclear or broad
+""".strip()

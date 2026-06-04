@@ -22,7 +22,7 @@ Primary demo target: a pinned commit of `langchain-ai/langchain`.
 | `architect_mapper` | `mcp-repo-mapper` | Map repo structure, language breakdown, frameworks, dependency graph, and entry points. |
 | `entry_explainer` | `mcp-ast-explorer` | Explain definitions, signatures, references, call chains, class relationships, and AST-backed symbol evidence. |
 | `verifier` | `mcp-test-runner` | Verify high-risk claims with minimal pytest/Jest targets and produce claim labels. |
-| `final_writer` | local resilience layer | Assemble final output and repair unsafe prose based on verifier labels and errors. |
+| `final_writer` | OpenAI Responses API + local resilience layer | Synthesize a grounded answer from bounded MCP/verifier evidence and repair unsafe prose based on verifier labels and errors. |
 
 Project 5 MCP servers are the deterministic fact layer:
 
@@ -31,6 +31,10 @@ Project 5 MCP servers are the deterministic fact layer:
 - `mcp-test-runner`: bounded pytest/Jest execution and parser output.
 
 Community MCPs are supporting context only. They do not replace Project 5 as the primary evidence path.
+
+Commit 16 makes this boundary explicit in runtime: Tavily/GitHub MCP results can
+enter final synthesis as external context, but they cannot create verified code
+claims or override repository/AST/test evidence.
 
 ## 3. State Schema
 
@@ -52,6 +56,7 @@ Community MCPs are supporting context only. They do not replace Project 5 as the
 - `unverified_claims`
 - `contradicted_claims`
 - `test_results`
+- `community_context`
 - `partial_summaries`
 - `user_corrections`
 - `errors`
@@ -253,3 +258,28 @@ External evidence still required:
 - public Railway or Cloud Run URL after project link/deploy;
 - actual recorded 3-minute demo video or GIF;
 - published blog URL if posted externally.
+
+## 13. Grounded LLM Synthesis
+
+Wayfinder's answer layer is a grounded LLM copilot, not a deterministic fact
+panel. The final writer can use OpenAI Responses API when explicitly enabled:
+
+```env
+WAYFINDER_FINAL_WRITER=openai
+WAYFINDER_LLM_ROUTING=openai
+OPENAI_API_KEY=...
+```
+
+The default remains deterministic for tests and low-cost smoke runs. When LLM
+mode is enabled, the model receives a bounded synthesis packet:
+
+- query and repo reference;
+- route decision;
+- Project 5 architecture and AST evidence;
+- verifier labels;
+- graph errors and limitations;
+- optional community context.
+
+The LLM is not allowed to invent files, symbols, tests, or behavior. It may only
+compose the evidence into a readable onboarding answer and must preserve
+`verified`, `unverified`, and `contradicted` labels.

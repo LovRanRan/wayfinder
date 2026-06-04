@@ -198,8 +198,19 @@ def test_explain_resolves_allowed_github_url_when_enabled(
         architecture_scanner: ArchitectureScanner | None = None,
         entry_scanner: EntryScanner | None = None,
         verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
     ) -> FakeApiGraph:
-        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
         return FakeApiGraph(inputs=inputs)
 
     monkeypatch.setenv("WAYFINDER_ENABLE_GITHUB_INGESTION", "1")
@@ -298,8 +309,19 @@ def test_refine_reuses_thread_id_and_passes_user_corrections(
         architecture_scanner: ArchitectureScanner | None = None,
         entry_scanner: EntryScanner | None = None,
         verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
     ) -> FakeApiGraph:
-        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
         return FakeApiGraph(inputs=inputs, configs=configs)
 
     monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
@@ -355,8 +377,19 @@ def test_explain_serializes_graph_errors(monkeypatch: pytest.MonkeyPatch) -> Non
         architecture_scanner: ArchitectureScanner | None = None,
         entry_scanner: EntryScanner | None = None,
         verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
     ) -> FakeApiGraph:
-        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
         return FakeApiGraph(should_raise=True)
 
     monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
@@ -393,8 +426,19 @@ def test_trace_metadata_hooks_are_passed_to_graph(monkeypatch: pytest.MonkeyPatc
         architecture_scanner: ArchitectureScanner | None = None,
         entry_scanner: EntryScanner | None = None,
         verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
     ) -> FakeApiGraph:
-        del checkpointer, architecture_scanner, entry_scanner, verifier_runner
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
         return FakeApiGraph(configs=configs)
 
     monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
@@ -450,8 +494,17 @@ def test_explain_uses_architecture_scanner_from_env(monkeypatch: pytest.MonkeyPa
         architecture_scanner: ArchitectureScanner | None = None,
         entry_scanner: EntryScanner | None = None,
         verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
     ) -> FakeApiGraph:
-        del checkpointer, verifier_runner
+        del (
+            checkpointer,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
         captured["architecture_scanner"] = architecture_scanner
         captured["entry_scanner"] = entry_scanner
         return FakeApiGraph()

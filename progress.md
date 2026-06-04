@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 15** — AST-backed verified claims |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **15 / 15 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video is still pending. Public API/dashboard can now show real AST-backed verified claims; public test execution remains disabled until sandbox/auth exists. |
-| **Last Activity** | 2026-06-05 · Added verifier support for deterministic AST evidence:found symbol, definition location, and signature now become verified claims while runtime/data-flow claims without tests stay unverified. |
+| **Current Commit** | [x] **Commit 16** — Grounded LLM synthesis + community context policy |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **16 / 16 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Railway API still needs OpenAI runtime flags/redeploy; demo video is still pending. Public test execution remains disabled until sandbox/auth exists. |
+| **Last Activity** | 2026-06-05 · Added env-gated OpenAI Responses routing/final synthesis plus optional Tavily/GitHub community context provider; local live LLM smoke passed. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Push AST-backed verified claims so manual dashboard tests show real verified evidence, then confirm Railway redeploy and record the demo. |
-| **Next Action** | Commit/push Commit 15, wait for Railway redeploy, then run the `build_graph` GitHub URL smoke again and confirm verified count is nonzero. |
+| **Today's North Star** | Convert Wayfinder from deterministic evidence panel into a grounded LLM copilot while preserving MCP/verifier evidence boundaries. |
+| **Next Action** | Set Railway API variables for `OPENAI_API_KEY`, `WAYFINDER_FINAL_WRITER=openai`, `WAYFINDER_LLM_ROUTING=openai`, and optional `WAYFINDER_COMMUNITY_CONTEXT=mcp`, then redeploy and smoke the public dashboard. |
 
 ---
 
@@ -335,6 +335,16 @@ Guided design mode:
   - [x] Preserve existing test-backed verifier path for explicit pytest/Jest targets ✅ 2026-06-05
   - [x] Add regression tests for AST-only verified claims and mixed verified/unverified output ✅ 2026-06-05
 
+- [x] **Commit 16 — Grounded LLM synthesis + community context policy** ✅ 2026-06-05
+  - [x] Write `docs/design_notes/013_grounded_llm_synthesis.md` defining Project 5 facts vs community context vs LLM synthesis boundary ✅ 2026-06-05
+  - [x] Add OpenAI Responses API client boundary with no hardcoded secrets and runtime-gated usage ✅ 2026-06-05
+  - [x] Add real LLM routing fallback for mixed/ambiguous queries while preserving deterministic rule-first routing ✅ 2026-06-05
+  - [x] Add grounded LLM final writer path that receives bounded MCP/verifier evidence packet and falls back to deterministic output on LLM failure ✅ 2026-06-05
+  - [x] Add optional Tavily/GitHub community context provider for final synthesis;external context is supporting-only and never creates verified code claims ✅ 2026-06-05
+  - [x] Add local `.env` fallback reading for runtime env without printing secrets ✅ 2026-06-05
+  - [x] Add regression tests for LLM routing, synthesis fallback, community context policy, env factories, and default deterministic behavior ✅ 2026-06-05
+  - [x] Run one bounded live OpenAI smoke with `WAYFINDER_FINAL_WRITER=openai` / `WAYFINDER_LLM_ROUTING=openai` ✅ 2026-06-05
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -351,6 +361,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 16 closed — `Grounded LLM synthesis + community context policy`
+
+- **做了什么**:Added `docs/design_notes/013_grounded_llm_synthesis.md`, OpenAI Responses API client boundary, LLM routing fallback for mixed queries, grounded final synthesis, optional Tavily/GitHub community context provider, runtime `.env` fallback, and env-gated API wiring.
+- **自己设计了什么**:Re-centered Wayfinder as a grounded LLM copilot:Project 5 MCPs produce repo/AST/test facts, verifier labels truth status, community MCPs provide supporting external context, and the LLM only composes a bounded evidence packet into a readable onboarding answer.
+- **Codex 帮了哪里**:Codex implemented the local TODO slice after the Commit 16 design boundary was written:protocols, factories, tests, docs, and tracker updates.
+- **验证方式**:`uv run pytest -q`(197 passed,8 skipped);`uv run ruff check .`;`uv run mypy src tests`;minimal OpenAI Responses smoke returned `WAYFINDER_LLM_OK`;graph-facing live smoke returned `ROUTE=llm:architectural` for ambiguous routing and produced an 883-character LLM final answer through `build_final_writer_node`.
+- **问题记录**:Local Commit 16 path is closed. Railway API still needs the OpenAI runtime flags and redeploy before the public dashboard can show grounded LLM synthesis.
+- **下一步**:Set Railway API variables, redeploy, and public-smoke the dashboard with a real GitHub repo run.
 
 ### 2026-06-05 — Commit 15 closed — `AST-backed verified claims`
 

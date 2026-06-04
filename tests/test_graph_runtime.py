@@ -1,12 +1,19 @@
+from pathlib import Path
+
 import pytest
 
 from wayfinder.graph import build_graph
 from wayfinder.graph.runtime import (
     architecture_scanner_from_env,
+    build_openai_responses_client,
     build_project5_architecture_scanner,
     build_project5_entry_scanner,
     build_project5_verifier_runner,
+    community_context_provider_from_env,
     entry_scanner_from_env,
+    env_with_local_dotenv,
+    final_synthesizer_from_env,
+    llm_router_from_env,
     project5_ast_explorer_config,
     project5_ast_explorer_http_config,
     project5_repo_mapper_config,
@@ -206,3 +213,81 @@ def test_verifier_runner_from_env_builds_mcp_runner() -> None:
 def test_verifier_runner_from_env_rejects_unknown_mode() -> None:
     with pytest.raises(ValueError, match="Unsupported verifier runner mode"):
         verifier_runner_from_env({"WAYFINDER_VERIFIER_RUNNER": "banana"})
+
+
+def test_env_with_local_dotenv_loads_missing_values(tmp_path: Path) -> None:
+    dotenv_path = tmp_path / ".env"
+    dotenv_path.write_text(
+        "OPENAI_API_KEY=sk-test-local\nWAYFINDER_FINAL_WRITER=openai\n",
+        encoding="utf-8",
+    )
+
+    env = env_with_local_dotenv({"OPENAI_API_KEY": "sk-process"}, dotenv_path=dotenv_path)
+
+    assert env["OPENAI_API_KEY"] == "sk-process"
+    assert env["WAYFINDER_FINAL_WRITER"] == "openai"
+
+
+def test_openai_client_from_env_uses_model_override() -> None:
+    client = build_openai_responses_client(
+        {
+            "OPENAI_API_KEY": "sk-test",
+            "WAYFINDER_OPENAI_MODEL": "test-model",
+        }
+    )
+
+    assert client.model == "test-model"
+
+
+def test_openai_client_from_env_requires_key() -> None:
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        build_openai_responses_client({})
+
+
+def test_llm_router_from_env_defaults_off() -> None:
+    assert llm_router_from_env({}) is None
+
+
+def test_llm_router_from_env_builds_openai_router() -> None:
+    router = llm_router_from_env(
+        {
+            "WAYFINDER_LLM_ROUTING": "openai",
+            "OPENAI_API_KEY": "sk-test",
+        }
+    )
+
+    assert router is not None
+    assert hasattr(router, "route")
+
+
+def test_final_synthesizer_from_env_defaults_deterministic() -> None:
+    assert final_synthesizer_from_env({}) is None
+
+
+def test_final_synthesizer_from_env_builds_openai_synthesizer() -> None:
+    synthesizer = final_synthesizer_from_env(
+        {
+            "WAYFINDER_FINAL_WRITER": "openai",
+            "OPENAI_API_KEY": "sk-test",
+        }
+    )
+
+    assert synthesizer is not None
+    assert hasattr(synthesizer, "synthesize")
+
+
+def test_community_context_provider_from_env_defaults_off() -> None:
+    assert community_context_provider_from_env({}) is None
+
+
+def test_community_context_provider_from_env_builds_mcp_provider() -> None:
+    provider = community_context_provider_from_env(
+        {
+            "WAYFINDER_COMMUNITY_CONTEXT": "mcp",
+            "TAVILY_API_KEY": "test-tavily",
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "test-github",
+        }
+    )
+
+    assert provider is not None
+    assert hasattr(provider, "collect")
