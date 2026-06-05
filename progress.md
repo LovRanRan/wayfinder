@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 18** — Workspace-owned runtime settings + sandboxed verifier policy |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **18 / 19 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video and final public evidence are still pending. Public executable test execution remains intentionally disabled until a separate sandbox worker exists. |
-| **Last Activity** | 2026-06-05 · Implemented Commit 18 workspace runtime settings, BYOK storage policy, Settings tab, and sandbox status gate. |
+| **Current Commit** | [/] **Commit 19** — Final launch evidence + Project 6 closeout |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **18 / 19 done + Commit 19 underway** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Demo video and API-restart persistence smoke are still pending. Public executable test execution remains intentionally disabled until a separate sandbox worker exists. |
+| **Last Activity** | 2026-06-05 · Public-smoked logged-in Railway workspace on `LovRanRan/wayfinder`, `pallets/click`, and `psf/requests`; added completion-refresh fix and public smoke evidence note. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Finish the last product boundary: user-owned LLM runtime settings and safe executable verification, then close P6 with public evidence. |
-| **Next Action** | Run/deploy Commit 18 smoke, then start Commit 19 final launch evidence + Project 6 closeout. |
+| **Today's North Star** | Close P6 with defensible public evidence:auth/BYOK/history, real public repo answers, honest limitations, docs, and final demo. |
+| **Next Action** | Verify the completion-refresh fix, push Commit 19, let Railway redeploy, then record the 3-minute demo video. |
 
 ---
 
@@ -379,14 +379,14 @@ Guided design mode:
     - [x] Public Railway configuration is documented with exact variables, including intentionally disabled sandbox status ✅ 2026-06-05
     - [x] Full gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build; local/browser smoke should be repeated after deploy in Commit 19 ✅ local 2026-06-05
 
-- [ ] **Commit 19 — Final launch evidence + Project 6 closeout**
-  - [ ] Public smoke matrix after Commit 18 deploy:
-    - [ ] Register/login with a fresh workspace; confirm history is private to that user.
-    - [ ] Save or provide a user-owned OpenAI key; run one answer without deployment-level `OPENAI_API_KEY` if BYOK mode is enabled.
-    - [ ] Analyze `LovRanRan/wayfinder` with `wayfinder.graph.app.build_graph`; verify grounded answer cards, AST evidence, limitations, elapsed timer, and Recent runs deep link.
-    - [ ] Analyze at least one external public repo such as `pallets/flask` or `langchain-ai/langchain`; verify `WAYFINDER_GITHUB_REPO_ALLOWLIST=*` behavior and GitHub ingestion cache.
-    - [ ] Exercise one failure/limitation case:repo scan failure, no test coverage, sandbox unavailable, or unsupported execution; answer must be honest instead of inventing certainty.
-    - [ ] Refresh/redeploy check:run history still exists after dashboard reload and API restart when `/data` volume is mounted.
+- [/] **Commit 19 — Final launch evidence + Project 6 closeout**
+  - [/] Public smoke matrix after Commit 18 deploy:
+    - [/] Register/login with a fresh workspace; public logged-in workspace observed, single-user history privacy is enforced by authenticated API routes; cross-user manual smoke still optional.
+    - [x] Save or provide a user-owned OpenAI key; public runs completed while deployment-level `OPENAI_API_KEY` was intentionally empty in authenticated workspace mode ✅ 2026-06-05
+    - [x] Analyze `LovRanRan/wayfinder` with `wayfinder.graph.app.build_graph`; verified grounded answer cards, AST evidence, limitations, elapsed timer, and Answer deep link ✅ 2026-06-05
+    - [x] Analyze external public repos with `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`: `pallets/click` behavioral run and `psf/requests` architecture run completed ✅ 2026-06-05
+    - [x] Exercise failure/limitation cases: `pallets/click` overload-body limitation, `langchain-ai/langchain` UTF-8 scan degradation, and no-test/data-flow unverified labels were surfaced honestly ✅ 2026-06-05
+    - [/] Refresh/redeploy check:dashboard reload preserves history; API restart persistence still needs one Railway `/data` volume restart smoke.
   - [ ] Record the 3-minute recursive demo video.
     - [ ] Opening:Wayfinder positioning in one sentence:grounded LLM codebase-onboarding copilot using Project 5 MCPs as the fact layer.
     - [ ] Flow 1:login/workspace, user-owned runtime settings, submit repo/question.
@@ -394,9 +394,9 @@ Guided design mode:
     - [ ] Flow 3:show a failure or sandbox limitation honestly.
     - [ ] Close:explain P5 -> P6 -> P7 chain and why this is not a generic chat app.
   - [ ] Update public project artifacts.
-    - [ ] README terminal pass:current live URLs, screenshots/GIF/video link, BYOK/runtime settings, Railway variables, `/data` volume note, sandbox status, API examples, failure modes, and interview talking points.
-    - [ ] `DESIGN.md` v1.1:include Commit 16 grounded LLM policy, Commit 17 auth/persistence, Commit 18 workspace runtime/sandbox policy, and updated architecture diagram.
-    - [ ] `docs/deploy/README.md`:exact Railway variables and which service owns each variable; include sandbox worker variables if enabled.
+    - [/] README terminal pass:current live URLs, BYOK/runtime settings, Railway variables, `/data` volume note, sandbox status, API examples, failure modes, and interview talking points are present; screenshots/GIF/video link still pending.
+    - [/] `DESIGN.md` v1.1:Commit 16 grounded LLM policy, Commit 17 auth/persistence, and Commit 18 workspace runtime/sandbox policy are present; final diagram/video evidence still pending.
+    - [x] `docs/deploy/README.md`:exact Railway variables and which service owns each variable; auth-aware smoke checks and sandbox policy included ✅ 2026-06-05
     - [ ] `docs/blog/wayfinder_launch_post.md`:refresh launch story so it matches the deployed product instead of older local-only assumptions.
     - [ ] Add final demo evidence links into `final_checklist.md`, `TASKS.md`, and this `progress.md`.
     - [ ] Append closing section to `LEARNINGS.md`:what changed from deterministic fact panel to grounded LLM copilot, why auth/DB was needed, why sandbox is a separate boundary, and interview soundbites.
@@ -406,8 +406,8 @@ Guided design mode:
     - [ ] If sandbox is enabled, include the sandbox smoke evidence and denied-operation evidence.
     - [ ] Confirm P7 handoff:which run labels/traces/history become eval data for `agent-eval-harness`.
   - [ ] Commit 19 Definition of Done:
-    - [ ] Public dashboard and API are live and smoke-tested.
-    - [ ] README, DESIGN, deploy docs, final checklist, TASKS, progress, LEARNINGS, and launch/blog docs are consistent.
+    - [x] Public dashboard and API are live and smoke-tested ✅ 2026-06-05
+    - [/] README, DESIGN, deploy docs, final checklist, TASKS, progress, LEARNINGS, and launch/blog docs are partially consistent; final checklist/TASKS/LEARNINGS/video closeout still pending.
     - [ ] Demo video link exists and shows the current UI, auth, evidence cards, history, and limitation behavior.
     - [ ] Final local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and API Docker build if deployment files changed.
     - [ ] Project 6 can be described in resume/interview as a deployed grounded LLM copilot with deterministic MCP evidence, user workspaces, persistent history, and explicit verification/sandbox policy.
@@ -428,6 +428,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 19 underway — `Public smoke evidence + completion refresh`
+
+- **做了什么**:Counted the logged-in Railway smoke runs for `LovRanRan/wayfinder`, `pallets/click`, and `psf/requests` into Commit 19. Added `docs/evidence/commit19_public_smoke.md`, linked it from README/deploy docs, and made auth-mode smoke docs expect unauthenticated `/runs` to return `401`.
+- **自己设计了什么**:Keep final launch evidence honest:public repo analysis, BYOK-backed LLM mode, AST evidence, Answer deep links, and limitations count as shipped;demo video and API-restart persistence remain pending until actually tested.
+- **Codex 帮了哪里**:Codex added a small dashboard completion-refresh fix so active run polling updates the selected Answer immediately and triggers one server refresh after completion, refreshing top stats and History without manual reload.
+- **验证方式**:`git diff --check`;`cd dashboard && npm run lint && npm run typecheck && npm run build`.
+- **问题记录**:The public product still does not run arbitrary public repo tests in the API container. That is the intended sandbox boundary, not a missing auth feature.
+- **下一步**:Run gates, commit/push this Commit 19 slice, wait for Railway redeploy, then record the final demo video and do the API restart persistence smoke.
 
 ### 2026-06-05 — Commit 18 closed — `Workspace runtime settings + sandbox policy`
 

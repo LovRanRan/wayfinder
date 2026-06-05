@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CurrentRunConsole } from "@/components/current-run-console";
@@ -42,6 +42,7 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
   const [selectedRun, setSelectedRun] = useState<DashboardRun | null>(() =>
     runFromJobId(runs, selectedJobId) ?? runs[0] ?? null,
   );
+  const refreshedCompletedJobsRef = useRef<Set<string>>(new Set());
   const selectedRunJobId = selectedRun?.jobId ?? null;
   const selectedRunStatus = selectedRun?.status ?? null;
 
@@ -130,6 +131,12 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
         setSelectedRun(nextRun);
         if (activeStatuses.includes(nextRun.status)) {
           schedulePoll(1400);
+          return;
+        }
+
+        if (!refreshedCompletedJobsRef.current.has(nextRun.jobId)) {
+          refreshedCompletedJobsRef.current.add(nextRun.jobId);
+          router.refresh();
         }
       } catch {
         // Keep the last known active run visible; manual refresh still reports request errors.
@@ -147,7 +154,7 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
         window.clearTimeout(timer);
       }
     };
-  }, [selectedRunJobId, selectedRunStatus, source]);
+  }, [router, selectedRunJobId, selectedRunStatus, source]);
 
   const changeTab = useCallback(
     (tab: WorkspaceTab) => {

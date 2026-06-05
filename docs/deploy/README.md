@@ -177,12 +177,15 @@ Smoke checks:
 
 ```bash
 curl -fsS https://wayfinder-api-production.up.railway.app/health
-curl -fsS 'https://wayfinder-api-production.up.railway.app/runs?limit=3'
 curl -fsSI https://wayfinder-dashboard-production-f8d7.up.railway.app
-curl -fsS -X POST https://wayfinder-dashboard-production-f8d7.up.railway.app/api/wayfinder/explain \
-  -H 'content-type: application/json' \
-  --data '{"repo_url":"https://github.com/langchain-ai/langchain","query":"Where should a new contributor start?"}'
+curl -i 'https://wayfinder-api-production.up.railway.app/runs?limit=3'
 ```
+
+In auth-required mode, unauthenticated `/runs` should return `401`. The real
+product smoke is browser-based:register or log in, add a workspace OpenAI key in
+Settings, submit a public GitHub URL, and confirm the answer plus user-scoped
+History entry. Current public smoke evidence is recorded in
+[`../evidence/commit19_public_smoke.md`](../evidence/commit19_public_smoke.md).
 
 ## Cloud Run
 

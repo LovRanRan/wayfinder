@@ -210,12 +210,12 @@ WAYFINDER_RUN_PROJECT5_MCP_INTEGRATION=1 uv run pytest tests/test_project5_mcp_i
 cd dashboard && npm run lint && npm run typecheck && npm run build
 ```
 
-Current local evidence from Commit 8:
+Current local and deploy evidence:
 
-- backend tests: 149 passed / 8 skipped after `/runs` addition
-- API tests: lifecycle, recent runs, refine/resume, 409 conflict, error serialization, trace metadata hooks
-- Project 5 MCP integration: repo mapper, AST explorer, and test runner all pass through real local MCP packages
-- dashboard: typecheck/build/lint gates
+- backend gates cover API lifecycle, auth, recent runs, refine/resume, error serialization, trace metadata, workspace settings, and sandbox policy;
+- Project 5 MCP integration covers repo mapper, AST explorer, and test runner through real local MCP packages when the env-gated integration test is enabled;
+- dashboard gates cover lint, typecheck, and production build;
+- public Railway smoke evidence is tracked in [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md).
 
 ## Failure Modes
 
@@ -360,6 +360,7 @@ API health: https://wayfinder-api-production.up.railway.app/health
 ## Demo And Launch Assets
 
 - Demo recording script: [`docs/demo/recursive_demo_script.md`](docs/demo/recursive_demo_script.md)
+- Public smoke evidence: [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md)
 - Bilingual launch draft: [`docs/blog/wayfinder_launch_post.md`](docs/blog/wayfinder_launch_post.md)
 - Deploy notes: [`docs/deploy/README.md`](docs/deploy/README.md)
 
