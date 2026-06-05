@@ -466,6 +466,15 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-06 — Commit 20 hotfix — `Preapproved verifier watchdog`
+
+- **做了什么**:After the dashboard polling fix, live Railway runs still stayed `running` for behavior/data-flow prompts with `sandboxed_mcp` + `auto_approve`, now past the graph-node watchdog window and before the API's 240s timeout.
+- **自己设计了什么**:Narrowed the stuck boundary to the public pre-approved verifier path. Manual LangGraph verifier HITL still needs runnable context and remains unwrapped, but `auto_approve` / `auto_skip` runs already carry `verifier_approval_decision` in state, so they can safely use the same `WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS` watchdog as the other graph nodes.
+- **Codex 帮了哪里**:Codex added the conditional verifier watchdog, covered it with a slow verifier regression while preserving the existing interrupt/resume approval test, and updated README/DESIGN/deploy docs so the public-vs-manual verifier boundary is explicit.
+- **验证方式**:`uv run pytest tests/test_verifier.py tests/test_graph_contract.py -q`(25 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(241 passed,8 skipped).
+- **问题记录**:A timed-out verifier worker thread can still finish in the background, but the user-facing job will now degrade to `final_writer` instead of waiting for the global API timeout.
+- **下一步**:Push, wait for Railway API redeploy, then retry the same `LovRanRan/wayfinder` behavior prompt. If it times out after about 30s, the watchdog is working; if it still hits 240s, the stuck boundary is outside LangGraph node execution.
+
 ### 2026-06-06 — Commit 20 hotfix — `Graph node watchdog for stuck Railway runs`
 
 - **做了什么**:After `66b478e`, a fresh `pallets/itsdangerous` run still stayed `running` past one minute, meaning another sync/async boundary could still bypass MCP/OpenAI budgets.

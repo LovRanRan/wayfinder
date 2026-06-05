@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 from langchain_core.runnables import RunnableConfig
@@ -5,6 +6,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
 from wayfinder.graph import build_graph
+from wayfinder.graph.app import _with_verifier_timeout_when_preapproved
 from wayfinder.graph.nodes import build_verifier_node
 from wayfinder.graph.state import Claim, WayfinderState
 from wayfinder.graph.verifier import (
@@ -74,6 +76,22 @@ class SequencedVerifierRunner:
             failed=observation.failed,
             skipped=observation.skipped,
             failures=observation.failures,
+        )
+
+
+class SlowVerifierRunner:
+    def __init__(self, delay_seconds: float = 0.1) -> None:
+        self.delay_seconds = delay_seconds
+        self.requests: list[VerifierRunRequest] = []
+
+    def run_test(self, request: VerifierRunRequest) -> VerifierRunObservation:
+        self.requests.append(request)
+        time.sleep(self.delay_seconds)
+        return VerifierRunObservation(
+            test_ref=request.test_ref,
+            status="passed",
+            output="1 passed",
+            passed=1,
         )
 
 
@@ -469,6 +487,31 @@ def test_build_verifier_node_uses_state_approval_decision(tmp_path: Path) -> Non
 
     assert len(runner.requests) == 1
     assert result["verified_claims"][0]["status"] == "verified"
+
+
+def test_preapproved_verifier_node_timeout_degrades_to_final_writer(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n")
+    node = _with_verifier_timeout_when_preapproved(
+        build_verifier_node(SlowVerifierRunner()),
+        timeout_seconds=0.01,
+    )
+
+    result = node(
+        {
+            "repo_handle": _repo_handle(tmp_path),
+            "pending_claims": [_claim()],
+            "verifier_approval_decision": {"action": "approve"},
+        }
+    )
+
+    assert result["next_agent"] == "final_writer"
+    assert result["partial_summaries"]["verifier"].startswith(
+        "verifier timed out before producing complete evidence."
+    )
+    assert result["errors"][0]["node"] == "verifier"
+    assert result["errors"][0]["error_type"] == "graph_node_timeout"
 
 
 def test_graph_interrupt_resume_approves_verifier_test(tmp_path: Path) -> None:

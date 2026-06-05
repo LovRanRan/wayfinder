@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Protocol, cast
@@ -95,7 +95,13 @@ def build_graph(
             active_node_timeout_seconds,
         ),
     )
-    graph.add_node("verifier", build_verifier_node(verifier_runner))
+    graph.add_node(
+        "verifier",
+        _with_verifier_timeout_when_preapproved(
+            build_verifier_node(verifier_runner),
+            active_node_timeout_seconds,
+        ),
+    )
     graph.add_node(
         "final_writer",
         _with_node_timeout(
@@ -144,6 +150,24 @@ def _with_node_timeout(
             return _node_timeout_state(node_name, state, timeout_seconds)
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
+
+    return _guarded
+
+
+def _with_verifier_timeout_when_preapproved(
+    node: Callable[[WayfinderState], WayfinderState],
+    timeout_seconds: float,
+) -> Callable[[WayfinderState], WayfinderState]:
+    if timeout_seconds <= 0:
+        return node
+
+    timed_node = _with_node_timeout("verifier", node, timeout_seconds)
+
+    def _guarded(state: WayfinderState) -> WayfinderState:
+        approval_decision = state.get("verifier_approval_decision")
+        if isinstance(approval_decision, Mapping):
+            return timed_node(state)
+        return node(state)
 
     return _guarded
 

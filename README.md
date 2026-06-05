@@ -347,6 +347,11 @@ claims are sent to `POST /run-test`; otherwise runtime claims stay
 `unverified`. The API never runs arbitrary public repo tests inside
 `wayfinder-api`.
 
+`WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS` protects slow graph boundaries,
+including pre-approved public verifier runs. Manual LangGraph verifier HITL
+remains unwrapped so `interrupt()` / `Command(resume=...)` can keep its runnable
+context.
+
 In `sandboxed_mcp` mode, verifier test requests are auto-approved by default
 because execution is already isolated in the sandbox worker. Set
 `WAYFINDER_VERIFIER_APPROVAL_MODE=interrupt` to restore LangGraph pre-test HITL

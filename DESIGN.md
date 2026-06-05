@@ -329,14 +329,16 @@ Responses calls use `WAYFINDER_OPENAI_TIMEOUT_SECONDS` and fall back to the
 deterministic writer/router path when unavailable. The API-level job timeout is
 only a final guard, not the primary failure-handling mechanism.
 
-The graph builder also wraps non-interrupt nodes in a watchdog controlled by
+The graph builder wraps slow node boundaries in a watchdog controlled by
 `WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS` (default `30`): `supervisor`,
-`architect_mapper`, `entry_explainer`, and `final_writer`. A timed-out node
-returns structured `graph_node_timeout` evidence and a degraded summary so the
-graph can still reach `final_writer`. `verifier` is deliberately not wrapped
-because LangGraph `interrupt()` requires runnable context; verifier execution is
-bounded by sandbox/test timeouts instead. The job-level timeout remains a
-last-resort guard for leaked threads or process-level failures.
+`architect_mapper`, `entry_explainer`, `final_writer`, and pre-approved
+`verifier` runs. A timed-out node returns structured `graph_node_timeout`
+evidence and a degraded summary so the graph can still reach `final_writer`.
+Manual verifier HITL remains unwrapped because LangGraph `interrupt()` requires
+runnable context; public `auto_approve` / `auto_skip` verifier runs already have
+an approval decision in state, so they can safely use the watchdog. The
+job-level timeout remains a last-resort guard for leaked threads or
+process-level failures.
 
 ## 15. Workspace Runtime And Sandbox Policy
 

@@ -160,13 +160,14 @@ make that budget visible and prevent a slow repo scan from consuming the full
 API job timeout. Tool failures degrade into limitations in the answer instead
 of blocking the whole run.
 
-The graph also wraps non-interrupt nodes in a watchdog controlled by
+The graph also wraps slow node boundaries in a watchdog controlled by
 `WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS` (default `30`). This catches slow
-supervisor, reader, and final-writer boundaries not covered by MCP/OpenAI
-timeouts and returns a degraded answer with a `graph_node_timeout` limitation
-instead of waiting for the API job-level timeout. `verifier` is not wrapped
-because LangGraph `interrupt()` must keep its runnable context; verifier
-execution is bounded by sandbox/test timeouts.
+supervisor, reader, final-writer, and pre-approved verifier boundaries not
+covered by MCP/OpenAI timeouts and returns a degraded answer with a
+`graph_node_timeout` limitation instead of waiting for the API job-level
+timeout. Manual verifier HITL is not wrapped because LangGraph `interrupt()`
+must keep its runnable context; public `auto_approve` / `auto_skip` verifier
+runs already have an approval decision in state and can use the watchdog.
 
 Workspace-owned LLM runtime:
 
