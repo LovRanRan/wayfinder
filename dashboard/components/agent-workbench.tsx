@@ -125,7 +125,11 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
           headers: { "content-type": "application/json" },
         });
         const payload = await response.json().catch(() => null);
-        if (!response.ok || payload === null || cancelled) {
+        if (cancelled) {
+          return;
+        }
+        if (!response.ok || payload === null) {
+          schedulePoll(2500);
           return;
         }
         const nextRun = toDashboardRun(payload as ApiRunSummary);
