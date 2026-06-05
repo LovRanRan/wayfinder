@@ -28,6 +28,7 @@ Environment:
 - Recent runs are user-scoped in the authenticated API surface.
 - Page reload preserves visible run history.
 - Answer tab deep links preserve the selected job with `?job=<job_id>&tab=answer`.
+- Run tab is scoped to submission, selected-job status, runtime boundary, and recent answer links; full answer rendering stays in the dedicated Answer tab.
 - Active run UI shows elapsed time and animated evidence/synthesis stages while polling.
 - After an active run completes, the dashboard refreshes the server-backed stats/history surface once so P95 latency, active-run count, and recent runs do not require manual reload.
 

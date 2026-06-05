@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CurrentRunConsole } from "@/components/current-run-console";
+import { RunBriefingPanel } from "@/components/run-briefing-panel";
 import { RunLauncher } from "@/components/run-launcher";
 import { RunStatusTable } from "@/components/run-status-table";
 import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
@@ -181,7 +182,12 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
           <div className="grid gap-4 self-start">
             <RunLauncher initialRun={selectedRun} onRunChange={selectRun} />
           </div>
-          <CurrentRunConsole run={selectedRun} publicApiBaseUrl={publicApiBaseUrl} source={source} />
+          <RunBriefingPanel
+            runs={visibleRuns}
+            selectedRun={selectedRun}
+            source={source}
+            onOpenAnswer={selectRun}
+          />
         </div>
       ) : null}
 

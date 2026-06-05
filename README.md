@@ -189,12 +189,13 @@ Panels:
 
 - recent runs table with trace links;
 - run launcher with submit, polling, refresh, and refine actions;
+- run briefing panel with selected job status, reader MCP state, verifier policy, and recent answer links;
+- dedicated answer tab for grounded evidence cards and limitations;
 - per-agent P50/P95 latency;
 - token usage and cost overview;
 - routing decision flow;
 - verification stats;
 - failure mode frequency;
-- current run summary.
 
 If the API is unavailable or has no runs, the dashboard shows seeded demo data with the same schema. This keeps CI and Docker builds inspectable without requiring a live backend.
 

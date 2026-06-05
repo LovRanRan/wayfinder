@@ -431,10 +431,10 @@ Guided design mode:
 
 ### 2026-06-05 — Commit 19 underway — `Public smoke evidence + completion refresh`
 
-- **做了什么**:Counted the logged-in Railway smoke runs for `LovRanRan/wayfinder`, `pallets/click`, and `psf/requests` into Commit 19. Added `docs/evidence/commit19_public_smoke.md`, linked it from README/deploy docs, and made auth-mode smoke docs expect unauthenticated `/runs` to return `401`.
+- **做了什么**:Counted the logged-in Railway smoke runs for `LovRanRan/wayfinder`, `pallets/click`, and `psf/requests` into Commit 19. Added `docs/evidence/commit19_public_smoke.md`, linked it from README/deploy docs, made auth-mode smoke docs expect unauthenticated `/runs` to return `401`, and split the Run tab from the full Answer tab.
 - **自己设计了什么**:Keep final launch evidence honest:public repo analysis, BYOK-backed LLM mode, AST evidence, Answer deep links, and limitations count as shipped;demo video and API-restart persistence remain pending until actually tested.
-- **Codex 帮了哪里**:Codex added a small dashboard completion-refresh fix so active run polling updates the selected Answer immediately and triggers one server refresh after completion, refreshing top stats and History without manual reload.
-- **验证方式**:`git diff --check`;`cd dashboard && npm run lint && npm run typecheck && npm run build`.
+- **Codex 帮了哪里**:Codex added a small dashboard completion-refresh fix so active run polling updates the selected Answer immediately and triggers one server refresh after completion, refreshing top stats and History without manual reload. Codex also replaced the Run tab's duplicate answer console with a run briefing panel showing selected-job status, reader MCP state, `verifier_runner` / sandbox policy, and recent answer links.
+- **验证方式**:`git diff --check`;`cd dashboard && npm run lint && npm run typecheck && npm run build` after completion-refresh and Run/Answer tab separation changes.
 - **问题记录**:The public product still does not run arbitrary public repo tests in the API container. That is the intended sandbox boundary, not a missing auth feature.
 - **下一步**:Run gates, commit/push this Commit 19 slice, wait for Railway redeploy, then record the final demo video and do the API restart persistence smoke.
 
