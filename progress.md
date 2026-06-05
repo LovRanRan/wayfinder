@@ -152,12 +152,12 @@ Guided design mode:
 | Field | Value |
 |---|---|
 | **Current Commit** | [/] **Commit 19** — Final launch evidence + Project 6 closeout |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **18 / 19 done + Commit 19 underway** · ship **7 / 8 core artifacts done** |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **18 / 20 done + Commit 19 underway + Commit 20 planned** · ship **7 / 8 core artifacts done** |
 | **Blocker** | Demo video and API-restart persistence smoke are still pending. Public executable test execution remains intentionally disabled until a separate sandbox worker exists. |
 | **Last Activity** | 2026-06-05 · Public-smoked logged-in Railway workspace on `LovRanRan/wayfinder`, `pallets/click`, and `psf/requests`; added completion-refresh fix and public smoke evidence note. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Close P6 with defensible public evidence:auth/BYOK/history, real public repo answers, honest limitations, docs, and final demo. |
-| **Next Action** | Verify the completion-refresh fix, push Commit 19, let Railway redeploy, then record the 3-minute demo video. |
+| **Next Action** | Close Commit 19 evidence/video, then start Commit 20 with sandbox worker design note and minimal worker/API adapter skeleton. |
 
 ---
 
@@ -412,6 +412,42 @@ Guided design mode:
     - [ ] Final local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and API Docker build if deployment files changed.
     - [ ] Project 6 can be described in resume/interview as a deployed grounded LLM copilot with deterministic MCP evidence, user workspaces, persistent history, and explicit verification/sandbox policy.
 
+- [ ] **Commit 20 — Sandboxed test runner worker**
+  - [ ] Design gate before code:
+    - [ ] Write `docs/design_notes/016_sandboxed_test_runner_worker.md` with threat model, worker topology, request/response schema, command policy, isolation limits, failure modes, tests, Railway/local deployment plan, and interview explanation.
+    - [ ] Explicitly state the boundary:auth/BYOK/history do not make untrusted public repo code safe;only the sandbox worker can run executable verifier requests.
+    - [ ] Define allowed test request shape:repo URL or resolved checkout reference, generated minimal pytest/Jest target, timeout, claim refs, and run owner/job id metadata.
+    - [ ] Define denied operations:package install commands, arbitrary shell scripts, shell expansion, destructive commands, unknown runners, privileged mode, inherited app secrets, unbounded output, and network access unless explicitly allowed.
+  - [ ] Worker implementation:
+    - [ ] Add a small sandbox worker service/module separate from `wayfinder-api`;it receives signed/bounded test-run requests and returns normalized `TestObservation` payloads.
+    - [ ] Worker uses ephemeral checkout/workdir and does not receive OpenAI keys, session secrets, `WAYFINDER_KEY_ENCRYPTION_SECRET`, or API database credentials.
+    - [ ] Enforce timeout, max output bytes, max selected test files, and deterministic cleanup after every request.
+    - [ ] Add a health endpoint so `WAYFINDER_TEST_SANDBOX_HEALTH=ok` is based on a real readiness check instead of a manual flag.
+  - [ ] API integration:
+    - [ ] Implement `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` as a real remote adapter instead of current `unavailable` policy response.
+    - [ ] Keep `WAYFINDER_VERIFIER_RUNNER=placeholder` as the default for public deploys until the sandbox worker URL and health gate are configured.
+    - [ ] Surface sandbox runner status in Settings and Run briefing with enough detail for users to know whether executable verification is active.
+    - [ ] Preserve AST-backed verified facts even when sandbox execution is unavailable.
+  - [ ] HITL / UI:
+    - [ ] Add dashboard approval before executing sandboxed tests:show selected test target, estimated timeout, repo, claim refs, and risk note.
+    - [ ] Add skip/approve/modify-filter behavior consistent with the Commit 5 verifier contract.
+    - [ ] Render sandbox test observations in Answer cards without exposing raw unsafe output beyond the bounded output limit.
+  - [ ] Tests and smoke:
+    - [ ] Unit tests for request validation, command denial, output truncation, timeout, cleanup, unavailable sandbox, and successful normalized observation.
+    - [ ] API tests proving `sandboxed_mcp` uses the worker adapter only when URL + health gate pass.
+    - [ ] Denied-operation smoke:attempt unsafe package install or shell expansion and show it is blocked.
+    - [ ] Happy-path smoke on a tiny fixture repo where a generated pytest target verifies one claim.
+    - [ ] Public deploy smoke:Settings no longer shows `placeholder` when sandbox worker is configured, and Answer cards include test-backed observations.
+  - [ ] Deployment / docs:
+    - [ ] Update Docker Compose with an explicit sandbox worker service.
+    - [ ] Update Railway docs with separate service variables, no shared secrets, and sandbox worker URL wiring.
+    - [ ] Update README/DESIGN/progress/LEARNINGS to move test runner from policy-only to sandbox-backed execution.
+  - [ ] Commit 20 Definition of Done:
+    - [ ] `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` is no longer a placeholder/unavailable path when a healthy worker URL is configured.
+    - [ ] Public repo executable claims can be verified through the worker without running untrusted code in `wayfinder-api`.
+    - [ ] Unsafe commands are denied with recorded evidence.
+    - [ ] Full gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, Docker Compose sandbox smoke, and one Railway/public smoke if deployed.
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -428,6 +464,14 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Roadmap update — `Commit 20 sandboxed test runner worker added`
+
+- **做了什么**:Added Commit 20 to the Project 6 roadmap as the explicit path from `WAYFINDER_VERIFIER_RUNNER=placeholder` to a real `sandboxed_mcp` worker.
+- **自己设计了什么**:Separated Commit 19 public launch closeout from Commit 20 execution safety. Commit 20 owns the separate worker service, request schema, command-denial policy, API adapter, dashboard approval, denied-operation evidence, and deploy topology.
+- **验证方式**:Tracker-only update;run `git diff --check` before commit.
+- **问题记录**:Commit 20 is now planned but not implemented. Railway should remain `WAYFINDER_VERIFIER_RUNNER=placeholder` until the worker and health gate exist.
+- **下一步**:Finish Commit 19 video/evidence closeout, then start Commit 20 by writing `docs/design_notes/016_sandboxed_test_runner_worker.md`.
 
 ### 2026-06-05 — Commit 19 underway — `Public smoke evidence + completion refresh`
 
