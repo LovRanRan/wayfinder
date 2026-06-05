@@ -16,4 +16,4 @@ RUN uv pip install --python .venv/bin/python "pytest>=8.3.0"
 
 EXPOSE 8110
 
-CMD [".venv/bin/uvicorn", "wayfinder.sandbox.worker:app", "--host", "0.0.0.0", "--port", "8110"]
+CMD ["sh", "-c", ".venv/bin/uvicorn wayfinder.sandbox.worker:app --host 0.0.0.0 --port ${PORT:-8110}"]

@@ -186,6 +186,9 @@ WAYFINDER_SANDBOX_TOKEN=<optional-shared-token>
 WAYFINDER_SANDBOX_MAX_OUTPUT_BYTES=12000
 ```
 
+Do not set `PORT` manually on Railway. `Dockerfile.sandbox` listens on Railway's
+injected `$PORT` and falls back to `8110` only for local/container runs.
+
 API variables when the worker is healthy:
 
 ```bash
