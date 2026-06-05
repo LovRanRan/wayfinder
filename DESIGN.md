@@ -21,14 +21,14 @@ Primary demo target: a pinned commit of `langchain-ai/langchain`.
 | `supervisor` | LangGraph routing policy | Classify intent, choose the next agent, and accept user route corrections. |
 | `architect_mapper` | `mcp-repo-mapper` | Map repo structure, language breakdown, frameworks, dependency graph, and entry points. |
 | `entry_explainer` | `mcp-ast-explorer` | Explain definitions, signatures, references, call chains, class relationships, and AST-backed symbol evidence. |
-| `verifier` | AST evidence + sandbox-gated `mcp-test-runner` | Produce `verified` / `unverified` / `contradicted` labels;public executable tests stay disabled until the sandbox worker exists. |
+| `verifier` | AST evidence + sandbox-gated `mcp-test-runner` | Produce `verified` / `unverified` / `contradicted` labels;public executable tests run only through the separate sandbox worker. |
 | `final_writer` | OpenAI Responses API + local resilience layer | Synthesize a grounded answer from bounded MCP/verifier evidence and repair unsafe prose based on verifier labels and errors. |
 
 Project 5 MCP servers are the deterministic fact layer:
 
 - `mcp-repo-mapper`: structure and architecture primitives.
 - `mcp-ast-explorer`: Python AST symbol truth.
-- `mcp-test-runner`: bounded pytest/Jest execution and parser output for trusted local mode;public mode is reserved for the Commit 20 sandbox worker.
+- `mcp-test-runner`: bounded pytest/Jest execution and parser output for trusted local mode or the Commit 20 sandbox worker.
 
 Community MCPs are supporting context only. They do not replace Project 5 as the primary evidence path.
 
@@ -308,6 +308,9 @@ WAYFINDER_KEY_ENCRYPTION_SECRET=<long-random-secret>
 This commit deliberately keeps online test execution separate from auth. Public
 GitHub repo analysis can use `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`, but
 `mcp-test-runner` remains sandbox-gated because it executes untrusted repo code.
+Commit 20 adds a separate FastAPI sandbox worker with a narrow `POST /run-test`
+contract, live `GET /health` gate, command allowlist, timeout, output cap, and
+ephemeral repo copy/cleanup.
 
 ## 15. Workspace Runtime And Sandbox Policy
 
@@ -332,10 +335,10 @@ The verifier boundary is intentionally separate:
 ```env
 WAYFINDER_VERIFIER_RUNNER=placeholder
 WAYFINDER_TEST_SANDBOX_URL=
-WAYFINDER_TEST_SANDBOX_HEALTH=
+WAYFINDER_TEST_SANDBOX_TOKEN=
 ```
 
 `placeholder` keeps public executable test verification disabled while
-repository/AST evidence can still verify code facts. `sandboxed_mcp` is a policy
-gate for a future separate worker; this API build reports it unavailable rather
-than running untrusted repo code inside `wayfinder-api`.
+repository/AST evidence can still verify code facts. `sandboxed_mcp` performs a
+live sandbox worker health check before returning a remote verifier adapter. If
+the worker is missing or unhealthy, executable claims remain unverified.

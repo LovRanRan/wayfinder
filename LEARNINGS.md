@@ -664,3 +664,39 @@
 - "I did not turn on public test execution inside the API container. Auth tells me who owns a run;it does not make untrusted repository tests safe to execute."
 - "For the public launch, I verified AST-backed facts and preserved runtime/data-flow claims as unverified when the sandbox was unavailable. Commit 20 is the separate worker that will make executable verification safe."
 - "The UI split matters:Run shows the job and safety boundary, Answer shows the evidence packet, History preserves prior work, Metrics makes behavior measurable, and Settings exposes runtime ownership."
+
+---
+
+## Commit 20 — Sandboxed Test Runner Worker
+
+### 📚 Sources
+
+- [x] Sandbox worker design note: [`docs/design_notes/016_sandboxed_test_runner_worker.md`](docs/design_notes/016_sandboxed_test_runner_worker.md) — threat model, worker topology, request/response schema, command policy, isolation limits, tests, and deployment notes ✅ 2026-06-05
+- [x] Sandbox worker and adapter: [`src/wayfinder/sandbox/worker.py`](src/wayfinder/sandbox/worker.py), [`src/wayfinder/sandbox/remote.py`](src/wayfinder/sandbox/remote.py), [`src/wayfinder/sandbox/schemas.py`](src/wayfinder/sandbox/schemas.py) — bounded worker, remote runner, and shared schemas ✅ 2026-06-05
+- [x] Runtime gate: [`src/wayfinder/graph/runtime.py`](src/wayfinder/graph/runtime.py), [`src/wayfinder/graph/verifier.py`](src/wayfinder/graph/verifier.py) — live sandbox health check, remote runner construction, job/user metadata, and bounded output payloads ✅ 2026-06-05
+- [x] Deployment topology: [`Dockerfile.sandbox`](Dockerfile.sandbox), [`docker-compose.yml`](docker-compose.yml), [`docs/deploy/README.md`](docs/deploy/README.md) — separate worker image/service and repo-cache-only sharing ✅ 2026-06-05
+- [x] Tests: [`tests/test_sandbox_worker.py`](tests/test_sandbox_worker.py), [`tests/test_graph_runtime.py`](tests/test_graph_runtime.py), [`tests/test_api.py`](tests/test_api.py) — happy path, denied operations, timeout, health gating, and settings status ✅ 2026-06-05
+
+### 🧠 Concepts Internalized
+
+- A sandbox is an execution boundary, not just an auth flag. Login and BYOK identify the user and model runtime, but they do not make untrusted repository tests safe to run.
+- The API should never execute repo code directly in public mode. It should check worker health, send a narrow request, receive a normalized observation, and keep claims unverified if the worker is unavailable.
+- Sharing a repo cache is safer than sharing the API data volume. The worker only needs cloned code; it does not need SQLite run history, session secrets, key-encryption material, or OpenAI keys.
+- `sandboxed_mcp` is now a real adapter path when healthy, but `placeholder` stays the default. That keeps the public demo honest until the separate worker service exists.
+- The verifier can keep the same claim semantics while swapping execution backends. `TestRunRequest` and `TestRunObservation` remain the graph contract; the new worker is just another runner implementation.
+
+### ⚠️ Gotchas Debugged
+
+- A worker image cannot reuse the API image blindly. The API image should not gain test-runner capabilities by accident, so Commit 20 adds `Dockerfile.sandbox` with pytest/npm tooling for the worker service.
+- Manual `WAYFINDER_TEST_SANDBOX_HEALTH=ok` is weaker than a live readiness check. Runtime now calls `/health`; if the worker is missing or unhealthy, Settings reports `unavailable`.
+- A test target string is an attack surface. The worker denies shell metacharacters, package-install tokens, path traversal, absolute paths, and mismatched tool/framework pairs before any subprocess starts.
+- `shell=False` is necessary but not sufficient. The worker also copies the repo into an ephemeral workdir, caps output, enforces timeout, and records denied reasons.
+- UI tone should follow `sandbox_status`, not just `verifier_runner`. A configured `sandboxed_mcp` worker can still be unhealthy, and the dashboard must not color that green.
+
+### 💼 Interview Soundbites
+
+- "I kept executable verification out of the API container. Wayfinder checks a separate sandbox worker and only sends bounded test requests when the worker is healthy."
+- "Auth tells me who owns the run; the sandbox decides whether untrusted code can execute. Those are separate security boundaries."
+- "The worker does not receive OpenAI keys, session secrets, or API database access. It sees only a repo-cache checkout, copies it to an ephemeral directory, runs an allowlisted test command, and deletes the workdir."
+- "The product behavior is honest:if the worker is missing, runtime claims stay unverified; if the worker is healthy, `sandboxed_mcp` becomes a real verifier backend."
+- "This turned `mcp-test-runner` from a local trusted tool into a deployable public verification path without weakening the API runtime."

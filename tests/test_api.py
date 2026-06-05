@@ -13,6 +13,7 @@ from wayfinder.graph.architecture import ArchitectureScanner
 from wayfinder.graph.entry import EntryScanner
 from wayfinder.graph.state import WayfinderState
 from wayfinder.ingestion.models import RepoHandle, RepoSource
+from wayfinder.sandbox.remote import SandboxHealthCheck
 
 
 class FakeApiArchitectureScanner:
@@ -235,6 +236,26 @@ def test_workspace_settings_defaults_to_safe_runtime(monkeypatch: pytest.MonkeyP
     assert payload["final_writer"] == "openai"
     assert payload["verifier_runner"] == "placeholder"
     assert payload["sandbox_status"] == "disabled"
+
+
+def test_workspace_settings_reports_enabled_sandbox_when_worker_is_healthy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_VERIFIER_RUNNER", "sandboxed_mcp")
+    monkeypatch.setenv("WAYFINDER_TEST_SANDBOX_URL", "https://sandbox.example")
+    monkeypatch.setattr(
+        "wayfinder.graph.runtime.check_sandbox_health",
+        lambda *args, **kwargs: SandboxHealthCheck(ok=True, message="ok"),
+    )
+
+    client = TestClient(app)
+    response = client.get("/workspace/settings")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["verifier_runner"] == "sandboxed_mcp"
+    assert payload["sandbox_status"] == "enabled"
 
 
 def test_workspace_settings_requires_encryption_secret_for_key(

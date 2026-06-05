@@ -16,6 +16,7 @@ from wayfinder.mcp.adapter import MCPAdapter, build_mcp_client
 from wayfinder.mcp.community import build_community_mcp_configs
 from wayfinder.mcp.models import MCPServerConfig
 from wayfinder.mcp.project5 import build_project5_mcp_configs, build_project5_mcp_http_configs
+from wayfinder.sandbox.remote import RemoteSandboxTestRunner, check_sandbox_health
 
 _TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -179,7 +180,15 @@ def verifier_runner_from_env(
         return build_project5_verifier_runner()
 
     if mode == "sandboxed_mcp":
-        return None
+        policy = verifier_sandbox_policy_from_env(active_env)
+        if policy.status != "enabled":
+            return None
+        return RemoteSandboxTestRunner(
+            _sandbox_url(active_env),
+            token=_sandbox_token(active_env),
+            request_timeout_seconds=_sandbox_request_timeout_seconds(active_env),
+            max_output_bytes=_sandbox_max_output_bytes(active_env),
+        )
 
     raise ValueError(f"Unsupported verifier runner mode: {mode}")
 
@@ -207,7 +216,6 @@ def verifier_sandbox_policy_from_env(
 
     if mode == "sandboxed_mcp":
         sandbox_url = active_env.get("WAYFINDER_TEST_SANDBOX_URL", "").strip()
-        sandbox_health = active_env.get("WAYFINDER_TEST_SANDBOX_HEALTH", "").strip().lower()
         if not sandbox_url:
             return VerifierSandboxPolicy(
                 status="unavailable",
@@ -216,16 +224,24 @@ def verifier_sandbox_policy_from_env(
                     "not configured."
                 ),
             )
-        if sandbox_health != "ok":
+        health = check_sandbox_health(
+            sandbox_url,
+            token=_sandbox_token(active_env),
+            timeout_seconds=_sandbox_health_timeout_seconds(active_env),
+        )
+        if not health.ok:
             return VerifierSandboxPolicy(
                 status="unavailable",
-                message="Sandboxed verifier requested but the sandbox health gate is not ok.",
+                message=(
+                    "Sandboxed verifier requested but the worker is unhealthy: "
+                    f"{health.message}"
+                ),
             )
         return VerifierSandboxPolicy(
-            status="unavailable",
+            status="enabled",
             message=(
-                "Sandbox health gate is configured, but this API build has no remote "
-                "sandbox adapter yet."
+                "Sandboxed verifier is enabled; executable claims run through the "
+                "separate sandbox worker."
             ),
         )
 
@@ -316,3 +332,40 @@ def _parse_dotenv_line(raw_line: str) -> tuple[str, str] | None:
         return None
 
     return key, value
+
+
+def _sandbox_url(env: Mapping[str, str]) -> str:
+    return env.get("WAYFINDER_TEST_SANDBOX_URL", "").strip().rstrip("/")
+
+
+def _sandbox_token(env: Mapping[str, str]) -> str | None:
+    raw = env.get("WAYFINDER_TEST_SANDBOX_TOKEN", "").strip()
+    return raw or None
+
+
+def _sandbox_request_timeout_seconds(env: Mapping[str, str]) -> float:
+    return _float_env(env, "WAYFINDER_TEST_SANDBOX_REQUEST_TIMEOUT_SECONDS", 30.0)
+
+
+def _sandbox_health_timeout_seconds(env: Mapping[str, str]) -> float:
+    return _float_env(env, "WAYFINDER_TEST_SANDBOX_HEALTH_TIMEOUT_SECONDS", 1.0)
+
+
+def _sandbox_max_output_bytes(env: Mapping[str, str]) -> int:
+    raw = env.get("WAYFINDER_TEST_SANDBOX_MAX_OUTPUT_BYTES", "12000").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return 12000
+    return max(256, min(value, 64000))
+
+
+def _float_env(env: Mapping[str, str], key: str, default: float) -> float:
+    raw = env.get(key, "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return max(0.1, value)

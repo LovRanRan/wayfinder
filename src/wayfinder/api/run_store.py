@@ -116,6 +116,7 @@ class InMemoryRunStore:
         now = datetime.now(UTC)
         job_id = str(uuid4())
         graph_input["thread_id"] = job_id
+        graph_input["user_id"] = user.user_id
         run = RunSummary(
             job_id=job_id,
             user_id=user.user_id,
@@ -438,6 +439,7 @@ class SQLiteRunStore(InMemoryRunStore):
         now = datetime.now(UTC)
         job_id = str(uuid4())
         graph_input["thread_id"] = job_id
+        graph_input["user_id"] = user.user_id
         run = RunSummary(
             job_id=job_id,
             user_id=user.user_id,

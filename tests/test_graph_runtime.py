@@ -23,6 +23,7 @@ from wayfinder.graph.runtime import (
     verifier_sandbox_policy_from_env,
 )
 from wayfinder.mcp.project5 import PROJECT5_MCP_SERVERS
+from wayfinder.sandbox.remote import SandboxHealthCheck
 
 
 def test_project5_repo_mapper_config_selects_only_repo_mapper() -> None:
@@ -204,8 +205,28 @@ def test_verifier_runner_from_env_accepts_placeholder_mode() -> None:
     assert verifier_runner_from_env({"WAYFINDER_VERIFIER_RUNNER": "placeholder"}) is None
 
 
-def test_verifier_runner_from_env_sandboxed_mcp_is_policy_gated() -> None:
+def test_verifier_runner_from_env_sandboxed_mcp_without_url_is_policy_gated() -> None:
     assert verifier_runner_from_env({"WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp"}) is None
+
+
+def test_verifier_runner_from_env_builds_remote_sandbox_runner_when_healthy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "wayfinder.graph.runtime.check_sandbox_health",
+        lambda *args, **kwargs: SandboxHealthCheck(ok=True, message="ok"),
+    )
+
+    runner = verifier_runner_from_env(
+        {
+            "WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp",
+            "WAYFINDER_TEST_SANDBOX_URL": "https://sandbox.example",
+            "WAYFINDER_TEST_SANDBOX_TOKEN": "secret-token",
+        }
+    )
+
+    assert runner is not None
+    assert hasattr(runner, "run_test")
 
 
 def test_verifier_runner_from_env_builds_mcp_runner() -> None:
@@ -229,26 +250,45 @@ def test_verifier_sandbox_policy_reports_disabled_default() -> None:
 
 def test_verifier_sandbox_policy_requires_url_and_health_gate() -> None:
     missing_url = verifier_sandbox_policy_from_env({"WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp"})
+
+    assert missing_url.status == "unavailable"
+    assert "URL" in missing_url.message
+
+
+def test_verifier_sandbox_policy_checks_worker_health(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "wayfinder.graph.runtime.check_sandbox_health",
+        lambda *args, **kwargs: SandboxHealthCheck(ok=False, message="connection refused"),
+    )
     unhealthy = verifier_sandbox_policy_from_env(
         {
             "WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp",
             "WAYFINDER_TEST_SANDBOX_URL": "https://sandbox.example",
         }
     )
-    adapter_missing = verifier_sandbox_policy_from_env(
+
+    assert unhealthy.status == "unavailable"
+    assert "connection refused" in unhealthy.message
+
+
+def test_verifier_sandbox_policy_reports_enabled_when_worker_is_healthy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "wayfinder.graph.runtime.check_sandbox_health",
+        lambda *args, **kwargs: SandboxHealthCheck(ok=True, message="ok"),
+    )
+    policy = verifier_sandbox_policy_from_env(
         {
             "WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp",
             "WAYFINDER_TEST_SANDBOX_URL": "https://sandbox.example",
-            "WAYFINDER_TEST_SANDBOX_HEALTH": "ok",
         }
     )
 
-    assert missing_url.status == "unavailable"
-    assert "URL" in missing_url.message
-    assert unhealthy.status == "unavailable"
-    assert "health" in unhealthy.message
-    assert adapter_missing.status == "unavailable"
-    assert "no remote sandbox adapter" in adapter_missing.message
+    assert policy.status == "enabled"
+    assert "separate sandbox worker" in policy.message
 
 
 def test_env_with_local_dotenv_loads_missing_values(tmp_path: Path) -> None:

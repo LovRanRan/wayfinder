@@ -63,6 +63,7 @@ class WayfinderState(TypedDict, total=False):
     repo_url: str
     repo_handle: RepoHandle
     thread_id: str
+    user_id: str
 
     intent: Intent
     route_decision: RouteDecision

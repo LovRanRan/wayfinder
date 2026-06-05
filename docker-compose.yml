@@ -13,13 +13,16 @@ services:
       WAYFINDER_ENABLE_GITHUB_INGESTION: ${WAYFINDER_ENABLE_GITHUB_INGESTION:-0}
       WAYFINDER_GITHUB_REPO_ALLOWLIST: ${WAYFINDER_GITHUB_REPO_ALLOWLIST:-langchain-ai/langchain,LovRanRan/wayfinder}
       WAYFINDER_GITHUB_MAX_FILES: ${WAYFINDER_GITHUB_MAX_FILES:-10000}
-      WAYFINDER_GITHUB_CACHE_ROOT: ${WAYFINDER_GITHUB_CACHE_ROOT:-/data/repos}
+      WAYFINDER_GITHUB_CACHE_ROOT: ${WAYFINDER_GITHUB_CACHE_ROOT:-/repo-cache/repos}
+      WAYFINDER_TEST_SANDBOX_URL: ${WAYFINDER_TEST_SANDBOX_URL:-http://sandbox-worker:8110}
+      WAYFINDER_TEST_SANDBOX_TOKEN: ${WAYFINDER_TEST_SANDBOX_TOKEN:-}
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-wayfinder-local}
     ports:
       - "8000:8000"
     volumes:
       - sqlite-data:/data
+      - repo-cache:/repo-cache
     healthcheck:
       test:
         [
@@ -27,6 +30,31 @@ services:
           "python",
           "-c",
           "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sandbox-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    environment:
+      WAYFINDER_SANDBOX_ALLOWED_ROOTS: /repo-cache/repos
+      WAYFINDER_SANDBOX_TEMP_ROOT: /tmp/wayfinder-sandbox
+      WAYFINDER_SANDBOX_TOKEN: ${WAYFINDER_TEST_SANDBOX_TOKEN:-}
+      WAYFINDER_SANDBOX_MAX_OUTPUT_BYTES: ${WAYFINDER_SANDBOX_MAX_OUTPUT_BYTES:-12000}
+    ports:
+      - "8110:8110"
+    volumes:
+      - repo-cache:/repo-cache:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8110/health')",
         ]
       interval: 10s
       timeout: 5s
@@ -77,3 +105,4 @@ services:
 
 volumes:
   sqlite-data:
+  repo-cache:

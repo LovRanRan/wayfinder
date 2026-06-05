@@ -243,7 +243,7 @@ export function WorkspaceSettingsPanel() {
             icon={SlidersHorizontal}
             label="verifier"
             value={settings?.verifierRunner ?? "placeholder"}
-            tone="muted"
+            tone={sandboxTone(settings?.sandboxStatus)}
           />
           <div className="rounded-md border border-border bg-muted/40 p-4">
             <p className="font-mono text-xs leading-6 text-muted-foreground">

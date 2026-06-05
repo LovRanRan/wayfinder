@@ -214,7 +214,7 @@ cd dashboard && npm run lint && npm run typecheck && npm run build
 
 Current local and deploy evidence:
 
-- backend gates cover API lifecycle, auth, recent runs, refine/resume, error serialization, trace metadata, workspace settings, and sandbox policy;
+- backend gates cover API lifecycle, auth, recent runs, refine/resume, error serialization, trace metadata, workspace settings, sandbox policy, and the sandbox worker request boundary;
 - Project 5 MCP integration covers repo mapper, AST explorer, and test runner through real local MCP packages when the env-gated integration test is enabled;
 - dashboard gates cover lint, typecheck, and production build;
 - public Railway smoke evidence is tracked in [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md).
@@ -324,22 +324,41 @@ Project 5 MCP output remains the code fact layer. Tavily/GitHub search results
 are external supporting context only;they do not create verified code claims and
 cannot override repository/AST/test evidence.
 
-`mcp-test-runner` intentionally remains disabled in public HTTP mode until a
-stronger remote execution sandbox is added. The reader MCPs run in the API
-container, not as separate Railway services, because they need access to the
-same cloned repository path as the API.
+`mcp-test-runner` is sandbox-gated in public HTTP mode. The reader MCPs run in
+the API container because they are read-only and need access to the same cloned
+repository path as the API. Executable test claims must go through the separate
+sandbox worker.
 
 Sandbox gate:
 
 ```env
 WAYFINDER_VERIFIER_RUNNER=placeholder
 WAYFINDER_TEST_SANDBOX_URL=
-WAYFINDER_TEST_SANDBOX_HEALTH=
+WAYFINDER_TEST_SANDBOX_TOKEN=
 ```
 
-`WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` currently reports unavailable unless a
-separate sandbox worker URL and health gate are configured; this API build does
-not execute arbitrary public repo tests inside `wayfinder-api`.
+`WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` performs a live health check against
+`WAYFINDER_TEST_SANDBOX_URL`. When the worker is healthy, high-risk executable
+claims are sent to `POST /run-test`; otherwise runtime claims stay
+`unverified`. The API never runs arbitrary public repo tests inside
+`wayfinder-api`.
+
+Local sandbox worker:
+
+```bash
+docker compose up --build api sandbox-worker dashboard
+WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp docker compose up --build api sandbox-worker dashboard
+```
+
+The Compose topology keeps `/data` for API SQLite history and shares only the
+repo cache volume with the worker. The worker copies a selected repo into an
+ephemeral directory, denies unsafe filters such as shell metacharacters or
+package-install tokens, runs a bounded pytest/Jest command with `shell=False`,
+truncates output, and cleans up the workdir.
+
+For a separate Railway sandbox service, use `Dockerfile.sandbox` and wire the
+API with `WAYFINDER_TEST_SANDBOX_URL=<sandbox-worker-url>` only after the worker
+health endpoint is reachable.
 
 Cloud Run:
 

@@ -160,7 +160,7 @@ export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: Ru
             label="test runner"
             value={runtimePolicy?.verifierRunner ?? "placeholder"}
             detail={runtimePolicy?.sandboxMessage ?? "sandbox policy loading"}
-            tone={verifierTone(runtimePolicy?.verifierRunner)}
+            tone={sandboxTone(runtimePolicy?.sandboxStatus)}
           />
           <BriefingTile
             icon={ShieldAlert}
@@ -255,13 +255,6 @@ function statusTone(status: RunStatus) {
     return "danger";
   }
   return "warning";
-}
-
-function verifierTone(verifierRunner: string | undefined) {
-  if (verifierRunner === undefined || verifierRunner === "placeholder") {
-    return "warning";
-  }
-  return "success";
 }
 
 function sandboxTone(status: WorkspaceSandboxStatus | undefined) {

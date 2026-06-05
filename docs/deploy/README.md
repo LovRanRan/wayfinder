@@ -19,6 +19,16 @@ falls back to seeded demo data when there are no runs. Browser actions submit
 through dashboard proxy routes, so the public UI does not need direct CORS
 access to the API service.
 
+Run the sandbox worker too:
+
+```bash
+docker compose up --build api sandbox-worker dashboard
+WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp docker compose up --build api sandbox-worker dashboard
+```
+
+The API and worker share only the `repo-cache` volume. API SQLite history stays
+under `/data`, which is not mounted into the worker.
+
 ## Optional MCP Profile
 
 Project 5 MCP servers are stdio-first packages. Compose includes them as an
@@ -82,11 +92,11 @@ cloned repository paths as the API process. Do not split these reader MCPs into
 separate Railway services until the tool input contract changes from local path
 to repo URL or shared artifact.
 
-`mcp-test-runner` should stay disabled for public HTTP deployment until remote
-command execution has sandbox/auth controls. With `mcp-ast-explorer` enabled,
-the verifier can still mark deterministic AST facts as verified, such as symbol
-definition location and signature. Runtime/data-flow claims without a focused
-test target remain unverified instead of being treated as test-backed.
+`mcp-test-runner` should stay disabled for public HTTP deployment unless the
+separate sandbox worker is deployed and healthy. With `mcp-ast-explorer`
+enabled, the verifier can still mark deterministic AST facts as verified, such
+as symbol definition location and signature. Runtime/data-flow claims without a
+focused test target remain unverified instead of being treated as test-backed.
 
 Dashboard service:
 
@@ -157,21 +167,41 @@ Sandboxed verifier policy:
 ```bash
 WAYFINDER_VERIFIER_RUNNER=placeholder
 WAYFINDER_TEST_SANDBOX_URL=
-WAYFINDER_TEST_SANDBOX_HEALTH=
+WAYFINDER_TEST_SANDBOX_TOKEN=
 ```
 
 Keep `WAYFINDER_VERIFIER_RUNNER=placeholder` on Railway until a separate sandbox
-worker exists. `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` reports unavailable
-without a sandbox URL and `WAYFINDER_TEST_SANDBOX_HEALTH=ok`; this API build
-does not execute arbitrary public repo tests inside the API container.
+worker service is deployed. `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` performs a
+live `GET /health` check against `WAYFINDER_TEST_SANDBOX_URL`; if the worker is
+unhealthy, Settings reports `sandbox_status=unavailable` and executable claims
+remain unverified.
+
+Sandbox worker service variables:
+
+```bash
+RAILWAY_DOCKERFILE_PATH=Dockerfile.sandbox
+WAYFINDER_SANDBOX_ALLOWED_ROOTS=/repo-cache/repos
+WAYFINDER_SANDBOX_TEMP_ROOT=/tmp/wayfinder-sandbox
+WAYFINDER_SANDBOX_TOKEN=<optional-shared-token>
+WAYFINDER_SANDBOX_MAX_OUTPUT_BYTES=12000
+```
+
+API variables when the worker is healthy:
+
+```bash
+WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp
+WAYFINDER_TEST_SANDBOX_URL=<sandbox-worker-url>
+WAYFINDER_TEST_SANDBOX_TOKEN=<same-optional-token>
+WAYFINDER_TEST_SANDBOX_MAX_OUTPUT_BYTES=12000
+```
 
 If Railway gives the dashboard an internal service DNS for the API, use that for
 `WAYFINDER_API_BASE_URL` and keep the public API URL in
 `NEXT_PUBLIC_WAYFINDER_API_BASE_URL` for browser links.
 
-Keep `mcp-test-runner` disabled in public deploy until an execution sandbox is
-available. Auth separates users and preserves history; it does not make
-untrusted repository test commands safe to run in the API container.
+Auth separates users and preserves history; it does not make untrusted
+repository test commands safe to run in the API container. Only enable
+`sandboxed_mcp` when the worker service is healthy.
 
 Smoke checks:
 
