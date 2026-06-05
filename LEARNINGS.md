@@ -628,3 +628,39 @@
 - "For BYOK, I encrypted the stored key with a deployment secret and made the API response secret-free;the raw key is only decrypted during that user's graph construction."
 - "I deliberately did not enable public `mcp-test-runner` just because auth exists. Running repo tests is untrusted code execution, so it needs a separate sandbox worker."
 - "This is the difference between a demo and an honest product boundary:Wayfinder can analyze arbitrary public repos with user-owned LLM runtime, but executable claims remain unverified until sandbox evidence exists."
+
+---
+
+## Commit 19 — Final Launch Evidence + Project 6 Closeout
+
+### 📚 Sources
+
+- [x] Public smoke evidence: [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md) — Railway runs for `LovRanRan/wayfinder`, `pallets/click`, `psf/requests`, and the `langchain-ai/langchain` scan-limitation case ✅ 2026-06-05
+- [x] Dashboard workbench coordinator: [`dashboard/components/agent-workbench.tsx`](dashboard/components/agent-workbench.tsx) — selected run polling, completion refresh, and Run/Answer tab separation ✅ 2026-06-05
+- [x] Run briefing panel: [`dashboard/components/run-briefing-panel.tsx`](dashboard/components/run-briefing-panel.tsx) — selected-job status, reader MCP state, verifier runner status, sandbox policy, and recent answer links ✅ 2026-06-05
+- [x] Launch docs: [`README.md`](README.md), [`DESIGN.md`](DESIGN.md), [`docs/deploy/README.md`](docs/deploy/README.md), [`docs/blog/wayfinder_launch_post.md`](docs/blog/wayfinder_launch_post.md) — public URL, BYOK/runtime settings, sandbox boundary, evidence links, and current launch story ✅ 2026-06-05
+- [x] Tracker: [`progress.md`](progress.md) — Commit 19 closeout, Commit 20 sandbox worker roadmap, P7 handoff, and demo recording handoff ✅ 2026-06-05
+
+### 🧠 Concepts Internalized
+
+- Wayfinder's target product is a grounded LLM codebase-onboarding copilot, not a deterministic MCP fact panel. The deterministic MCPs own repo/AST/test facts;the LLM composes a bounded evidence packet into a usable onboarding answer.
+- Auth, BYOK, and persistent history are product requirements for a public workspace. Without them, `WAYFINDER_GITHUB_REPO_ALLOWLIST=*` would be hard to justify because every user would share the same runtime and history surface.
+- Verification has to be split by evidence type. AST-backed facts can be verified in public deploys through read-only MCPs;executable runtime claims need a sandboxed test runner worker before they can be verified online.
+- `unverified` is not a weak UX state. It is the product's way of preserving trust when code evidence is missing, a scan fails, a repo has no focused tests, or the sandbox is unavailable.
+- The dashboard is part of the evidence contract. Run, Answer, History, Metrics, and Settings each need their own space so users can see what is being run, what is proven, what is uncertain, and which runtime policy is active.
+
+### ⚠️ Gotchas Debugged
+
+- A logged-in public workspace still needs a user-owned model key. In auth-required mode, falling back to a platform `OPENAI_API_KEY` would violate the "use my API only" product rule.
+- Allowlisting every public repo is only acceptable after auth/BYOK/history exist. It solves repo access breadth, not code-execution safety.
+- The first active-run polling fix updated the selected Answer but not the server-backed dashboard metrics/history. A one-time `router.refresh()` after completion keeps P95, active-run count, and Recent runs fresh without manual reload.
+- A Run tab that also renders the full answer duplicates the Answer tab and wastes space. The better split is Run for submission/status/policy, Answer for evidence cards, History for saved jobs, Metrics for aggregate health, and Settings for BYOK/sandbox state.
+- Public `mcp-test-runner` cannot be enabled just by changing `WAYFINDER_VERIFIER_RUNNER`. Current `sandboxed_mcp` intentionally reports unavailable until Commit 20 implements a separate worker, health gate, API adapter, approval UI, and denied-operation evidence.
+
+### 💼 Interview Soundbites
+
+- "I shipped Wayfinder as a deployed grounded LLM copilot:Project 5 MCPs collect deterministic code evidence, LangGraph routes the workflow, and the dashboard exposes verified/unverified/contradicted labels instead of hiding uncertainty."
+- "I added auth, per-user history, and BYOK because a public repo analyzer needs user-owned runtime authority;otherwise users would share both model credentials and run history."
+- "I did not turn on public test execution inside the API container. Auth tells me who owns a run;it does not make untrusted repository tests safe to execute."
+- "For the public launch, I verified AST-backed facts and preserved runtime/data-flow claims as unverified when the sandbox was unavailable. Commit 20 is the separate worker that will make executable verification safe."
+- "The UI split matters:Run shows the job and safety boundary, Answer shows the evidence packet, History preserves prior work, Metrics makes behavior measurable, and Settings exposes runtime ownership."

@@ -1,14 +1,14 @@
-# wayfinder DESIGN v1.0
+# wayfinder DESIGN v1.1
 
 ## 1. Product Contract
 
-`wayfinder` is a verifier-backed codebase onboarding workflow. Given a repository and a question, it maps architecture, explains entry paths, verifies high-risk claims, and exposes the run through an inspectable API/dashboard surface.
+`wayfinder` is a verifier-backed codebase onboarding workflow. Given a repository and a question, it maps architecture, explains entry paths, labels high-risk claims with grounded evidence, and exposes the run through an inspectable API/dashboard surface.
 
 The product promise is not "answer every code question confidently." The promise is:
 
 - ground architecture facts in repository scans;
 - ground symbol facts in AST evidence;
-- verify risky runtime claims with focused tests when possible;
+- verify static code facts with repository/AST evidence and keep runtime claims unverified unless a trusted/sandboxed runner can execute focused tests;
 - label uncertainty explicitly;
 - make each run resumable and observable.
 
@@ -21,14 +21,14 @@ Primary demo target: a pinned commit of `langchain-ai/langchain`.
 | `supervisor` | LangGraph routing policy | Classify intent, choose the next agent, and accept user route corrections. |
 | `architect_mapper` | `mcp-repo-mapper` | Map repo structure, language breakdown, frameworks, dependency graph, and entry points. |
 | `entry_explainer` | `mcp-ast-explorer` | Explain definitions, signatures, references, call chains, class relationships, and AST-backed symbol evidence. |
-| `verifier` | `mcp-test-runner` | Verify high-risk claims with minimal pytest/Jest targets and produce claim labels. |
+| `verifier` | AST evidence + sandbox-gated `mcp-test-runner` | Produce `verified` / `unverified` / `contradicted` labels;public executable tests stay disabled until the sandbox worker exists. |
 | `final_writer` | OpenAI Responses API + local resilience layer | Synthesize a grounded answer from bounded MCP/verifier evidence and repair unsafe prose based on verifier labels and errors. |
 
 Project 5 MCP servers are the deterministic fact layer:
 
 - `mcp-repo-mapper`: structure and architecture primitives.
 - `mcp-ast-explorer`: Python AST symbol truth.
-- `mcp-test-runner`: bounded pytest/Jest execution and parser output.
+- `mcp-test-runner`: bounded pytest/Jest execution and parser output for trusted local mode;public mode is reserved for the Commit 20 sandbox worker.
 
 Community MCPs are supporting context only. They do not replace Project 5 as the primary evidence path.
 
@@ -253,10 +253,10 @@ Artifacts:
 - bilingual launch draft;
 - design notes 001-010.
 
-External evidence still required:
+External evidence status:
 
-- public Railway or Cloud Run URL after project link/deploy;
-- actual recorded 3-minute demo video or GIF;
+- public Railway API and dashboard URLs are live and public-smoked;
+- actual recorded 3-minute demo video or GIF remains a user-owned handoff;
 - published blog URL if posted externally.
 
 ## 13. Grounded LLM Synthesis

@@ -34,6 +34,6 @@ Environment:
 
 ## Not Claimed Yet
 
-- Demo video is not recorded yet.
+- Demo video recording is handed off to Haichuan; the script exists, but no video link is claimed in this evidence note.
 - API restart persistence with the Railway `/data` volume is not independently smoke-tested yet, though page reload persistence is observed.
 - Public test execution through `mcp-test-runner` is intentionally not enabled. Auth and BYOK do not make arbitrary public repo code safe to run inside the API container.

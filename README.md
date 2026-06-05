@@ -2,7 +2,7 @@
 
 Verifier-backed codebase onboarding copilot for engineers entering an unfamiliar repository.
 
-`wayfinder` maps architecture, explains entry paths from AST evidence, verifies high-risk code understanding claims with tests, and shows uncertainty instead of hiding it.
+`wayfinder` maps architecture, explains entry paths from AST evidence, labels high-risk code understanding claims with grounded evidence, and shows uncertainty instead of hiding it.
 
 ## Status
 
@@ -11,7 +11,8 @@ Verifier-backed codebase onboarding copilot for engineers entering an unfamiliar
 - Project 5 MCP integration: stdio passing locally; reader HTTP deploy path added
 - Docker/Compose: deploy-ready and Railway-smoked
 - Public live URL: deployed on Railway
-- Demo video: script ready, recording pending
+- Public smoke evidence: recorded in docs
+- Demo video: script ready; recording is a user-owned handoff
 
 ## Why This Exists
 
@@ -21,7 +22,7 @@ Most codebase explanation tools sound confident before they are grounded. They c
 
 1. Gather deterministic architecture and AST evidence through MCP tools.
 2. Route the user's question through a LangGraph Supervisor.
-3. Verify high-risk runtime claims with focused tests.
+3. Verify static code facts with repository/AST evidence, and keep runtime claims unverified unless a trusted/sandboxed test runner is available.
 4. Label claims as `verified`, `unverified`, or `contradicted`.
 5. Rewrite final output when verifier evidence contradicts earlier prose.
 
@@ -44,7 +45,7 @@ LangGraph Supervisor
       |
       +--> entry_explainer   -> mcp-ast-explorer
       |
-      +--> verifier          -> mcp-test-runner
+      +--> verifier          -> AST labels + sandbox-gated mcp-test-runner
       |
       v
 final_writer + resilience/reflection layer

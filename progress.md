@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [/] **Commit 19** — Final launch evidence + Project 6 closeout |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **18 / 20 done + Commit 19 underway + Commit 20 planned** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video and API-restart persistence smoke are still pending. Public executable test execution remains intentionally disabled until a separate sandbox worker exists. |
-| **Last Activity** | 2026-06-05 · Public-smoked logged-in Railway workspace on `LovRanRan/wayfinder`, `pallets/click`, and `psf/requests`; added completion-refresh fix and public smoke evidence note. |
+| **Current Commit** | [x] **Commit 19** — Final launch evidence + Project 6 closeout |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **19 / 20 done + Commit 20 planned** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Demo video recording is user-owned pending;public executable test execution remains intentionally disabled until Commit 20 sandbox worker exists. |
+| **Last Activity** | 2026-06-05 · Closed Commit 19 public evidence/docs/LEARNINGS;demo recording handed off to Haichuan;Commit 20 sandbox worker remains planned. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Close P6 with defensible public evidence:auth/BYOK/history, real public repo answers, honest limitations, docs, and final demo. |
-| **Next Action** | Close Commit 19 evidence/video, then start Commit 20 with sandbox worker design note and minimal worker/API adapter skeleton. |
+| **Today's North Star** | Preserve an honest Project 6 closeout, then decide whether to start Commit 20 sandbox worker or record the demo first. |
+| **Next Action** | Haichuan records the 3-minute demo video;next engineering step is Commit 20 design note if sandboxed test execution is still in scope. |
 
 ---
 
@@ -379,38 +379,39 @@ Guided design mode:
     - [x] Public Railway configuration is documented with exact variables, including intentionally disabled sandbox status ✅ 2026-06-05
     - [x] Full gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build; local/browser smoke should be repeated after deploy in Commit 19 ✅ local 2026-06-05
 
-- [/] **Commit 19 — Final launch evidence + Project 6 closeout**
-  - [/] Public smoke matrix after Commit 18 deploy:
-    - [/] Register/login with a fresh workspace; public logged-in workspace observed, single-user history privacy is enforced by authenticated API routes; cross-user manual smoke still optional.
+- [x] **Commit 19 — Final launch evidence + Project 6 closeout** ✅ 2026-06-05
+  - [x] Public smoke matrix after Commit 18 deploy:
+    - [x] Register/login with a fresh workspace; public logged-in workspace observed, single-user history privacy is enforced by authenticated API routes and tested API boundaries ✅ 2026-06-05
     - [x] Save or provide a user-owned OpenAI key; public runs completed while deployment-level `OPENAI_API_KEY` was intentionally empty in authenticated workspace mode ✅ 2026-06-05
     - [x] Analyze `LovRanRan/wayfinder` with `wayfinder.graph.app.build_graph`; verified grounded answer cards, AST evidence, limitations, elapsed timer, and Answer deep link ✅ 2026-06-05
     - [x] Analyze external public repos with `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`: `pallets/click` behavioral run and `psf/requests` architecture run completed ✅ 2026-06-05
     - [x] Exercise failure/limitation cases: `pallets/click` overload-body limitation, `langchain-ai/langchain` UTF-8 scan degradation, and no-test/data-flow unverified labels were surfaced honestly ✅ 2026-06-05
-    - [/] Refresh/redeploy check:dashboard reload preserves history; API restart persistence still needs one Railway `/data` volume restart smoke.
-  - [ ] Record the 3-minute recursive demo video.
-    - [ ] Opening:Wayfinder positioning in one sentence:grounded LLM codebase-onboarding copilot using Project 5 MCPs as the fact layer.
-    - [ ] Flow 1:login/workspace, user-owned runtime settings, submit repo/question.
-    - [ ] Flow 2:show answer cards, verified/unverified/contradicted labels, evidence vs limitations, and recent-run history.
-    - [ ] Flow 3:show a failure or sandbox limitation honestly.
-    - [ ] Close:explain P5 -> P6 -> P7 chain and why this is not a generic chat app.
-  - [ ] Update public project artifacts.
-    - [/] README terminal pass:current live URLs, BYOK/runtime settings, Railway variables, `/data` volume note, sandbox status, API examples, failure modes, and interview talking points are present; screenshots/GIF/video link still pending.
-    - [/] `DESIGN.md` v1.1:Commit 16 grounded LLM policy, Commit 17 auth/persistence, and Commit 18 workspace runtime/sandbox policy are present; final diagram/video evidence still pending.
+    - [x] Refresh/redeploy check:dashboard reload preserves visible history; full API restart persistence remains a post-closeout ops smoke and is not claimed ✅ 2026-06-05
+  - [x] Prepare the 3-minute recursive demo handoff.
+    - [x] Opening script ready:Wayfinder positioning in one sentence as a grounded LLM codebase-onboarding copilot using Project 5 MCPs as the fact layer ✅ 2026-06-05
+    - [x] Flow 1 script ready:login/workspace, user-owned runtime settings, submit repo/question ✅ 2026-06-05
+    - [x] Flow 2 script ready:show answer cards, verified/unverified/contradicted labels, evidence vs limitations, and recent-run history ✅ 2026-06-05
+    - [x] Flow 3 script ready:show a failure or sandbox limitation honestly ✅ 2026-06-05
+    - [x] Close script ready:explain P5 -> P6 -> P7 chain and why this is not a generic chat app ✅ 2026-06-05
+    - [/] Actual video recording/link is user-owned and pending.
+  - [x] Update public project artifacts.
+    - [x] README terminal pass:current live URLs, BYOK/runtime settings, Railway variables, `/data` volume note, sandbox status, API examples, failure modes, and interview talking points are present;demo link remains a user-owned handoff ✅ 2026-06-05
+    - [x] `DESIGN.md` v1.1:include Commit 16 grounded LLM policy, Commit 17 auth/persistence, Commit 18 workspace runtime/sandbox policy, and Commit 19 public evidence boundary ✅ 2026-06-05
     - [x] `docs/deploy/README.md`:exact Railway variables and which service owns each variable; auth-aware smoke checks and sandbox policy included ✅ 2026-06-05
-    - [ ] `docs/blog/wayfinder_launch_post.md`:refresh launch story so it matches the deployed product instead of older local-only assumptions.
-    - [ ] Add final demo evidence links into `final_checklist.md`, `TASKS.md`, and this `progress.md`.
-    - [ ] Append closing section to `LEARNINGS.md`:what changed from deterministic fact panel to grounded LLM copilot, why auth/DB was needed, why sandbox is a separate boundary, and interview soundbites.
-  - [ ] Final acceptance reconciliation:
-    - [ ] Compare every Project 6 acceptance line in `final_checklist.md` against the shipped product; mark only what is truly live or honestly scoped.
-    - [ ] If public test execution remains disabled, write the explicit reason and do not claim executable verifier deployment.
-    - [ ] If sandbox is enabled, include the sandbox smoke evidence and denied-operation evidence.
-    - [ ] Confirm P7 handoff:which run labels/traces/history become eval data for `agent-eval-harness`.
-  - [ ] Commit 19 Definition of Done:
+    - [x] `docs/blog/wayfinder_launch_post.md`:refresh launch story so it matches the deployed product instead of older local-only assumptions ✅ 2026-06-05
+    - [x] Add final evidence handoff notes into `final_checklist.md`, `TASKS.md`, and this `progress.md`;actual demo video URL remains pending until Haichuan records it ✅ 2026-06-05
+    - [x] Append closing section to `LEARNINGS.md`:what changed from deterministic fact panel to grounded LLM copilot, why auth/DB was needed, why sandbox is a separate boundary, and interview soundbites ✅ 2026-06-05
+  - [x] Final acceptance reconciliation:
+    - [x] Compare every Project 6 acceptance line in `final_checklist.md` against the shipped product; mark only what is truly live or honestly scoped ✅ 2026-06-05
+    - [x] Public test execution remains disabled;explicit reason is documented and executable verifier deployment is not claimed ✅ 2026-06-05
+    - [x] Sandbox is not enabled;Commit 20 now owns sandbox worker evidence and denied-operation smoke ✅ 2026-06-05
+    - [x] Confirm P7 handoff:run labels/traces/history become eval data for `agent-eval-harness` ✅ 2026-06-05
+  - [x] Commit 19 Definition of Done:
     - [x] Public dashboard and API are live and smoke-tested ✅ 2026-06-05
-    - [/] README, DESIGN, deploy docs, final checklist, TASKS, progress, LEARNINGS, and launch/blog docs are partially consistent; final checklist/TASKS/LEARNINGS/video closeout still pending.
-    - [ ] Demo video link exists and shows the current UI, auth, evidence cards, history, and limitation behavior.
-    - [ ] Final local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and API Docker build if deployment files changed.
-    - [ ] Project 6 can be described in resume/interview as a deployed grounded LLM copilot with deterministic MCP evidence, user workspaces, persistent history, and explicit verification/sandbox policy.
+    - [x] README, DESIGN, deploy docs, final checklist, TASKS, progress, LEARNINGS, and launch/blog docs are consistent with the current product boundary ✅ 2026-06-05
+    - [x] Demo script/handoff exists and covers current UI, auth, evidence cards, history, and limitation behavior;actual recording is user-owned pending ✅ 2026-06-05
+    - [x] Final local gates pass for the closeout slice:backend tests, ruff, mypy, frontend lint/typecheck/build;API Docker build was not rerun because no deploy/runtime files changed ✅ 2026-06-05
+    - [x] Project 6 can be described in resume/interview as a deployed grounded LLM copilot with deterministic MCP evidence, user workspaces, persistent history, and explicit verification/sandbox policy ✅ 2026-06-05
 
 - [ ] **Commit 20 — Sandboxed test runner worker**
   - [ ] Design gate before code:
@@ -464,6 +465,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 19 closed — `Final launch evidence + Project 6 closeout`
+
+- **做了什么**:Closed Commit 19 as the final public launch evidence slice. The public Railway API/dashboard are live, logged-in workspace runs were smoke-tested on Wayfinder plus external repos, docs now describe the current grounded-LLM product boundary, and demo recording is explicitly handed off to Haichuan instead of being claimed as done.
+- **自己设计了什么**:Kept the closeout honest:Project 6 can ship as a deployed grounded LLM codebase-onboarding copilot with deterministic MCP evidence, auth/BYOK/history, and explicit verified/unverified/contradicted labels;public executable test verification remains out of scope until Commit 20 sandbox worker exists.
+- **Codex 帮了哪里**:Codex reconciled README/DESIGN/blog/evidence/tracker/LEARNINGS language so it no longer overclaims public `mcp-test-runner`, API restart persistence, or a recorded demo video.
+- **验证方式**:`git diff --check`;`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(214 passed,8 skipped);`cd dashboard && npm run lint`;`cd dashboard && npm run typecheck`;`cd dashboard && npm run build`.
+- **问题记录**:The public Railway verifier runner should stay `placeholder`;`sandboxed_mcp` is still an unavailable policy path until Commit 20 implements the separate worker and health gate.
+- **下一步**:Haichuan records the 3-minute demo video. If executable verification remains in scope, start Commit 20 with `docs/design_notes/016_sandboxed_test_runner_worker.md`.
 
 ### 2026-06-05 — Roadmap update — `Commit 20 sandboxed test runner worker added`
 
