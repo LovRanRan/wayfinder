@@ -27,6 +27,15 @@ class FakeClient:
         return self._tools
 
 
+class SlowClient:
+    def __init__(self, delay_seconds: float) -> None:
+        self.delay_seconds = delay_seconds
+
+    async def get_tools(self) -> list[MCPToolLike]:
+        await asyncio.sleep(self.delay_seconds)
+        return []
+
+
 class FailingTool:
     def __init__(self, name: str, description: str, error: Exception) -> None:
         self.name = name
@@ -200,6 +209,25 @@ def test_adapter_enforces_per_attempt_timeout() -> None:
         "tool_name": "scan_repo",
         "error_type": "timeout",
         "message": "MCP tool timed out after 0.01s",
+        "retryable": True,
+    }
+
+
+def test_adapter_enforces_tool_discovery_timeout() -> None:
+    adapter = MCPAdapter(
+        SlowClient(delay_seconds=1.0),
+        timeout_seconds=0.01,
+        retry_wait_multiplier_seconds=0,
+        retry_wait_max_seconds=0,
+    )
+
+    with pytest.raises(MCPToolCallError) as exc_info:
+        asyncio.run(adapter.call_tool(MCPToolCall(tool_name="scan_repo")))
+
+    assert exc_info.value.error.model_dump() == {
+        "tool_name": "scan_repo",
+        "error_type": "timeout",
+        "message": "MCP tool discovery timed out after 0.01s",
         "retryable": True,
     }
 

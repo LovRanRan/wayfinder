@@ -72,16 +72,39 @@ class MCPAdapter:
         self._retry_wait_max_seconds = retry_wait_max_seconds
 
     async def list_tools(self) -> list[MCPToolDescriptor]:
-        tools = await self._client.get_tools()
+        tools = await self._get_tools()
         return [
             MCPToolDescriptor(name=tool.name, description=tool.description or "")
             for tool in tools
         ]
 
     async def call_tool(self, call: MCPToolCall) -> MCPToolCallResult:
-        tools = await self._client.get_tools()
-        tools_by_name = {tool.name: tool for tool in tools}
+        try:
+            tools = await self._get_tools()
+        except TimeoutError as exc:
+            raise self._tool_call_error(
+                tool_name=call.tool_name,
+                error_type="timeout",
+                message=str(exc)
+                or f"MCP tool discovery timed out after {self._timeout_seconds:g}s",
+                retryable=True,
+            ) from exc
+        except RuntimeError as exc:
+            raise self._tool_call_error(
+                tool_name=call.tool_name,
+                error_type="tool_error",
+                message=str(exc),
+                retryable=False,
+            ) from exc
+        except ConnectionError as exc:
+            raise self._tool_call_error(
+                tool_name=call.tool_name,
+                error_type="tool_error",
+                message=str(exc),
+                retryable=True,
+            ) from exc
 
+        tools_by_name = {tool.name: tool for tool in tools}
         try:
             tool = tools_by_name[call.tool_name]
         except KeyError as exc:
@@ -120,6 +143,12 @@ class MCPAdapter:
         return MCPToolCallResult(
             tool_name=call.tool_name,
             content=_normalize_tool_content(result),
+        )
+
+    async def _get_tools(self) -> list[MCPToolLike]:
+        return await asyncio.wait_for(
+            self._client.get_tools(),
+            timeout=self._timeout_seconds,
         )
 
     async def _invoke_tool(self, tool: MCPToolLike, call: MCPToolCall) -> object:

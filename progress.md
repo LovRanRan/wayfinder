@@ -470,8 +470,8 @@ Guided design mode:
 
 - **做了什么**:Investigated repeated public `pallets/click` runs that still failed only after the 240s API job timeout, including a simple contributor-onboarding prompt that should not depend on the sandbox verifier.
 - **自己设计了什么**:Moved timeout control closer to the true slow boundaries. HTTP Project 5 MCP reader sidecars now default to a short `8s / 1 attempt` budget with env overrides, OpenAI calls expose `WAYFINDER_OPENAI_TIMEOUT_SECONDS`, and the API job timeout remains only the final guard.
-- **Codex 帮了哪里**:Codex implemented runtime adapter budget wiring, added regression coverage for the HTTP MCP defaults and env overrides, and documented the Railway variables.
-- **验证方式**:`uv run pytest tests/test_graph_runtime.py -q`(48 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(238 passed,8 skipped);`git diff --check`.
+- **Codex 帮了哪里**:Codex implemented runtime adapter budget wiring, wrapped MCP tool discovery (`get_tools`) in the same timeout budget, added regression coverage for HTTP MCP defaults/env overrides and discovery timeout normalization, and documented the Railway variables.
+- **验证方式**:`uv run pytest tests/test_mcp_adapter.py tests/test_graph_runtime.py -q`(61 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(239 passed,8 skipped);`git diff --check`.
 - **问题记录**:The dashboard's `current_node=supervisor` is not node-level progress;the API currently writes the node only when the job starts, so the screenshot cannot identify which downstream call consumed the 240s window.
 - **下一步**:Push the hotfix, set the visible Railway variables, wait for API redeploy, then retest a smaller repo before retrying `pallets/click`.
 
