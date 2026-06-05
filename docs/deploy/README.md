@@ -129,6 +129,8 @@ WAYFINDER_ENTRY_SCANNER=mcp_http
 WAYFINDER_VERIFIER_RUNNER=placeholder
 WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL=http://127.0.0.1:8101/mcp
 WAYFINDER_PROJECT5_AST_EXPLORER_MCP_URL=http://127.0.0.1:8102/mcp
+WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS=8
+WAYFINDER_MCP_MAX_ATTEMPTS=1
 WAYFINDER_ENABLE_GITHUB_INGESTION=1
 WAYFINDER_GITHUB_REPO_ALLOWLIST=*
 WAYFINDER_GITHUB_MAX_FILES=10000
@@ -150,12 +152,20 @@ use auth plus `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`.
 definition/signature verification still works when `WAYFINDER_ENTRY_SCANNER` is
 `mcp_http` and the AST evidence tool returns a found symbol.
 
+Railway public demos should keep MCP reader calls on short budgets. HTTP MCP
+sidecars default to `8` seconds and `1` attempt; the explicit
+`WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS` / `WAYFINDER_MCP_MAX_ATTEMPTS` variables
+make that budget visible and prevent a slow repo scan from consuming the full
+API job timeout. Tool failures degrade into limitations in the answer instead
+of blocking the whole run.
+
 Workspace-owned LLM runtime:
 
 ```bash
 WAYFINDER_LLM_ROUTING=openai
 WAYFINDER_FINAL_WRITER=openai
 WAYFINDER_OPENAI_MODEL=gpt-5.5
+WAYFINDER_OPENAI_TIMEOUT_SECONDS=20
 ```
 
 Do not set a shared `OPENAI_API_KEY` for authenticated public workspace mode.
@@ -202,6 +212,9 @@ WAYFINDER_TEST_SANDBOX_URL=<sandbox-worker-url>
 WAYFINDER_TEST_SANDBOX_TOKEN=<same-optional-token>
 WAYFINDER_TEST_SANDBOX_MAX_OUTPUT_BYTES=12000
 WAYFINDER_JOB_TIMEOUT_SECONDS=240
+WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS=8
+WAYFINDER_MCP_MAX_ATTEMPTS=1
+WAYFINDER_OPENAI_TIMEOUT_SECONDS=20
 ```
 
 `sandboxed_mcp` auto-approves verifier test execution by default because the

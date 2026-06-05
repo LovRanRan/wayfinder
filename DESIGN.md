@@ -322,6 +322,13 @@ Commit 20 adds a separate FastAPI sandbox worker with a narrow `POST /run-test`
 contract, live `GET /health` gate, command allowlist, timeout, output cap, and
 ephemeral repo copy/cleanup.
 
+Public Railway runs also keep external reader tools on short budgets. HTTP MCP
+sidecars default to an 8 second tool timeout and one attempt, configurable with
+`WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS` and `WAYFINDER_MCP_MAX_ATTEMPTS`. OpenAI
+Responses calls use `WAYFINDER_OPENAI_TIMEOUT_SECONDS` and fall back to the
+deterministic writer/router path when unavailable. The API-level job timeout is
+only a final guard, not the primary failure-handling mechanism.
+
 ## 15. Workspace Runtime And Sandbox Policy
 
 `GET /workspace/settings` returns the active workspace runtime settings without

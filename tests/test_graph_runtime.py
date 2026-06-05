@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from wayfinder.graph import build_graph
+from wayfinder.graph.architecture import MCPArchitectureScanner
 from wayfinder.graph.runtime import (
     architecture_scanner_from_env,
     build_openai_responses_client,
@@ -23,6 +25,7 @@ from wayfinder.graph.runtime import (
     verifier_runner_from_env,
     verifier_sandbox_policy_from_env,
 )
+from wayfinder.mcp.adapter import MCPAdapter
 from wayfinder.mcp.project5 import PROJECT5_MCP_SERVERS
 from wayfinder.sandbox.remote import SandboxHealthCheck
 
@@ -149,6 +152,36 @@ def test_architecture_scanner_from_env_builds_mcp_http_scanner() -> None:
 
     assert scanner is not None
     assert hasattr(scanner, "scan_repo")
+
+
+def test_architecture_scanner_from_env_uses_short_http_mcp_defaults() -> None:
+    scanner = architecture_scanner_from_env(
+        {
+            "WAYFINDER_ARCHITECTURE_SCANNER": "mcp_http",
+            "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL": "https://repo-mapper.example/mcp",
+        }
+    )
+
+    assert isinstance(scanner, MCPArchitectureScanner)
+    adapter = cast(MCPAdapter, scanner._adapter)
+    assert adapter._timeout_seconds == 8.0
+    assert adapter._max_attempts == 1
+
+
+def test_architecture_scanner_from_env_accepts_mcp_timeout_overrides() -> None:
+    scanner = architecture_scanner_from_env(
+        {
+            "WAYFINDER_ARCHITECTURE_SCANNER": "mcp_http",
+            "WAYFINDER_PROJECT5_REPO_MAPPER_MCP_URL": "https://repo-mapper.example/mcp",
+            "WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS": "3.5",
+            "WAYFINDER_MCP_MAX_ATTEMPTS": "2",
+        }
+    )
+
+    assert isinstance(scanner, MCPArchitectureScanner)
+    adapter = cast(MCPAdapter, scanner._adapter)
+    assert adapter._timeout_seconds == 3.5
+    assert adapter._max_attempts == 2
 
 
 def test_architecture_scanner_from_env_requires_mcp_http_url() -> None:
@@ -347,6 +380,17 @@ def test_openai_client_from_env_uses_model_override() -> None:
     )
 
     assert client.model == "test-model"
+
+
+def test_openai_client_from_env_uses_timeout_override() -> None:
+    client = build_openai_responses_client(
+        {
+            "OPENAI_API_KEY": "sk-test",
+            "WAYFINDER_OPENAI_TIMEOUT_SECONDS": "4.5",
+        }
+    )
+
+    assert client.timeout_seconds == 4.5
 
 
 def test_openai_client_from_env_requires_key() -> None:

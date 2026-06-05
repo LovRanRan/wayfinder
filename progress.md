@@ -466,6 +466,15 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-05 — Commit 20 hotfix — `External call budgets for Railway demos`
+
+- **做了什么**:Investigated repeated public `pallets/click` runs that still failed only after the 240s API job timeout, including a simple contributor-onboarding prompt that should not depend on the sandbox verifier.
+- **自己设计了什么**:Moved timeout control closer to the true slow boundaries. HTTP Project 5 MCP reader sidecars now default to a short `8s / 1 attempt` budget with env overrides, OpenAI calls expose `WAYFINDER_OPENAI_TIMEOUT_SECONDS`, and the API job timeout remains only the final guard.
+- **Codex 帮了哪里**:Codex implemented runtime adapter budget wiring, added regression coverage for the HTTP MCP defaults and env overrides, and documented the Railway variables.
+- **验证方式**:`uv run pytest tests/test_graph_runtime.py -q`(48 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(238 passed,8 skipped);`git diff --check`.
+- **问题记录**:The dashboard's `current_node=supervisor` is not node-level progress;the API currently writes the node only when the job starts, so the screenshot cannot identify which downstream call consumed the 240s window.
+- **下一步**:Push the hotfix, set the visible Railway variables, wait for API redeploy, then retest a smaller repo before retrying `pallets/click`.
+
 ### 2026-06-05 — Commit 20 hotfix — `API job timeout for stuck runs`
 
 - **做了什么**:Added a hard timeout around API `graph.invoke` and status-time stale-run cleanup so public jobs cannot remain `running` forever when an external tool/LLM call hangs.

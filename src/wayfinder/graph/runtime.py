@@ -12,7 +12,7 @@ from wayfinder.graph.llm import OpenAIResponsesClient
 from wayfinder.graph.routing import LLMRouter, PromptedLLMRouter
 from wayfinder.graph.synthesis import FinalSynthesizer, LLMFinalSynthesizer
 from wayfinder.graph.verifier import MCPTestRunner, TestRunner
-from wayfinder.mcp.adapter import MCPAdapter, build_mcp_client
+from wayfinder.mcp.adapter import MCPAdapter, MCPClientLike, build_mcp_client
 from wayfinder.mcp.community import build_community_mcp_configs
 from wayfinder.mcp.models import MCPServerConfig
 from wayfinder.mcp.project5 import build_project5_mcp_configs, build_project5_mcp_http_configs
@@ -21,6 +21,11 @@ from wayfinder.sandbox.remote import RemoteSandboxTestRunner, check_sandbox_heal
 _TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_OPENAI_MODEL = "gpt-5.5"
+_DEFAULT_MCP_TIMEOUT_SECONDS = 30.0
+_DEFAULT_MCP_MAX_ATTEMPTS = 3
+_DEFAULT_HTTP_MCP_TIMEOUT_SECONDS = 8.0
+_DEFAULT_HTTP_MCP_MAX_ATTEMPTS = 1
+_DEFAULT_OPENAI_TIMEOUT_SECONDS = 20.0
 
 
 @dataclass(frozen=True)
@@ -78,7 +83,7 @@ def project5_ast_explorer_http_config(env: Mapping[str, str] | None = None) -> M
 def build_project5_architecture_scanner() -> ArchitectureScanner:
     config = project5_repo_mapper_config()
     client = build_mcp_client([config])
-    adapter = MCPAdapter(client)
+    adapter = _build_mcp_adapter(client)
     return MCPArchitectureScanner(adapter)
 
 
@@ -87,14 +92,19 @@ def build_project5_architecture_http_scanner(
 ) -> ArchitectureScanner:
     config = project5_repo_mapper_http_config(env)
     client = build_mcp_client([config])
-    adapter = MCPAdapter(client)
+    adapter = _build_mcp_adapter(
+        client,
+        env,
+        default_timeout_seconds=_DEFAULT_HTTP_MCP_TIMEOUT_SECONDS,
+        default_max_attempts=_DEFAULT_HTTP_MCP_MAX_ATTEMPTS,
+    )
     return MCPArchitectureScanner(adapter)
 
 
 def build_project5_entry_scanner() -> EntryScanner:
     config = project5_ast_explorer_config()
     client = build_mcp_client([config])
-    adapter = MCPAdapter(client)
+    adapter = _build_mcp_adapter(client)
     return MCPEntryScanner(adapter)
 
 
@@ -103,14 +113,19 @@ def build_project5_entry_http_scanner(
 ) -> EntryScanner:
     config = project5_ast_explorer_http_config(env)
     client = build_mcp_client([config])
-    adapter = MCPAdapter(client)
+    adapter = _build_mcp_adapter(
+        client,
+        env,
+        default_timeout_seconds=_DEFAULT_HTTP_MCP_TIMEOUT_SECONDS,
+        default_max_attempts=_DEFAULT_HTTP_MCP_MAX_ATTEMPTS,
+    )
     return MCPEntryScanner(adapter)
 
 
 def build_project5_verifier_runner() -> TestRunner:
     config = project5_test_runner_config()
     client = build_mcp_client([config])
-    adapter = MCPAdapter(client)
+    adapter = _build_mcp_adapter(client)
     return MCPTestRunner(adapter)
 
 
@@ -118,7 +133,7 @@ def build_community_context_provider(
     env: Mapping[str, str] | None = None,
 ) -> CommunityContextProvider:
     client = build_mcp_client(build_community_mcp_configs(env))
-    adapter = MCPAdapter(client)
+    adapter = _build_mcp_adapter(client, env)
     return MCPCommunityContextProvider(adapter)
 
 
@@ -130,7 +145,26 @@ def build_openai_responses_client(
         raise ValueError("OPENAI_API_KEY is required for OpenAI LLM mode")
 
     model = env.get("WAYFINDER_OPENAI_MODEL", _DEFAULT_OPENAI_MODEL).strip()
-    return OpenAIResponsesClient(api_key=api_key, model=model)
+    return OpenAIResponsesClient(
+        api_key=api_key,
+        model=model,
+        timeout_seconds=_openai_timeout_seconds(env),
+    )
+
+
+def _build_mcp_adapter(
+    client: MCPClientLike,
+    env: Mapping[str, str] | None = None,
+    *,
+    default_timeout_seconds: float = _DEFAULT_MCP_TIMEOUT_SECONDS,
+    default_max_attempts: int = _DEFAULT_MCP_MAX_ATTEMPTS,
+) -> MCPAdapter:
+    active_env = env or {}
+    return MCPAdapter(
+        client,
+        timeout_seconds=_mcp_timeout_seconds(active_env, default_timeout_seconds),
+        max_attempts=_mcp_max_attempts(active_env, default_max_attempts),
+    )
 
 
 def architecture_scanner_from_env(
@@ -385,6 +419,25 @@ def _sandbox_max_output_bytes(env: Mapping[str, str]) -> int:
     except ValueError:
         return 12000
     return max(256, min(value, 64000))
+
+
+def _mcp_timeout_seconds(env: Mapping[str, str], default: float) -> float:
+    return _float_env(env, "WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS", default)
+
+
+def _mcp_max_attempts(env: Mapping[str, str], default: int) -> int:
+    raw = env.get("WAYFINDER_MCP_MAX_ATTEMPTS", "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(1, min(value, 5))
+
+
+def _openai_timeout_seconds(env: Mapping[str, str]) -> float:
+    return _float_env(env, "WAYFINDER_OPENAI_TIMEOUT_SECONDS", _DEFAULT_OPENAI_TIMEOUT_SECONDS)
 
 
 def _float_env(env: Mapping[str, str], key: str, default: float) -> float:
