@@ -111,7 +111,13 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
     }
 
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
+    let timer: number | null = null;
+    const schedulePoll = (delayMs: number) => {
+      timer = window.setTimeout(() => {
+        void pollRun();
+      }, delayMs);
+    };
+    const pollRun = async () => {
       try {
         const response = await fetch(`/api/wayfinder/status/${encodeURIComponent(selectedRunJobId)}`, {
           headers: { "content-type": "application/json" },
@@ -120,15 +126,26 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
         if (!response.ok || payload === null || cancelled) {
           return;
         }
-        setSelectedRun(toDashboardRun(payload as ApiRunSummary));
+        const nextRun = toDashboardRun(payload as ApiRunSummary);
+        setSelectedRun(nextRun);
+        if (activeStatuses.includes(nextRun.status)) {
+          schedulePoll(1400);
+        }
       } catch {
         // Keep the last known active run visible; manual refresh still reports request errors.
+        if (!cancelled) {
+          schedulePoll(2500);
+        }
       }
-    }, 1400);
+    };
+
+    schedulePoll(1400);
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
     };
   }, [selectedRunJobId, selectedRunStatus, source]);
 
