@@ -186,6 +186,11 @@ WAYFINDER_SANDBOX_TOKEN=<optional-shared-token>
 WAYFINDER_SANDBOX_MAX_OUTPUT_BYTES=12000
 ```
 
+Important: the root `railway.json` is the API config and points to
+`Dockerfile.api`. For the sandbox-worker service, set the service's Railway
+config file path to `railway.sandbox.json`; otherwise config-as-code will keep
+overriding the worker back to the API image.
+
 Do not set `PORT` manually on Railway. `Dockerfile.sandbox` listens on Railway's
 injected `$PORT` and falls back to `8110` only for local/container runs.
 

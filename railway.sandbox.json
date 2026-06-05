@@ -1,0 +1,19 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile.sandbox",
+    "watchPatterns": [
+      "src/wayfinder/sandbox/**",
+      "src/wayfinder/graph/verifier.py",
+      "pyproject.toml",
+      "uv.lock",
+      "Dockerfile.sandbox",
+      "railway.sandbox.json"
+    ]
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
