@@ -61,6 +61,7 @@ a normalized observation, and deletes the workdir.
   "framework": "pytest",
   "tool_name": "run_single_test",
   "path": "/repo-cache/repos/github.com__owner__repo",
+  "repo_url": "https://github.com/owner/repo",
   "test_filter": "tests/test_service.py::test_parse_user_invalid",
   "timeout_seconds": 10,
   "max_output_bytes": 12000,
@@ -109,7 +110,8 @@ Statuses map back to Wayfinder verifier labels:
 The worker denies a request before execution when:
 
 - `path` is not under an allowed repo-cache root.
-- `path` does not exist or is not a directory.
+- `path` does not exist or is not a directory and no supported GitHub `repo_url`
+  fallback is available.
 - `test_filter` contains shell metacharacters, newlines, null bytes, or path
   traversal.
 - `test_filter` includes package install, fetch, shell, or destructive command
@@ -150,6 +152,8 @@ Backend tests cover:
 
 - health endpoint.
 - successful pytest observation on a tiny fixture repo.
+- GitHub `repo_url` self-clone fallback when the API cache path is unavailable
+  to the worker.
 - failing pytest observation.
 - timeout handling.
 - denied shell/package-install filters.
@@ -168,8 +172,11 @@ image but a different command:
 uvicorn wayfinder.sandbox.worker:app --host 0.0.0.0 --port 8110
 ```
 
-The API and worker share only a repo-cache volume. The API owns SQLite history
-under `/data`; the worker does not mount `/data`.
+Local Compose shares only a repo-cache volume. The API owns SQLite history under
+`/data`; the worker does not mount `/data`. On Railway, the API and worker do
+not share the API filesystem by default, so the request also carries `repo_url`.
+If the API path is unavailable in the worker, the worker shallow-clones the
+public GitHub repo into its ephemeral workdir before running the bounded test.
 
 Railway should deploy the worker as a separate service with:
 

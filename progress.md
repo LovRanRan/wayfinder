@@ -153,11 +153,11 @@ Guided design mode:
 |---|---|
 | **Current Commit** | [x] **Commit 20** — Sandboxed test runner worker |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 20 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video recording is user-owned pending;Railway sandbox worker health is live, and API job-timeout hotfix is ready to deploy. |
-| **Last Activity** | 2026-06-05 · Added API job hard-timeout / stale-running status hotfix after a public sandbox-enabled run stayed running for 10+ minutes. |
+| **Blocker** | Demo video recording is user-owned pending;Railway sandbox worker is live, but public sandbox smoke needs retry after approval/self-clone hotfix deploys. |
+| **Last Activity** | 2026-06-05 · Fixed public sandbox flow after `pallets/click` timed out:sandboxed verifier auto-approves and worker self-clones GitHub repos when API cache is not mounted. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Keep the sandbox boundary honest:local executable verification is worker-backed;public Railway only claims it after the worker service is deployed and healthy. |
-| **Next Action** | Deploy the API timeout hotfix, refresh the stuck run, then retry the sandbox-enabled public smoke. |
+| **Next Action** | Deploy the sandbox flow hotfix, retry `pallets/click` sandbox-enabled smoke, then record demo video if the answer completes cleanly. |
 
 ---
 
@@ -474,6 +474,15 @@ Guided design mode:
 - **验证方式**:`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(230 passed,8 skipped);targeted API timeout tests passed.
 - **问题记录**:The existing stuck public run should flip to `failed` after API deploy and the next status refresh because its `updated_at` already exceeds the timeout window.
 - **下一步**:Push the hotfix, let Railway redeploy API, refresh the stuck run, then retry the `pallets/click` sandbox-enabled smoke.
+
+### 2026-06-05 — Commit 20 hotfix — `Public sandbox verifier flow`
+
+- **做了什么**:Fixed the next public smoke failure after sandbox health became enabled:`pallets/click` timed out at the API job boundary because executable verifier flow could still enter a LangGraph approval interrupt with no public approval UI.
+- **自己设计了什么**:`sandboxed_mcp` now defaults to auto-approve verifier execution because the command runs in the isolated sandbox worker, not the API container. Local/manual flows can restore HITL with `WAYFINDER_VERIFIER_APPROVAL_MODE=interrupt`, and deployments can force `auto_skip` when executable tests should stay unverified.
+- **Codex 帮了哪里**:Codex threaded `verifier_approval_decision` through runtime state, added worker-side GitHub self-clone fallback for Railway services that cannot see the API repo cache, passed `repo_url` through verifier requests, and updated docs/tests.
+- **验证方式**:Focused gates passed:`uv run pytest tests/test_sandbox_worker.py tests/test_verifier.py tests/test_graph_runtime.py -q`(75 passed);`uv run mypy src/wayfinder/sandbox src/wayfinder/graph/runtime.py src/wayfinder/graph/nodes.py src/wayfinder/graph/verifier.py src/wayfinder/api/main.py tests/test_sandbox_worker.py tests/test_verifier.py tests/test_graph_runtime.py`;ruff import fix applied.
+- **问题记录**:The existing failed public job is expected;it already hit the old 240s timeout. Retest requires API + worker redeploy with this hotfix.
+- **下一步**:Run full gates, commit/push, wait for Railway API/worker redeploy, then retry `https://github.com/pallets/click` with `Explain the behavior and data flow through click.core.Command.main`.
 
 ### 2026-06-05 — Commit 20 closed — `Sandboxed test runner worker`
 

@@ -83,6 +83,7 @@ class WayfinderState(TypedDict, total=False):
     community_context: list[CommunityContextItem]
     partial_summaries: dict[str, str]
     user_corrections: list[str]
+    verifier_approval_decision: dict[str, object]
     errors: list[GraphError]
     final_output: str | None
 

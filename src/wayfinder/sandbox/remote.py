@@ -47,6 +47,7 @@ class RemoteSandboxTestRunner:
             max_output_bytes=min(request.max_output_bytes, self.max_output_bytes),
             job_id=request.job_id,
             run_owner=request.run_owner,
+            repo_url=request.repo_url,
         )
         try:
             response = _json_request(

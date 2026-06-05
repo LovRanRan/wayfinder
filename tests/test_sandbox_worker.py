@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -160,6 +161,27 @@ def test_run_sandboxed_test_denies_path_outside_allowed_roots(tmp_path: Path) ->
     assert observation.denied_reason == "repo path is outside sandbox allowed roots"
 
 
+def test_run_sandboxed_test_clones_github_repo_when_api_path_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_clone(clone_url: str, destination: Path) -> None:
+        assert clone_url == "https://github.com/pallets/click.git"
+        fixture = _repo_with_pytest(tmp_path / "clone-source")
+        shutil.copytree(fixture, destination)
+
+    monkeypatch.setattr("wayfinder.sandbox.worker._run_git_clone", fake_clone)
+    missing_api_path = tmp_path / "missing" / "repo"
+    request = _request(missing_api_path, "tests/test_service.py::test_truth").model_copy(
+        update={"repo_url": "https://github.com/pallets/click"}
+    )
+
+    observation = run_sandboxed_test(request, _config(tmp_path))
+
+    assert observation.status == "passed"
+    assert observation.passed == 1
+
+
 def test_run_sandboxed_test_truncates_output(tmp_path: Path) -> None:
     repo = _repo_with_pytest(tmp_path)
     request = _request(repo, "tests/test_service.py::test_failure").model_copy(
@@ -217,6 +239,7 @@ def test_remote_sandbox_runner_maps_request_and_observation(
         max_output_bytes=12000,
         job_id="job-1",
         run_owner="user-1",
+        repo_url="https://github.com/pallets/click",
     )
 
     observation = runner.run_test(request)
@@ -230,6 +253,7 @@ def test_remote_sandbox_runner_maps_request_and_observation(
     assert payload["max_output_bytes"] == 1000
     assert payload["job_id"] == "job-1"
     assert payload["run_owner"] == "user-1"
+    assert payload["repo_url"] == "https://github.com/pallets/click"
 
 
 def test_check_sandbox_health_reads_worker_status(monkeypatch: pytest.MonkeyPatch) -> None:

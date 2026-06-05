@@ -251,6 +251,33 @@ def verifier_sandbox_policy_from_env(
     )
 
 
+def verifier_approval_decision_from_env(
+    env: Mapping[str, str] | None = None,
+) -> dict[str, object] | None:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_VERIFIER_APPROVAL_MODE", "").strip().lower()
+
+    if mode in ("interrupt", "manual", "hitl"):
+        return None
+
+    if mode in ("skip", "auto_skip"):
+        return {
+            "action": "skip",
+            "reason": "verifier execution skipped by deployment policy",
+        }
+
+    if mode in ("approve", "auto_approve"):
+        return {"action": "approve"}
+
+    if mode in ("", "default"):
+        runner_mode = active_env.get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower()
+        if runner_mode == "sandboxed_mcp":
+            return {"action": "approve"}
+        return None
+
+    raise ValueError(f"Unsupported verifier approval mode: {mode}")
+
+
 def llm_router_from_env(
     env: Mapping[str, str] | None = None,
 ) -> LLMRouter | None:

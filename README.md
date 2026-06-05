@@ -343,6 +343,11 @@ claims are sent to `POST /run-test`; otherwise runtime claims stay
 `unverified`. The API never runs arbitrary public repo tests inside
 `wayfinder-api`.
 
+In `sandboxed_mcp` mode, verifier test requests are auto-approved by default
+because execution is already isolated in the sandbox worker. Set
+`WAYFINDER_VERIFIER_APPROVAL_MODE=interrupt` to restore LangGraph pre-test HITL
+for local/manual runs, or `auto_skip` to keep executable claims unverified.
+
 Local sandbox worker:
 
 ```bash
@@ -351,10 +356,12 @@ WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp docker compose up --build api sandbox-wo
 ```
 
 The Compose topology keeps `/data` for API SQLite history and shares only the
-repo cache volume with the worker. The worker copies a selected repo into an
-ephemeral directory, denies unsafe filters such as shell metacharacters or
-package-install tokens, runs a bounded pytest/Jest command with `shell=False`,
-truncates output, and cleans up the workdir.
+repo cache volume with the worker. On separate Railway services, the worker may
+not see the API repo cache, so the request also carries the GitHub repo URL and
+the worker shallow-clones that public repo into an ephemeral directory. In both
+modes it denies unsafe filters such as shell metacharacters or package-install
+tokens, runs a bounded pytest/Jest command with `shell=False`, truncates output,
+and cleans up the workdir.
 
 For a separate Railway sandbox service, use `Dockerfile.sandbox` and wire the
 API with `WAYFINDER_TEST_SANDBOX_URL=<sandbox-worker-url>` only after the worker

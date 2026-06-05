@@ -1,6 +1,6 @@
 """Placeholder nodes for the Commit 2 Supervisor graph."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from wayfinder.graph.architecture import (
     ArchitectureScanner,
@@ -97,6 +97,13 @@ def build_verifier_node(
     test_runner: TestRunner | None = None,
 ) -> Callable[[WayfinderState], WayfinderState]:
     def _node(state: WayfinderState) -> WayfinderState:
+        approval_decision = state.get("verifier_approval_decision")
+        if isinstance(approval_decision, Mapping):
+            return verifier_state_from_state(
+                state,
+                test_runner=test_runner,
+                approval_decision=approval_decision,
+            )
         return verifier_state_from_state(state, test_runner=test_runner)
 
     return _node

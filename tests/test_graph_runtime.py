@@ -19,6 +19,7 @@ from wayfinder.graph.runtime import (
     project5_repo_mapper_config,
     project5_repo_mapper_http_config,
     project5_test_runner_config,
+    verifier_approval_decision_from_env,
     verifier_runner_from_env,
     verifier_sandbox_policy_from_env,
 )
@@ -289,6 +290,39 @@ def test_verifier_sandbox_policy_reports_enabled_when_worker_is_healthy(
 
     assert policy.status == "enabled"
     assert "separate sandbox worker" in policy.message
+
+
+def test_verifier_approval_decision_auto_approves_sandboxed_runner() -> None:
+    decision = verifier_approval_decision_from_env(
+        {"WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp"}
+    )
+
+    assert decision == {"action": "approve"}
+
+
+def test_verifier_approval_decision_keeps_local_mcp_interrupt_default() -> None:
+    assert verifier_approval_decision_from_env({"WAYFINDER_VERIFIER_RUNNER": "mcp"}) is None
+    assert (
+        verifier_approval_decision_from_env(
+            {
+                "WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp",
+                "WAYFINDER_VERIFIER_APPROVAL_MODE": "interrupt",
+            }
+        )
+        is None
+    )
+
+
+def test_verifier_approval_decision_can_skip_by_policy() -> None:
+    decision = verifier_approval_decision_from_env(
+        {
+            "WAYFINDER_VERIFIER_RUNNER": "sandboxed_mcp",
+            "WAYFINDER_VERIFIER_APPROVAL_MODE": "auto_skip",
+        }
+    )
+
+    assert decision is not None
+    assert decision["action"] == "skip"
 
 
 def test_env_with_local_dotenv_loads_missing_values(tmp_path: Path) -> None:

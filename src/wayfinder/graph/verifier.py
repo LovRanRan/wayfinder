@@ -93,6 +93,7 @@ class TestRunRequest:
     max_output_bytes: int = 12000
     job_id: str | None = None
     run_owner: str | None = None
+    repo_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -261,6 +262,7 @@ def build_test_plan(
     *,
     job_id: str | None = None,
     run_owner: str | None = None,
+    repo_url: str | None = None,
     max_output_bytes: int = 12000,
 ) -> TestPlan:
     del ast_index
@@ -306,6 +308,7 @@ def build_test_plan(
                 max_output_bytes=max_output_bytes,
                 job_id=job_id,
                 run_owner=run_owner,
+                repo_url=repo_url,
             )
         )
 
@@ -461,6 +464,7 @@ def verifier_state_from_state(
         state.get("ast_index"),
         job_id=state.get("thread_id"),
         run_owner=state.get("user_id"),
+        repo_url=state.get("repo_url"),
     )
     if not plan.requests:
         return _verification_state(
@@ -798,6 +802,7 @@ def _request_payload(request: TestRunRequest) -> dict[str, object]:
         "max_output_bytes": request.max_output_bytes,
         "job_id": request.job_id,
         "run_owner": request.run_owner,
+        "repo_url": request.repo_url,
     }
 
 

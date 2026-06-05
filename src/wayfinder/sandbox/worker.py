@@ -11,6 +11,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
@@ -136,11 +137,7 @@ def run_sandboxed_test(
     repo_workdir = workdir / "repo"
     cleanup_done = False
     try:
-        shutil.copytree(
-            source_path,
-            repo_workdir,
-            ignore=shutil.ignore_patterns(*sorted(_IGNORED_DIRS)),
-        )
+        _materialize_repo_for_request(request, source_path, repo_workdir)
         command = _command_for_request(request)
         completed = subprocess.run(
             command,
@@ -188,11 +185,11 @@ def _denied_reason(request: SandboxTestRequest, config: SandboxWorkerConfig) -> 
         return f"{request.tool_name} is not valid for {request.framework}"
 
     source_path = Path(request.path).expanduser().resolve()
-    if not source_path.exists() or not source_path.is_dir():
-        return "repo path does not exist or is not a directory"
-
-    if not _is_under_allowed_root(source_path, config.allowed_roots):
-        return "repo path is outside sandbox allowed roots"
+    if source_path.exists() and source_path.is_dir():
+        if not _is_under_allowed_root(source_path, config.allowed_roots):
+            return "repo path is outside sandbox allowed roots"
+    elif _clone_url_from_repo_url(request.repo_url) is None:
+        return "repo path does not exist and no supported GitHub repo_url was provided"
 
     test_filter = request.test_filter.strip()
     if any(character in test_filter for character in _SHELL_META_CHARS):
@@ -209,6 +206,60 @@ def _denied_reason(request: SandboxTestRequest, config: SandboxWorkerConfig) -> 
         return "path traversal is denied"
 
     return None
+
+
+def _materialize_repo_for_request(
+    request: SandboxTestRequest,
+    source_path: Path,
+    repo_workdir: Path,
+) -> None:
+    if source_path.exists() and source_path.is_dir():
+        shutil.copytree(
+            source_path,
+            repo_workdir,
+            ignore=shutil.ignore_patterns(*sorted(_IGNORED_DIRS)),
+        )
+        return
+
+    clone_url = _clone_url_from_repo_url(request.repo_url)
+    if clone_url is None:
+        raise ValueError("repo path does not exist and no supported GitHub repo_url was provided")
+
+    _run_git_clone(clone_url, repo_workdir)
+
+
+def _clone_url_from_repo_url(repo_url: str | None) -> str | None:
+    if repo_url is None:
+        return None
+
+    parsed = urlparse(repo_url.strip())
+    if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() != "github.com":
+        return None
+
+    path_parts = [part for part in parsed.path.strip("/").split("/") if part]
+    if len(path_parts) != 2:
+        return None
+
+    owner, repo = path_parts
+    repo = repo.removesuffix(".git")
+    if not _safe_github_name(owner) or not _safe_github_name(repo):
+        return None
+
+    return f"https://github.com/{owner}/{repo}.git"
+
+
+def _safe_github_name(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9_.-]+", value))
+
+
+def _run_git_clone(clone_url: str, destination: Path) -> None:
+    subprocess.run(
+        ["git", "clone", "--depth", "1", clone_url, str(destination)],
+        text=True,
+        capture_output=True,
+        timeout=60,
+        check=True,
+    )
 
 
 def _tool_matches_framework(request: SandboxTestRequest) -> bool:

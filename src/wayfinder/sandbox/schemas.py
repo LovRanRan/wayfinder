@@ -26,6 +26,7 @@ class SandboxTestRequest(BaseModel):
     max_output_bytes: int = Field(default=12000, ge=256, le=64000)
     job_id: str | None = Field(default=None, max_length=128)
     run_owner: str | None = Field(default=None, max_length=128)
+    repo_url: str | None = Field(default=None, max_length=4096)
 
 
 class SandboxTestObservation(BaseModel):

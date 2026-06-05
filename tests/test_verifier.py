@@ -454,6 +454,23 @@ def test_build_verifier_node_routes_to_final_writer_when_no_test_target(
     assert result["unverified_claims"][0]["status"] == "unverified"
 
 
+def test_build_verifier_node_uses_state_approval_decision(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n")
+    runner = FakeVerifierRunner(status="passed")
+    node = build_verifier_node(runner)
+
+    result = node(
+        {
+            "repo_handle": _repo_handle(tmp_path),
+            "pending_claims": [_claim()],
+            "verifier_approval_decision": {"action": "approve"},
+        }
+    )
+
+    assert len(runner.requests) == 1
+    assert result["verified_claims"][0]["status"] == "verified"
+
+
 def test_graph_interrupt_resume_approves_verifier_test(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n")
     runner = FakeVerifierRunner(status="passed")

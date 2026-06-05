@@ -204,6 +204,17 @@ WAYFINDER_TEST_SANDBOX_MAX_OUTPUT_BYTES=12000
 WAYFINDER_JOB_TIMEOUT_SECONDS=240
 ```
 
+`sandboxed_mcp` auto-approves verifier test execution by default because the
+command runs in the separate worker, not in the API container. Set
+`WAYFINDER_VERIFIER_APPROVAL_MODE=interrupt` only if you have a UI/client path
+that can resume LangGraph verifier approvals. Set `auto_skip` to keep executable
+claims unverified without running sandbox tests.
+
+Railway services do not share the API container filesystem by default. The
+sandbox request includes `repo_url`, so if `/repo-cache/repos/...` is missing in
+the worker, the worker shallow-clones the public GitHub repo into its ephemeral
+workdir before running the bounded test command.
+
 If Railway gives the dashboard an internal service DNS for the API, use that for
 `WAYFINDER_API_BASE_URL` and keep the public API URL in
 `NEXT_PUBLIC_WAYFINDER_API_BASE_URL` for browser links.

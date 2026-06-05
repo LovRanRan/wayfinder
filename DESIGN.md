@@ -118,6 +118,16 @@ Current implemented checkpoint:
 
 - pre-test verifier approval via LangGraph `interrupt()` and `Command(resume=...)`.
 
+Public deploy policy:
+
+- `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` auto-approves verifier execution by
+  default because tests run in the separate sandbox worker. This avoids public
+  API jobs waiting forever for a dashboard approval path that does not exist yet.
+- `WAYFINDER_VERIFIER_APPROVAL_MODE=interrupt` restores the original HITL
+  interrupt behavior for local/manual flows.
+- `WAYFINDER_VERIFIER_APPROVAL_MODE=auto_skip` keeps executable claims
+  unverified without running sandbox tests.
+
 Supported decisions:
 
 - approve;

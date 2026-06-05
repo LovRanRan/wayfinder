@@ -43,6 +43,7 @@ from wayfinder.graph.runtime import (
     env_with_local_dotenv,
     final_synthesizer_from_env,
     llm_router_from_env,
+    verifier_approval_decision_from_env,
     verifier_runner_from_env,
     verifier_sandbox_policy_from_env,
 )
@@ -427,6 +428,7 @@ def _execute_job(job_id: str, phase: str) -> None:
     graph_input = _RUNS.graph_input(job_id)
     _RUNS.mark_running(job_id, current_node=current_node)
     env = _runtime_env_for_user(run.user_id)
+    graph_input = _graph_input_for_runtime(graph_input, env)
     trace_context = start_trace_context(
         job_id=job_id,
         phase=phase,
@@ -499,6 +501,19 @@ def _build_runtime_graph(env: Mapping[str, str] | None = None) -> WayfinderGraph
         final_synthesizer=final_synthesizer,
         community_context_provider=community_context_provider,
     )
+
+
+def _graph_input_for_runtime(
+    graph_input: WayfinderState,
+    env: Mapping[str, str],
+) -> WayfinderState:
+    approval_decision = verifier_approval_decision_from_env(env)
+    if approval_decision is None:
+        return graph_input
+
+    runtime_input = graph_input.copy()
+    runtime_input["verifier_approval_decision"] = approval_decision
+    return runtime_input
 
 
 def _runtime_env() -> dict[str, str]:
