@@ -466,6 +466,15 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-06 — Commit 20 hotfix — `Graph node watchdog for stuck Railway runs`
+
+- **做了什么**:After `66b478e`, a fresh `pallets/itsdangerous` run still stayed `running` past one minute, meaning another sync/async boundary could still bypass MCP/OpenAI budgets.
+- **自己设计了什么**:Added a graph-node watchdog controlled by `WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS` (default 30s). A slow node now returns structured `graph_node_timeout` evidence and degraded summaries so the graph can still reach `final_writer`;the API-level 240s timeout stays only as a last-resort guard.
+- **Codex 帮了哪里**:Codex wrapped `supervisor`, `architect_mapper`, `entry_explainer`, and `final_writer` nodes, added a regression test with a deliberately slow architecture scanner, and documented the Railway variable. `verifier` stays unwrapped because LangGraph `interrupt()` requires runnable context and verifier execution already has sandbox/test timeouts.
+- **验证方式**:`uv run pytest tests/test_graph_contract.py tests/test_verifier.py -q`(24 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(240 passed,8 skipped);`git diff --check`.
+- **问题记录**:This may leave the timed-out worker thread running briefly in the background, but it prevents the user-facing job from staying stuck until the global timeout.
+- **下一步**:Push the watchdog hotfix, set/confirm `WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS=30`, wait for API redeploy, and retry the small repo smoke.
+
 ### 2026-06-05 — Commit 20 hotfix — `External call budgets for Railway demos`
 
 - **做了什么**:Investigated repeated public `pallets/click` runs that still failed only after the 240s API job timeout, including a simple contributor-onboarding prompt that should not depend on the sandbox verifier.

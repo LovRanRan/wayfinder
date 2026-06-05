@@ -1,5 +1,6 @@
 import importlib
 import sqlite3
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -10,6 +11,13 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 
 from wayfinder.graph import build_graph
+from wayfinder.ingestion.models import RepoHandle, RepoSource
+
+
+class SlowArchitectureScanner:
+    def scan_repo(self, repo_path: str) -> dict[str, object]:
+        time.sleep(1)
+        return {"root": repo_path}
 
 
 @contextmanager
@@ -51,6 +59,31 @@ def test_supervisor_graph_routes_architecture_query_to_architecture_output() -> 
         "the repository architecture because no local repo path was "
         "available from ingestion."
     )
+
+
+def test_graph_node_timeout_degrades_and_finishes(tmp_path: Path) -> None:
+    graph = build_graph(
+        architecture_scanner=SlowArchitectureScanner(),
+        node_timeout_seconds=0.01,
+    )
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = graph.invoke(
+        {
+            "repo_url": "repo",
+            "query": "Explain architecture",
+            "repo_handle": repo_handle,
+        }
+    )
+
+    assert result["errors"][0]["node"] == "architect_mapper"
+    assert result["errors"][0]["error_type"] == "graph_node_timeout"
+    assert "architect_mapper timed out" in result["partial_summaries"]["architect_mapper"]
+    assert result["final_output"] is not None
+    assert "timed out before producing complete evidence" in result["final_output"]
 
 
 def test_graph_checkpoint_isolates_state_by_thread_id() -> None:

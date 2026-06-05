@@ -1,3 +1,7 @@
+import os
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Protocol, cast
 
 from langchain_core.runnables import RunnableConfig
@@ -14,9 +18,10 @@ from wayfinder.graph.nodes import (
     build_final_writer_node,
     build_supervisor_node,
     build_verifier_node,
+    deterministic_final_writer_output,
 )
-from wayfinder.graph.routing import LLMRouter
-from wayfinder.graph.state import AgentName, WayfinderState
+from wayfinder.graph.routing import LLMRouter, build_safe_default_route_decision
+from wayfinder.graph.state import AgentName, GraphError, WayfinderState
 from wayfinder.graph.synthesis import FinalSynthesizer
 from wayfinder.graph.verifier import TestRunner
 
@@ -54,25 +59,50 @@ def build_graph(
     llm_router: LLMRouter | None = None,
     final_synthesizer: FinalSynthesizer | None = None,
     community_context_provider: CommunityContextProvider | None = None,
+    node_timeout_seconds: float | None = None,
 ) -> WayfinderGraph:
     """Build the Commit 2 Supervisor graph skeleton."""
     # LangGraph's builder exposes incomplete type information to static checkers.
     # Keep that uncertainty at this boundary instead of leaking it into nodes/state.
     graph: Any = StateGraph(WayfinderState)
+    active_node_timeout_seconds = (
+        _graph_node_timeout_seconds_from_env()
+        if node_timeout_seconds is None
+        else node_timeout_seconds
+    )
 
-    graph.add_node("supervisor", build_supervisor_node(llm_router))
+    graph.add_node(
+        "supervisor",
+        _with_node_timeout(
+            "supervisor",
+            build_supervisor_node(llm_router),
+            active_node_timeout_seconds,
+        ),
+    )
     graph.add_node(
         "architect_mapper",
-        build_architect_mapper_node(architecture_scanner),
+        _with_node_timeout(
+            "architect_mapper",
+            build_architect_mapper_node(architecture_scanner),
+            active_node_timeout_seconds,
+        ),
     )
     graph.add_node(
         "entry_explainer",
-        build_entry_explainer_node(entry_scanner),
+        _with_node_timeout(
+            "entry_explainer",
+            build_entry_explainer_node(entry_scanner),
+            active_node_timeout_seconds,
+        ),
     )
     graph.add_node("verifier", build_verifier_node(verifier_runner))
     graph.add_node(
         "final_writer",
-        build_final_writer_node(final_synthesizer, community_context_provider),
+        _with_node_timeout(
+            "final_writer",
+            build_final_writer_node(final_synthesizer, community_context_provider),
+            active_node_timeout_seconds,
+        ),
     )
 
     graph.add_edge(START, "supervisor")
@@ -91,3 +121,87 @@ def build_graph(
     graph.add_edge("final_writer", END)
 
     return cast(WayfinderGraph, graph.compile(checkpointer=checkpointer))
+
+
+def _with_node_timeout(
+    node_name: str,
+    node: Callable[[WayfinderState], WayfinderState],
+    timeout_seconds: float,
+) -> Callable[[WayfinderState], WayfinderState]:
+    if timeout_seconds <= 0:
+        return node
+
+    def _guarded(state: WayfinderState) -> WayfinderState:
+        executor = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix=f"wayfinder-{node_name}",
+        )
+        future = executor.submit(node, state)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except FutureTimeoutError:
+            future.cancel()
+            return _node_timeout_state(node_name, state, timeout_seconds)
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+    return _guarded
+
+
+def _node_timeout_state(
+    node_name: str,
+    state: WayfinderState,
+    timeout_seconds: float,
+) -> WayfinderState:
+    message = f"{node_name} exceeded {timeout_seconds:g}s node timeout."
+    error: GraphError = {
+        "node": node_name,
+        "error_type": "graph_node_timeout",
+        "message": message,
+        "retryable": True,
+    }
+    errors: list[GraphError] = [
+        *state.get("errors", []),
+        error,
+    ]
+
+    if node_name == "supervisor":
+        route_decision = build_safe_default_route_decision(message)
+        return {
+            "intent": route_decision["intent"],
+            "next_agent": route_decision["next_agent"],
+            "route_decision": route_decision,
+            "errors": errors,
+        }
+
+    if node_name == "final_writer":
+        return {
+            "final_output": (
+                f"{deterministic_final_writer_output(state)}\n\n"
+                f"Runtime limitation: {message}"
+            ),
+            "errors": errors,
+        }
+
+    partial_summaries = dict(state.get("partial_summaries", {}))
+    partial_summaries[node_name] = (
+        f"{node_name} timed out before producing complete evidence. "
+        "Wayfinder is returning the safe available summary and marking this "
+        "step as unverified."
+    )
+    return {
+        "partial_summaries": partial_summaries,
+        "errors": errors,
+        "next_agent": "final_writer",
+    }
+
+
+def _graph_node_timeout_seconds_from_env() -> float:
+    raw = os.getenv("WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS", "30").strip()
+    try:
+        timeout_seconds = float(raw)
+    except ValueError:
+        return 30.0
+    if timeout_seconds <= 0:
+        return 0.0
+    return timeout_seconds
