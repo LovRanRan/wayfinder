@@ -1,4 +1,6 @@
+import time
 from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -64,16 +66,20 @@ class FakeApiGraph:
         inputs: list[WayfinderState] | None = None,
         configs: list[dict[str, Any] | None] | None = None,
         should_raise: bool = False,
+        sleep_seconds: float = 0,
     ) -> None:
         self.inputs = inputs
         self.configs = configs
         self.should_raise = should_raise
+        self.sleep_seconds = sleep_seconds
 
     def invoke(
         self,
         input: WayfinderState,
         config: dict[str, Any] | None = None,
     ) -> WayfinderState:
+        if self.sleep_seconds:
+            time.sleep(self.sleep_seconds)
         if self.inputs is not None:
             self.inputs.append(input)
         if self.configs is not None:
@@ -747,6 +753,71 @@ def test_explain_serializes_graph_errors(monkeypatch: pytest.MonkeyPatch) -> Non
     ]
     assert payload["trace_metadata"]["status"] == "failed"
     assert payload["trace_metadata"]["error_type"] == "RuntimeError"
+
+
+def test_explain_marks_timed_out_graph_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
+    ) -> FakeApiGraph:
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
+        return FakeApiGraph(sleep_seconds=0.2)
+
+    monkeypatch.setenv("WAYFINDER_JOB_TIMEOUT_SECONDS", "0.01")
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+
+    client = TestClient(app)
+    explain_response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+    )
+
+    assert explain_response.status_code == 202
+    status_response = client.get(f"/status/{explain_response.json()['job_id']}")
+    payload = status_response.json()
+    assert payload["status"] == "failed"
+    assert "exceeded 0s timeout" in payload["error"]
+    assert payload["errors"][0]["error_type"] == "JobExecutionTimeout"
+
+
+def test_status_marks_stale_running_job_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = InMemoryRunStore()
+    monkeypatch.setattr("wayfinder.api.main._RUNS", store)
+    monkeypatch.setenv("WAYFINDER_JOB_TIMEOUT_SECONDS", "1")
+    user = AuthenticatedUser(
+        user_id="local-dev",
+        workspace_id="local-dev",
+        display_name="Local developer",
+    )
+    run = store.create(
+        user=user,
+        request=ExplainRequest(repo_url="local", query="Map architecture"),
+        graph_input={"repo_url": "local", "query": "Map architecture"},
+    )
+    store.mark_running(run.job_id, current_node="supervisor")
+    store._update(run.job_id, updated_at=datetime.now(UTC) - timedelta(seconds=5))
+
+    client = TestClient(app)
+    response = client.get(f"/status/{run.job_id}")
+
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["errors"][0]["error_type"] == "JobExecutionTimeout"
+    assert payload["trace_metadata"]["timeout_seconds"] == 1.0
 
 
 def test_trace_metadata_hooks_are_passed_to_graph(monkeypatch: pytest.MonkeyPatch) -> None:

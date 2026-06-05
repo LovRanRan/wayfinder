@@ -2,8 +2,11 @@
 
 import os
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 from urllib.parse import urlparse
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, status
@@ -61,6 +64,7 @@ _CHECKPOINTER = InMemorySaver()
 _TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 _DEFAULT_GITHUB_ALLOWLIST = "langchain-ai/langchain,lovranran/wayfinder"
 _DEFAULT_OPENAI_MODEL = "gpt-5.5"
+_DEFAULT_JOB_TIMEOUT_SECONDS = 240.0
 _DEFAULT_DEV_USER = AuthenticatedUser(
     user_id="local-dev",
     workspace_id="local-dev",
@@ -385,9 +389,10 @@ def get_status(
     user: Annotated[AuthenticatedUser, Depends(_current_user)],
 ) -> RunSummary:
     try:
-        return _RUNS.get_for_user(user_id=user.user_id, job_id=job_id)
+        run = _RUNS.get_for_user(user_id=user.user_id, job_id=job_id)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="job not found") from exc
+    return _mark_stale_running_run_failed(run, env=_runtime_env())
 
 
 @app.post(
@@ -431,7 +436,12 @@ def _execute_job(job_id: str, phase: str) -> None:
 
     try:
         graph = _build_runtime_graph(env)
-        result = graph.invoke(graph_input, config=runnable_config_for_trace(trace_context))
+        result = _invoke_graph_with_timeout(
+            graph,
+            graph_input,
+            config=runnable_config_for_trace(trace_context),
+            timeout_seconds=_job_timeout_seconds(env),
+        )
     except Exception as exc:  # pragma: no cover - defensive API boundary
         _RUNS.mark_failed(
             job_id,
@@ -446,6 +456,30 @@ def _execute_job(job_id: str, phase: str) -> None:
         result=result,
         trace_metadata=finish_trace_metadata(trace_context, state=result),
     )
+
+
+class JobExecutionTimeout(RuntimeError):
+    """Raised when a graph run exceeds the API job timeout."""
+
+
+def _invoke_graph_with_timeout(
+    graph: WayfinderGraph,
+    graph_input: WayfinderState,
+    *,
+    config: Any,
+    timeout_seconds: float,
+) -> WayfinderState:
+    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="wayfinder-job")
+    future = executor.submit(graph.invoke, graph_input, config=config)
+    try:
+        return future.result(timeout=timeout_seconds)
+    except FutureTimeoutError as exc:
+        future.cancel()
+        raise JobExecutionTimeout(
+            f"Wayfinder job exceeded {timeout_seconds:.0f}s timeout."
+        ) from exc
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 def _build_runtime_graph(env: Mapping[str, str] | None = None) -> WayfinderGraph:
@@ -479,6 +513,43 @@ def _runtime_env_for_user(user_id: str) -> dict[str, str]:
 
     _apply_workspace_runtime_settings(env, settings)
     return env
+
+
+def _job_timeout_seconds(env: Mapping[str, str]) -> float:
+    raw = env.get("WAYFINDER_JOB_TIMEOUT_SECONDS", str(_DEFAULT_JOB_TIMEOUT_SECONDS)).strip()
+    try:
+        timeout_seconds = float(raw)
+    except ValueError:
+        return _DEFAULT_JOB_TIMEOUT_SECONDS
+    if timeout_seconds <= 0:
+        return _DEFAULT_JOB_TIMEOUT_SECONDS
+    return timeout_seconds
+
+
+def _mark_stale_running_run_failed(run: RunSummary, *, env: Mapping[str, str]) -> RunSummary:
+    if run.status != "running":
+        return run
+
+    timeout_seconds = _job_timeout_seconds(env)
+    elapsed_seconds = (datetime.now(UTC) - run.updated_at.astimezone(UTC)).total_seconds()
+    if elapsed_seconds <= timeout_seconds:
+        return run
+
+    try:
+        return _RUNS.mark_failed(
+            run.job_id,
+            exc=JobExecutionTimeout(
+                f"Wayfinder job exceeded {timeout_seconds:.0f}s timeout."
+            ),
+            current_node=run.current_node or "graph",
+            trace_metadata={
+                **run.trace_metadata,
+                "timeout_seconds": timeout_seconds,
+                "elapsed_seconds": round(elapsed_seconds, 3),
+            },
+        )
+    except KeyError:
+        return run
 
 
 def _apply_workspace_runtime_settings(

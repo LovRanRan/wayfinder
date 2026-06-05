@@ -201,6 +201,7 @@ WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp
 WAYFINDER_TEST_SANDBOX_URL=<sandbox-worker-url>
 WAYFINDER_TEST_SANDBOX_TOKEN=<same-optional-token>
 WAYFINDER_TEST_SANDBOX_MAX_OUTPUT_BYTES=12000
+WAYFINDER_JOB_TIMEOUT_SECONDS=240
 ```
 
 If Railway gives the dashboard an internal service DNS for the API, use that for

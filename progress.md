@@ -153,11 +153,11 @@ Guided design mode:
 |---|---|
 | **Current Commit** | [x] **Commit 20** — Sandboxed test runner worker |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 20 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video recording is user-owned pending;Railway sandbox worker service is documented but not deployed/smoked yet. |
-| **Last Activity** | 2026-06-05 · Commit 20 local gates passed: sandbox worker, remote adapter, live health gate, Dockerfile/Compose topology, tests, docs, and dashboard build. |
+| **Blocker** | Demo video recording is user-owned pending;Railway sandbox worker health is live, and API job-timeout hotfix is ready to deploy. |
+| **Last Activity** | 2026-06-05 · Added API job hard-timeout / stale-running status hotfix after a public sandbox-enabled run stayed running for 10+ minutes. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Keep the sandbox boundary honest:local executable verification is worker-backed;public Railway only claims it after the worker service is deployed and healthy. |
-| **Next Action** | Commit/push Commit 20, then Haichuan can either record the demo video or add the separate Railway sandbox-worker service variables. |
+| **Next Action** | Deploy the API timeout hotfix, refresh the stuck run, then retry the sandbox-enabled public smoke. |
 
 ---
 
@@ -465,6 +465,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 20 hotfix — `API job timeout for stuck runs`
+
+- **做了什么**:Added a hard timeout around API `graph.invoke` and status-time stale-run cleanup so public jobs cannot remain `running` forever when an external tool/LLM call hangs.
+- **自己设计了什么**:Kept the timeout at the API job boundary instead of weakening sandbox policy. `WAYFINDER_JOB_TIMEOUT_SECONDS` defaults to 240 seconds and can be tuned in Railway.
+- **Codex 帮了哪里**:Codex added `JobExecutionTimeout`, thread-backed graph invocation timeout, stale `running` status failure on `/status/{job_id}`, and regression tests for both paths.
+- **验证方式**:`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(230 passed,8 skipped);targeted API timeout tests passed.
+- **问题记录**:The existing stuck public run should flip to `failed` after API deploy and the next status refresh because its `updated_at` already exceeds the timeout window.
+- **下一步**:Push the hotfix, let Railway redeploy API, refresh the stuck run, then retry the `pallets/click` sandbox-enabled smoke.
 
 ### 2026-06-05 — Commit 20 closed — `Sandboxed test runner worker`
 
