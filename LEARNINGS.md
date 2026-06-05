@@ -595,3 +595,36 @@
 - "For the public demo I kept command execution disabled, but still surfaced real verified claims from deterministic AST evidence."
 - "A Wayfinder answer can now say:the function exists, its location is verified, its signature is verified, but the data-flow claim is unverified because no focused test target was available."
 - "That is the product principle in practice:verified labels are earned by evidence, and unavailable evidence stays visible instead of being papered over."
+
+---
+
+## Commit 18 — Workspace Runtime Settings + Sandbox Policy
+
+### 📚 Sources
+
+- [x] Project-local design note: [`docs/design_notes/015_workspace_runtime_and_sandbox.md`](docs/design_notes/015_workspace_runtime_and_sandbox.md) — BYOK/runtime settings contract, threat model, sandbox boundary, and Railway notes ✅ 2026-06-05
+- [x] Workspace auth/store boundary: [`src/wayfinder/api/main.py`](src/wayfinder/api/main.py), [`src/wayfinder/api/run_store.py`](src/wayfinder/api/run_store.py) — session-scoped settings API and run-owner runtime env ✅ 2026-06-05
+- [x] Dashboard settings surface: [`dashboard/components/workspace-settings.tsx`](dashboard/components/workspace-settings.tsx) — user key/model/routing controls and sandbox status UI ✅ 2026-06-05
+- [x] Runtime verifier policy: [`src/wayfinder/graph/runtime.py`](src/wayfinder/graph/runtime.py) — placeholder default and `sandboxed_mcp` health-gate status ✅ 2026-06-05
+
+### 🧠 Concepts Internalized
+
+- Auth, BYOK runtime, and sandbox execution are three separate product/security boundaries. Login tells Wayfinder who owns a run;it does not make arbitrary repo code safe to execute.
+- In authenticated workspace mode, a shared deployment `OPENAI_API_KEY` should not silently power user runs. The runtime env strips the shared key and injects only the run owner's encrypted workspace key.
+- A user key should be operationally useful without being observable. The API returns only `openai_key_configured` and a masked label;raw keys never enter run history, trace metadata, or dashboard payloads.
+- Public verification can remain honest without test execution. Repository/AST evidence can still verify static code facts, while executable behavior stays unverified until a real sandbox worker exists.
+- `sandboxed_mcp` should be a gate, not a claim. If there is no sandbox URL, health check, or remote adapter, Wayfinder reports unavailable instead of running tests inside `wayfinder-api`.
+
+### ⚠️ Gotchas Debugged
+
+- Per-user history did not automatically imply per-user runtime. The first version still used process env;Commit 18 moved runtime env construction to `base env + workspace settings`.
+- Storing API keys in SQLite needs a deployment secret. Without `WAYFINDER_KEY_ENCRYPTION_SECRET`, the API rejects key storage rather than writing plaintext.
+- A "fallback" can become a security bug. In auth-required mode, falling back to a platform key would violate the user's "only my API key" requirement, so missing workspace key becomes a clear failed run for OpenAI mode.
+- Sandbox status belongs in the product UI. A disabled test runner should be visible as a verifier policy state, not hidden as an empty metric.
+
+### 💼 Interview Soundbites
+
+- "I separated workspace identity from runtime authority:users own their run history and their model key, while the deployment owns only scanner infrastructure and policy gates."
+- "For BYOK, I encrypted the stored key with a deployment secret and made the API response secret-free;the raw key is only decrypted during that user's graph construction."
+- "I deliberately did not enable public `mcp-test-runner` just because auth exists. Running repo tests is untrusted code execution, so it needs a separate sandbox worker."
+- "This is the difference between a demo and an honest product boundary:Wayfinder can analyze arbitrary public repos with user-owned LLM runtime, but executable claims remain unverified until sandbox evidence exists."

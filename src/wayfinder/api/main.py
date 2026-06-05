@@ -22,8 +22,15 @@ from wayfinder.api.schemas import (
     ExplainRequest,
     RefineRequest,
     RunSummary,
+    RuntimeFinalWriter,
+    RuntimeLLMRouting,
+    SandboxStatus,
     UserProfile,
+    WorkspaceRuntimeSettings,
+    WorkspaceSettingsRequest,
+    WorkspaceSettingsResponse,
 )
+from wayfinder.api.secret_box import decrypt_secret, encrypt_secret
 from wayfinder.graph import build_graph
 from wayfinder.graph.app import WayfinderGraph
 from wayfinder.graph.runtime import (
@@ -34,6 +41,7 @@ from wayfinder.graph.runtime import (
     final_synthesizer_from_env,
     llm_router_from_env,
     verifier_runner_from_env,
+    verifier_sandbox_policy_from_env,
 )
 from wayfinder.graph.state import WayfinderState
 from wayfinder.ingestion.models import RepoHandle, RepoSizePolicy, RepoSource
@@ -52,6 +60,7 @@ app = FastAPI(
 _CHECKPOINTER = InMemorySaver()
 _TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 _DEFAULT_GITHUB_ALLOWLIST = "langchain-ai/langchain,lovranran/wayfinder"
+_DEFAULT_OPENAI_MODEL = "gpt-5.5"
 _DEFAULT_DEV_USER = AuthenticatedUser(
     user_id="local-dev",
     workspace_id="local-dev",
@@ -187,6 +196,49 @@ def logout(request: Request) -> None:
     token = _bearer_token_from_request(request)
     if token is not None:
         _RUNS.delete_session(token)
+
+
+@app.get("/workspace/settings", response_model=WorkspaceSettingsResponse)
+def get_workspace_settings(
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> WorkspaceSettingsResponse:
+    return _workspace_settings_response(user=user, env=_runtime_env())
+
+
+@app.put("/workspace/settings", response_model=WorkspaceSettingsResponse)
+def update_workspace_settings(
+    request: WorkspaceSettingsRequest,
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> WorkspaceSettingsResponse:
+    env = _runtime_env()
+    settings = _RUNS.workspace_settings(user_id=user.user_id)
+    updates: dict[str, object] = {}
+
+    if request.clear_openai_api_key:
+        updates["openai_api_key_encrypted"] = None
+        updates["openai_api_key_label"] = None
+
+    if request.openai_api_key is not None:
+        api_key = request.openai_api_key.strip()
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="openai_api_key is empty",
+            )
+        key_material = _key_encryption_secret(env)
+        updates["openai_api_key_encrypted"] = encrypt_secret(api_key, key_material)
+        updates["openai_api_key_label"] = _masked_secret_label(api_key)
+
+    if request.openai_model is not None:
+        updates["openai_model"] = request.openai_model.strip()
+    if request.llm_routing is not None:
+        updates["llm_routing"] = request.llm_routing
+    if request.final_writer is not None:
+        updates["final_writer"] = request.final_writer
+
+    updated_settings = settings.model_copy(update=updates)
+    _RUNS.update_workspace_settings(user_id=user.user_id, settings=updated_settings)
+    return _workspace_settings_response(user=user, env=env)
 
 
 @app.post("/explain", response_model=RunSummary, status_code=status.HTTP_202_ACCEPTED)
@@ -366,9 +418,10 @@ def refine(
 
 def _execute_job(job_id: str, phase: str) -> None:
     current_node = "supervisor"
+    run = _RUNS.get(job_id)
     graph_input = _RUNS.graph_input(job_id)
     _RUNS.mark_running(job_id, current_node=current_node)
-    env = _runtime_env()
+    env = _runtime_env_for_user(run.user_id)
     trace_context = start_trace_context(
         job_id=job_id,
         phase=phase,
@@ -377,7 +430,7 @@ def _execute_job(job_id: str, phase: str) -> None:
     )
 
     try:
-        graph = _build_runtime_graph()
+        graph = _build_runtime_graph(env)
         result = graph.invoke(graph_input, config=runnable_config_for_trace(trace_context))
     except Exception as exc:  # pragma: no cover - defensive API boundary
         _RUNS.mark_failed(
@@ -395,14 +448,14 @@ def _execute_job(job_id: str, phase: str) -> None:
     )
 
 
-def _build_runtime_graph() -> WayfinderGraph:
-    env = _runtime_env()
-    architecture_scanner = architecture_scanner_from_env(env)
-    entry_scanner = entry_scanner_from_env(env)
-    verifier_runner = verifier_runner_from_env(env)
-    llm_router = llm_router_from_env(env)
-    final_synthesizer = final_synthesizer_from_env(env)
-    community_context_provider = community_context_provider_from_env(env)
+def _build_runtime_graph(env: Mapping[str, str] | None = None) -> WayfinderGraph:
+    active_env = env or _runtime_env()
+    architecture_scanner = architecture_scanner_from_env(active_env)
+    entry_scanner = entry_scanner_from_env(active_env)
+    verifier_runner = verifier_runner_from_env(active_env)
+    llm_router = llm_router_from_env(active_env)
+    final_synthesizer = final_synthesizer_from_env(active_env)
+    community_context_provider = community_context_provider_from_env(active_env)
     return build_graph(
         checkpointer=_CHECKPOINTER,
         architecture_scanner=architecture_scanner,
@@ -416,3 +469,84 @@ def _build_runtime_graph() -> WayfinderGraph:
 
 def _runtime_env() -> dict[str, str]:
     return env_with_local_dotenv(os.environ)
+
+
+def _runtime_env_for_user(user_id: str) -> dict[str, str]:
+    env = _runtime_env()
+    settings = _RUNS.workspace_settings(user_id=user_id)
+    if _auth_required(env):
+        env.pop("OPENAI_API_KEY", None)
+
+    _apply_workspace_runtime_settings(env, settings)
+    return env
+
+
+def _apply_workspace_runtime_settings(
+    env: dict[str, str],
+    settings: WorkspaceRuntimeSettings,
+) -> None:
+    if settings.openai_api_key_encrypted is not None:
+        key_material = env.get("WAYFINDER_KEY_ENCRYPTION_SECRET", "").strip()
+        if not key_material:
+            raise ValueError(
+                "WAYFINDER_KEY_ENCRYPTION_SECRET is required to decrypt workspace API keys"
+            )
+        env["OPENAI_API_KEY"] = decrypt_secret(settings.openai_api_key_encrypted, key_material)
+
+    if settings.openai_model is not None:
+        env["WAYFINDER_OPENAI_MODEL"] = settings.openai_model
+    if settings.llm_routing is not None:
+        env["WAYFINDER_LLM_ROUTING"] = settings.llm_routing
+    if settings.final_writer is not None:
+        env["WAYFINDER_FINAL_WRITER"] = settings.final_writer
+
+
+def _workspace_settings_response(
+    *,
+    user: AuthenticatedUser,
+    env: Mapping[str, str],
+) -> WorkspaceSettingsResponse:
+    settings = _RUNS.workspace_settings(user_id=user.user_id)
+    policy = verifier_sandbox_policy_from_env(env)
+    return WorkspaceSettingsResponse(
+        workspace_id=user.workspace_id,
+        display_name=user.display_name,
+        openai_key_configured=settings.openai_api_key_encrypted is not None,
+        openai_key_label=settings.openai_api_key_label,
+        openai_model=(
+            settings.openai_model or env.get("WAYFINDER_OPENAI_MODEL", _DEFAULT_OPENAI_MODEL)
+        ),
+        llm_routing=settings.llm_routing or _llm_routing_from_env(env),
+        final_writer=settings.final_writer or _final_writer_from_env(env),
+        verifier_runner=(
+            env.get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower() or "placeholder"
+        ),
+        sandbox_status=cast(SandboxStatus, policy.status),
+        sandbox_message=policy.message,
+    )
+
+
+def _key_encryption_secret(env: Mapping[str, str]) -> str:
+    key_material = env.get("WAYFINDER_KEY_ENCRYPTION_SECRET", "").strip()
+    if not key_material:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="WAYFINDER_KEY_ENCRYPTION_SECRET is required to store workspace API keys.",
+        )
+    return key_material
+
+
+def _masked_secret_label(secret: str) -> str:
+    if len(secret) <= 8:
+        return "configured"
+    return f"{secret[:3]}...{secret[-4:]}"
+
+
+def _llm_routing_from_env(env: Mapping[str, str]) -> RuntimeLLMRouting:
+    raw = env.get("WAYFINDER_LLM_ROUTING", "off").strip().lower()
+    return "openai" if raw in ("openai", "llm") or raw in _TRUE_ENV_VALUES else "off"
+
+
+def _final_writer_from_env(env: Mapping[str, str]) -> RuntimeFinalWriter:
+    raw = env.get("WAYFINDER_FINAL_WRITER", "deterministic").strip().lower()
+    return "openai" if raw in ("openai", "llm") or raw in _TRUE_ENV_VALUES else "deterministic"

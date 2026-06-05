@@ -127,6 +127,7 @@ WAYFINDER_REQUIRE_AUTH=1
 WAYFINDER_RUN_STORE=sqlite
 WAYFINDER_RUN_STORE_PATH=/data/wayfinder/runs.sqlite
 WAYFINDER_SESSION_TTL_DAYS=30
+WAYFINDER_KEY_ENCRYPTION_SECRET=<long-random-secret>
 ```
 
 Mount a Railway volume at `/data` before using the SQLite run store path above.
@@ -138,6 +139,31 @@ use auth plus `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`.
 `WAYFINDER_VERIFIER_RUNNER=placeholder` disables test execution only. AST-backed
 definition/signature verification still works when `WAYFINDER_ENTRY_SCANNER` is
 `mcp_http` and the AST evidence tool returns a found symbol.
+
+Workspace-owned LLM runtime:
+
+```bash
+WAYFINDER_LLM_ROUTING=openai
+WAYFINDER_FINAL_WRITER=openai
+WAYFINDER_OPENAI_MODEL=gpt-5.5
+```
+
+Do not set a shared `OPENAI_API_KEY` for authenticated public workspace mode.
+Users add their own key in the dashboard Settings tab, and the API encrypts it
+with `WAYFINDER_KEY_ENCRYPTION_SECRET`.
+
+Sandboxed verifier policy:
+
+```bash
+WAYFINDER_VERIFIER_RUNNER=placeholder
+WAYFINDER_TEST_SANDBOX_URL=
+WAYFINDER_TEST_SANDBOX_HEALTH=
+```
+
+Keep `WAYFINDER_VERIFIER_RUNNER=placeholder` on Railway until a separate sandbox
+worker exists. `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` reports unavailable
+without a sandbox URL and `WAYFINDER_TEST_SANDBOX_HEALTH=ok`; this API build
+does not execute arbitrary public repo tests inside the API container.
 
 If Railway gives the dashboard an internal service DNS for the API, use that for
 `WAYFINDER_API_BASE_URL` and keep the public API URL in

@@ -215,6 +215,219 @@ def test_workspace_auth_scopes_runs_to_owner(monkeypatch: pytest.MonkeyPatch) ->
     assert bob_status.status_code == 404
 
 
+def test_workspace_settings_defaults_to_safe_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_OPENAI_MODEL", "chat-latest")
+    monkeypatch.setenv("WAYFINDER_LLM_ROUTING", "openai")
+    monkeypatch.setenv("WAYFINDER_FINAL_WRITER", "openai")
+    monkeypatch.setenv("WAYFINDER_VERIFIER_RUNNER", "placeholder")
+
+    client = TestClient(app)
+    response = client.get("/workspace/settings")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["workspace_id"] == "local-dev"
+    assert payload["openai_key_configured"] is False
+    assert payload["openai_key_label"] is None
+    assert payload["openai_model"] == "chat-latest"
+    assert payload["llm_routing"] == "openai"
+    assert payload["final_writer"] == "openai"
+    assert payload["verifier_runner"] == "placeholder"
+    assert payload["sandbox_status"] == "disabled"
+
+
+def test_workspace_settings_requires_encryption_secret_for_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.delenv("WAYFINDER_KEY_ENCRYPTION_SECRET", raising=False)
+
+    client = TestClient(app)
+    response = client.put(
+        "/workspace/settings",
+        json={"openai_api_key": "sk-test-owned-key"},
+    )
+
+    assert response.status_code == 500
+    assert "WAYFINDER_KEY_ENCRYPTION_SECRET" in response.json()["detail"]
+
+
+def test_workspace_settings_are_scoped_and_redact_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")
+    monkeypatch.setenv("WAYFINDER_KEY_ENCRYPTION_SECRET", "unit-test-secret")
+    client = TestClient(app)
+
+    alice_token = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "alice",
+            "password": "correct-horse",
+            "display_name": "Alice",
+        },
+    ).json()["token"]
+    bob_token = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "bob",
+            "password": "correct-horse",
+            "display_name": "Bob",
+        },
+    ).json()["token"]
+
+    alice_headers = {"Authorization": f"Bearer {alice_token}"}
+    bob_headers = {"Authorization": f"Bearer {bob_token}"}
+    update_response = client.put(
+        "/workspace/settings",
+        json={
+            "openai_api_key": "sk-test-alice-secret",
+            "openai_model": "chat-latest",
+            "llm_routing": "openai",
+            "final_writer": "openai",
+        },
+        headers=alice_headers,
+    )
+
+    assert update_response.status_code == 200
+    update_text = update_response.text
+    assert "sk-test-alice-secret" not in update_text
+    alice_settings = update_response.json()
+    assert alice_settings["openai_key_configured"] is True
+    assert alice_settings["openai_key_label"] == "sk-...cret"
+    assert alice_settings["openai_model"] == "chat-latest"
+    assert alice_settings["llm_routing"] == "openai"
+    assert alice_settings["final_writer"] == "openai"
+
+    bob_settings = client.get("/workspace/settings", headers=bob_headers).json()
+    assert bob_settings["openai_key_configured"] is False
+    assert bob_settings["openai_key_label"] is None
+
+    clear_response = client.put(
+        "/workspace/settings",
+        json={"clear_openai_api_key": True},
+        headers=alice_headers,
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["openai_key_configured"] is False
+    assert clear_response.json()["openai_key_label"] is None
+
+
+def test_workspace_key_is_decrypted_into_run_runtime_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")
+    monkeypatch.setenv("WAYFINDER_KEY_ENCRYPTION_SECRET", "unit-test-secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-platform-key")
+    captured_env: dict[str, str] = {}
+
+    def fake_llm_router_from_env(env: Mapping[str, str] | None = None) -> None:
+        captured_env.update(dict(env or {}))
+        return None
+
+    def fake_final_synthesizer_from_env(env: Mapping[str, str] | None = None) -> None:
+        captured_env.update({f"final_{key}": value for key, value in dict(env or {}).items()})
+        return None
+
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
+    ) -> FakeApiGraph:
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
+        return FakeApiGraph()
+
+    monkeypatch.setattr("wayfinder.api.main.llm_router_from_env", fake_llm_router_from_env)
+    monkeypatch.setattr(
+        "wayfinder.api.main.final_synthesizer_from_env",
+        fake_final_synthesizer_from_env,
+    )
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+
+    client = TestClient(app)
+    token = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "alice",
+            "password": "correct-horse",
+            "display_name": "Alice",
+        },
+    ).json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    client.put(
+        "/workspace/settings",
+        json={
+            "openai_api_key": "sk-workspace-key",
+            "openai_model": "chat-latest",
+            "llm_routing": "openai",
+            "final_writer": "openai",
+        },
+        headers=headers,
+    )
+
+    response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+        headers=headers,
+    )
+
+    assert response.status_code == 202
+    assert captured_env["OPENAI_API_KEY"] == "sk-workspace-key"
+    assert captured_env["OPENAI_API_KEY"] != "sk-platform-key"
+    assert captured_env["WAYFINDER_OPENAI_MODEL"] == "chat-latest"
+    assert captured_env["WAYFINDER_LLM_ROUTING"] == "openai"
+    assert captured_env["WAYFINDER_FINAL_WRITER"] == "openai"
+
+
+def test_authenticated_openai_mode_requires_workspace_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-platform-key")
+    monkeypatch.setenv("WAYFINDER_LLM_ROUTING", "openai")
+    monkeypatch.setenv("WAYFINDER_FINAL_WRITER", "deterministic")
+
+    client = TestClient(app)
+    token = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "alice",
+            "password": "correct-horse",
+            "display_name": "Alice",
+        },
+    ).json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+        headers=headers,
+    )
+
+    assert response.status_code == 202
+    status_response = client.get(f"/status/{response.json()['job_id']}", headers=headers)
+    payload = status_response.json()
+    assert payload["status"] == "failed"
+    assert "OPENAI_API_KEY is required" in payload["error"]
+
+
 def test_sqlite_run_store_persists_user_run_history(tmp_path: Path) -> None:
     db_path = tmp_path / "runs.sqlite"
     user = AuthenticatedUser(

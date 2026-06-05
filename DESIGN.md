@@ -267,8 +267,13 @@ panel. The final writer can use OpenAI Responses API when explicitly enabled:
 ```env
 WAYFINDER_FINAL_WRITER=openai
 WAYFINDER_LLM_ROUTING=openai
-OPENAI_API_KEY=...
 ```
+
+For local development without auth, `OPENAI_API_KEY` may still come from the
+process env or `.env`. In authenticated workspace mode, the model key is owned
+by the workspace settings API instead of a shared deployment variable. The API
+stores only an encrypted key envelope and a masked label, then injects the
+decrypted key into the runtime env for that user's run.
 
 The default remains deterministic for tests and low-cost smoke runs. When LLM
 mode is enabled, the model receives a bounded synthesis packet:
@@ -297,8 +302,40 @@ Persistent history is enabled with:
 ```env
 WAYFINDER_RUN_STORE=sqlite
 WAYFINDER_RUN_STORE_PATH=/data/wayfinder/runs.sqlite
+WAYFINDER_KEY_ENCRYPTION_SECRET=<long-random-secret>
 ```
 
 This commit deliberately keeps online test execution separate from auth. Public
 GitHub repo analysis can use `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`, but
 `mcp-test-runner` remains sandbox-gated because it executes untrusted repo code.
+
+## 15. Workspace Runtime And Sandbox Policy
+
+`GET /workspace/settings` returns the active workspace runtime settings without
+secrets:configured key status, masked key label, model, LLM routing mode, final
+writer mode, verifier runner mode, and sandbox status. `PUT /workspace/settings`
+updates model/routing/writer fields and can store or clear the workspace OpenAI
+key.
+
+Runtime env construction is now:
+
+```text
+base env
+  -> remove shared OPENAI_API_KEY when auth is required
+  -> load encrypted workspace key for the run owner
+  -> apply workspace model/routing/final-writer overrides
+  -> build graph dependencies
+```
+
+The verifier boundary is intentionally separate:
+
+```env
+WAYFINDER_VERIFIER_RUNNER=placeholder
+WAYFINDER_TEST_SANDBOX_URL=
+WAYFINDER_TEST_SANDBOX_HEALTH=
+```
+
+`placeholder` keeps public executable test verification disabled while
+repository/AST evidence can still verify code facts. `sandboxed_mcp` is a policy
+gate for a future separate worker; this API build reports it unavailable rather
+than running untrusted repo code inside `wayfinder-api`.

@@ -1,8 +1,8 @@
 "use client";
 
-import { BarChart3, History, Play, Terminal } from "lucide-react";
+import { BarChart3, History, Play, Settings, Terminal } from "lucide-react";
 
-export type WorkspaceTab = "run" | "answer" | "history" | "metrics";
+export type WorkspaceTab = "run" | "answer" | "history" | "metrics" | "settings";
 
 type WorkspaceTabsProps = {
   activeTab: WorkspaceTab;
@@ -14,11 +14,12 @@ const tabs: { id: WorkspaceTab; label: string; icon: typeof Play }[] = [
   { id: "answer", label: "Answer", icon: Terminal },
   { id: "history", label: "History", icon: History },
   { id: "metrics", label: "Metrics", icon: BarChart3 },
+  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export function WorkspaceTabs({ activeTab, onTabChange }: WorkspaceTabsProps) {
   return (
-    <nav className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-card p-2 md:grid-cols-4">
+    <nav className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-card p-2 md:grid-cols-5">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const active = activeTab === tab.id;

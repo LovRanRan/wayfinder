@@ -8,7 +8,7 @@ type JsonBody = Record<string, unknown> | unknown[];
 export async function proxyWayfinderJson(
   path: string,
   init: {
-    method?: "GET" | "POST";
+    method?: "GET" | "POST" | "PUT";
     body?: JsonBody;
   } = {},
 ) {

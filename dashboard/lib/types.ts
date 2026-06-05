@@ -3,6 +3,9 @@ export type RunStatus = "queued" | "running" | "completed" | "failed";
 export type RunIntent = "architectural" | "runtime" | "behavioral" | "debug" | "mixed";
 
 export type TraceMetadataValue = string | number | boolean | null;
+export type WorkspaceLLMRouting = "off" | "openai";
+export type WorkspaceFinalWriter = "deterministic" | "openai";
+export type WorkspaceSandboxStatus = "disabled" | "unavailable" | "enabled";
 
 export type DashboardUser = {
   userId: string;
@@ -14,6 +17,32 @@ export type ApiUserProfile = {
   user_id: string;
   workspace_id: string;
   display_name: string;
+};
+
+export type ApiWorkspaceSettings = {
+  workspace_id: string;
+  display_name: string;
+  openai_key_configured: boolean;
+  openai_key_label: string | null;
+  openai_model: string;
+  llm_routing: WorkspaceLLMRouting;
+  final_writer: WorkspaceFinalWriter;
+  verifier_runner: string;
+  sandbox_status: WorkspaceSandboxStatus;
+  sandbox_message: string;
+};
+
+export type WorkspaceSettings = {
+  workspaceId: string;
+  displayName: string;
+  openaiKeyConfigured: boolean;
+  openaiKeyLabel: string | null;
+  openaiModel: string;
+  llmRouting: WorkspaceLLMRouting;
+  finalWriter: WorkspaceFinalWriter;
+  verifierRunner: string;
+  sandboxStatus: WorkspaceSandboxStatus;
+  sandboxMessage: string;
 };
 
 export type RunError = {

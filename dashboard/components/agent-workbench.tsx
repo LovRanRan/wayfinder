@@ -8,6 +8,7 @@ import { RunLauncher } from "@/components/run-launcher";
 import { RunStatusTable } from "@/components/run-status-table";
 import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
 import { WorkspaceMetrics } from "@/components/workspace-metrics";
+import { WorkspaceSettingsPanel } from "@/components/workspace-settings";
 import { toDashboardRun } from "@/lib/metrics";
 import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
 
@@ -176,6 +177,8 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
       ) : null}
 
       {activeTab === "metrics" ? <WorkspaceMetrics {...metrics} /> : null}
+
+      {activeTab === "settings" ? <WorkspaceSettingsPanel /> : null}
     </section>
   );
 }
@@ -188,7 +191,13 @@ function runFromJobId(runs: DashboardRun[], jobId: string | null): DashboardRun 
 }
 
 function workspaceTabFromParam(value: string | null): WorkspaceTab | null {
-  if (value === "run" || value === "answer" || value === "history" || value === "metrics") {
+  if (
+    value === "run" ||
+    value === "answer" ||
+    value === "history" ||
+    value === "metrics" ||
+    value === "settings"
+  ) {
     return value;
   }
   return null;

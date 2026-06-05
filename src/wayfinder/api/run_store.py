@@ -19,7 +19,12 @@ from wayfinder.api.auth import (
     normalize_workspace_id,
     verify_password,
 )
-from wayfinder.api.schemas import ExplainRequest, RunError, RunSummary
+from wayfinder.api.schemas import (
+    ExplainRequest,
+    RunError,
+    RunSummary,
+    WorkspaceRuntimeSettings,
+)
 from wayfinder.graph.state import WayfinderState
 from wayfinder.ingestion.models import RepoHandle
 
@@ -29,6 +34,7 @@ class InMemoryRunStore:
         self._runs: dict[str, RunSummary] = {}
         self._graph_inputs: dict[str, WayfinderState] = {}
         self._run_order: list[str] = []
+        self._workspace_settings: dict[str, WorkspaceRuntimeSettings] = {}
         self._users_by_id: dict[str, tuple[AuthenticatedUser, str]] = {}
         self._workspace_to_user_id: dict[str, str] = {}
         self._sessions: dict[str, tuple[str, datetime]] = {}
@@ -86,6 +92,20 @@ class InMemoryRunStore:
         with self._lock:
             self._sessions.pop(hash_token(token), None)
 
+    def workspace_settings(self, *, user_id: str) -> WorkspaceRuntimeSettings:
+        with self._lock:
+            return self._workspace_settings.get(user_id, WorkspaceRuntimeSettings()).model_copy()
+
+    def update_workspace_settings(
+        self,
+        *,
+        user_id: str,
+        settings: WorkspaceRuntimeSettings,
+    ) -> WorkspaceRuntimeSettings:
+        with self._lock:
+            self._workspace_settings[user_id] = settings.model_copy()
+            return self._workspace_settings[user_id].model_copy()
+
     def create(
         self,
         *,
@@ -111,6 +131,10 @@ class InMemoryRunStore:
             self._graph_inputs[job_id] = _copy_graph_input(graph_input)
             self._run_order.insert(0, job_id)
         return run
+
+    def get(self, job_id: str) -> RunSummary:
+        with self._lock:
+            return self._runs[job_id]
 
     def get_for_user(self, *, user_id: str, job_id: str) -> RunSummary:
         with self._lock:
@@ -260,6 +284,11 @@ class SQLiteRunStore(InMemoryRunStore):
                 );
                 CREATE INDEX IF NOT EXISTS idx_runs_user_updated
                     ON runs(user_id, updated_at DESC);
+                CREATE TABLE IF NOT EXISTS workspace_settings (
+                    user_id TEXT PRIMARY KEY,
+                    settings_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -364,6 +393,41 @@ class SQLiteRunStore(InMemoryRunStore):
                 (hash_token(token),),
             )
 
+    def workspace_settings(self, *, user_id: str) -> WorkspaceRuntimeSettings:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT settings_json FROM workspace_settings WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+        if row is None:
+            return WorkspaceRuntimeSettings()
+        return WorkspaceRuntimeSettings.model_validate_json(str(row["settings_json"]))
+
+    def update_workspace_settings(
+        self,
+        *,
+        user_id: str,
+        settings: WorkspaceRuntimeSettings,
+    ) -> WorkspaceRuntimeSettings:
+        now = datetime.now(UTC)
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT OR REPLACE INTO workspace_settings (
+                    user_id,
+                    settings_json,
+                    updated_at
+                )
+                VALUES (?, ?, ?)
+                """,
+                (
+                    user_id,
+                    settings.model_dump_json(exclude_none=True),
+                    _datetime_to_text(now),
+                ),
+            )
+        return settings.model_copy()
+
     def create(
         self,
         *,
@@ -385,6 +449,10 @@ class SQLiteRunStore(InMemoryRunStore):
             updated_at=now,
         )
         self._write_run(run=run, graph_input=graph_input)
+        return run
+
+    def get(self, job_id: str) -> RunSummary:
+        run, _graph_input = self._read_run(job_id)
         return run
 
     def get_for_user(self, *, user_id: str, job_id: str) -> RunSummary:

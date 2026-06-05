@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 17** — User workspaces + persistent run history |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **17 / 17 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video is still pending. Public test execution remains disabled until sandbox exists. |
-| **Last Activity** | 2026-06-05 · Added workspace UI polish: structured answer cards plus real-time elapsed timer while runs are pending. |
+| **Current Commit** | [x] **Commit 18** — Workspace-owned runtime settings + sandboxed verifier policy |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **18 / 19 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Demo video and final public evidence are still pending. Public executable test execution remains intentionally disabled until a separate sandbox worker exists. |
+| **Last Activity** | 2026-06-05 · Implemented Commit 18 workspace runtime settings, BYOK storage policy, Settings tab, and sandbox status gate. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Convert Wayfinder from a shared public demo console into a user workspace that can analyze public repo links and preserve per-user history. |
-| **Next Action** | Push the answer-format polish, wait for Railway dashboard redeploy, then smoke one slow public run and confirm elapsed stops when the answer appears. |
+| **Today's North Star** | Finish the last product boundary: user-owned LLM runtime settings and safe executable verification, then close P6 with public evidence. |
+| **Next Action** | Run/deploy Commit 18 smoke, then start Commit 19 final launch evidence + Project 6 closeout. |
 
 ---
 
@@ -353,6 +353,65 @@ Guided design mode:
   - [x] Update README/DESIGN/deploy docs and Railway env guidance ✅ 2026-06-05
   - [x] Run backend/frontend quality gates and push ✅ 2026-06-05
 
+- [x] **Commit 18 — Workspace-owned runtime settings + sandboxed verifier policy** ✅ 2026-06-05
+  - [x] Write `docs/design_notes/015_workspace_runtime_and_sandbox.md` before code. Required sections:problem, threat model, user-owned API key policy, sandbox boundary, input/output contracts, denied operations, failure modes, tests, Railway/local deployment notes, and interview explanation ✅ 2026-06-05
+  - [x] Add workspace runtime settings so each authenticated user can run Wayfinder with their own provider configuration instead of relying only on deployment-level `OPENAI_API_KEY` ✅ 2026-06-05
+    - [x] UI:workspace settings surface for OpenAI key status, model choice, save/update/delete key, and clear copy that raw keys are never shown again ✅ 2026-06-05
+    - [x] API:workspace-scoped settings endpoints with session auth; key update validates shape without logging the secret ✅ 2026-06-05
+    - [x] Storage:raw API keys are not stored in run history, traces, logs, or dashboard payloads; persistent keys are encrypted with `WAYFINDER_KEY_ENCRYPTION_SECRET` ✅ 2026-06-05
+    - [x] Runtime:authenticated runs strip any shared `OPENAI_API_KEY` and inject only the run owner's workspace key/model/routing overrides ✅ 2026-06-05
+    - [x] Tests:auth isolation, no raw-key serialization, key delete, missing-key failure message, workspace-key runtime selection, and no platform-key fallback in auth mode ✅ 2026-06-05
+  - [x] Define and implement the safe `mcp-test-runner` public execution boundary. Auth alone is not enough; arbitrary repo code must not run in the API container ✅ 2026-06-05
+    - [x] Design the execution topology:separate sandbox worker or isolated local Docker runner, not unguarded command execution inside `wayfinder-api` ✅ 2026-06-05
+    - [x] Sandbox constraints documented:no inherited app secrets, ephemeral checkout, read-only input mount where possible, strict timeout, CPU/memory/disk limits, no privileged mode, bounded output size, and network policy ✅ 2026-06-05
+    - [x] Command policy documented:allow only generated minimal pytest/Jest targets; deny shell expansion, arbitrary scripts, destructive commands, package install commands, and unknown runners ✅ 2026-06-05
+    - [/] HITL policy remains the Commit 5 verifier contract; dashboard execution approval stays deferred until a real sandbox worker exists.
+    - [x] Runtime env:keep `WAYFINDER_VERIFIER_RUNNER=placeholder` as default; `sandboxed_mcp` reports unavailable unless the explicit sandbox URL/health gate is configured ✅ 2026-06-05
+    - [x] Failure behavior:when sandbox is unavailable, public deployment keeps executable claims unverified rather than inventing test evidence ✅ 2026-06-05
+    - [/] Tests cover sandbox status policy gates; no live fixture-backed sandbox run is claimed because no remote sandbox worker exists yet.
+  - [x] Connect verifier evidence back into the product surface ✅ 2026-06-05
+    - [x] Answer cards continue to surface AST evidence, limitations, verified/unverified/contradicted counts, and runtime errors ✅ 2026-06-05
+    - [/] Detailed test command/result display remains deferred until sandboxed execution is actually enabled.
+    - [x] Recent history preserves verification labels and sandbox limitations per user ✅ 2026-06-05
+  - [x] Commit 18 Definition of Done ✅ 2026-06-05
+    - [x] A logged-in user can provide their own OpenAI key/model and run grounded LLM mode without a global key fallback ✅ 2026-06-05
+    - [x] Public deployment clearly reports sandbox unavailable/disabled and keeps test execution disabled until a separate worker exists ✅ 2026-06-05
+    - [x] Public Railway configuration is documented with exact variables, including intentionally disabled sandbox status ✅ 2026-06-05
+    - [x] Full gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build; local/browser smoke should be repeated after deploy in Commit 19 ✅ local 2026-06-05
+
+- [ ] **Commit 19 — Final launch evidence + Project 6 closeout**
+  - [ ] Public smoke matrix after Commit 18 deploy:
+    - [ ] Register/login with a fresh workspace; confirm history is private to that user.
+    - [ ] Save or provide a user-owned OpenAI key; run one answer without deployment-level `OPENAI_API_KEY` if BYOK mode is enabled.
+    - [ ] Analyze `LovRanRan/wayfinder` with `wayfinder.graph.app.build_graph`; verify grounded answer cards, AST evidence, limitations, elapsed timer, and Recent runs deep link.
+    - [ ] Analyze at least one external public repo such as `pallets/flask` or `langchain-ai/langchain`; verify `WAYFINDER_GITHUB_REPO_ALLOWLIST=*` behavior and GitHub ingestion cache.
+    - [ ] Exercise one failure/limitation case:repo scan failure, no test coverage, sandbox unavailable, or unsupported execution; answer must be honest instead of inventing certainty.
+    - [ ] Refresh/redeploy check:run history still exists after dashboard reload and API restart when `/data` volume is mounted.
+  - [ ] Record the 3-minute recursive demo video.
+    - [ ] Opening:Wayfinder positioning in one sentence:grounded LLM codebase-onboarding copilot using Project 5 MCPs as the fact layer.
+    - [ ] Flow 1:login/workspace, user-owned runtime settings, submit repo/question.
+    - [ ] Flow 2:show answer cards, verified/unverified/contradicted labels, evidence vs limitations, and recent-run history.
+    - [ ] Flow 3:show a failure or sandbox limitation honestly.
+    - [ ] Close:explain P5 -> P6 -> P7 chain and why this is not a generic chat app.
+  - [ ] Update public project artifacts.
+    - [ ] README terminal pass:current live URLs, screenshots/GIF/video link, BYOK/runtime settings, Railway variables, `/data` volume note, sandbox status, API examples, failure modes, and interview talking points.
+    - [ ] `DESIGN.md` v1.1:include Commit 16 grounded LLM policy, Commit 17 auth/persistence, Commit 18 workspace runtime/sandbox policy, and updated architecture diagram.
+    - [ ] `docs/deploy/README.md`:exact Railway variables and which service owns each variable; include sandbox worker variables if enabled.
+    - [ ] `docs/blog/wayfinder_launch_post.md`:refresh launch story so it matches the deployed product instead of older local-only assumptions.
+    - [ ] Add final demo evidence links into `final_checklist.md`, `TASKS.md`, and this `progress.md`.
+    - [ ] Append closing section to `LEARNINGS.md`:what changed from deterministic fact panel to grounded LLM copilot, why auth/DB was needed, why sandbox is a separate boundary, and interview soundbites.
+  - [ ] Final acceptance reconciliation:
+    - [ ] Compare every Project 6 acceptance line in `final_checklist.md` against the shipped product; mark only what is truly live or honestly scoped.
+    - [ ] If public test execution remains disabled, write the explicit reason and do not claim executable verifier deployment.
+    - [ ] If sandbox is enabled, include the sandbox smoke evidence and denied-operation evidence.
+    - [ ] Confirm P7 handoff:which run labels/traces/history become eval data for `agent-eval-harness`.
+  - [ ] Commit 19 Definition of Done:
+    - [ ] Public dashboard and API are live and smoke-tested.
+    - [ ] README, DESIGN, deploy docs, final checklist, TASKS, progress, LEARNINGS, and launch/blog docs are consistent.
+    - [ ] Demo video link exists and shows the current UI, auth, evidence cards, history, and limitation behavior.
+    - [ ] Final local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and API Docker build if deployment files changed.
+    - [ ] Project 6 can be described in resume/interview as a deployed grounded LLM copilot with deterministic MCP evidence, user workspaces, persistent history, and explicit verification/sandbox policy.
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -369,6 +428,22 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-05 — Commit 18 closed — `Workspace runtime settings + sandbox policy`
+
+- **做了什么**:Added `docs/design_notes/015_workspace_runtime_and_sandbox.md`, workspace-scoped runtime settings API, encrypted BYOK storage, run-owner runtime env injection, sandbox status policy gate, dashboard Settings tab, and Railway/local deploy docs.
+- **自己设计了什么**:Separated user identity, user-owned LLM runtime authority, and untrusted test execution. Authenticated runs strip shared `OPENAI_API_KEY` and use only the workspace key;public `mcp-test-runner` remains disabled/unavailable until a separate sandbox worker exists.
+- **Codex 帮了哪里**:Codex implemented Commit 18 directly after Haichuan explicitly delegated it, while keeping the sandbox boundary honest instead of enabling arbitrary public repo test execution.
+- **验证方式**:`uv run pytest -q`(214 passed,8 skipped);`uv run ruff check .`;`uv run mypy src tests`;`cd dashboard && npm run lint && npm run typecheck && npm run build`;local browser smoke with temporary API/dashboard verified Settings tab, OpenAI key controls, verifier status, `disabled`, and `placeholder`.
+- **问题记录**:Workspace key persistence requires `WAYFINDER_KEY_ENCRYPTION_SECRET`;public executable test verification is intentionally off until a remote/isolated sandbox worker is implemented.
+- **下一步**:Commit/push Commit 18, update Railway variables with `WAYFINDER_KEY_ENCRYPTION_SECRET`, redeploy, then use Commit 19 for public smoke matrix, demo video, and final closeout.
+
+### 2026-06-05 — Roadmap planning — `Commit 18/19 closeout scope`
+
+- **做了什么**:Added detailed Commit 18 and Commit 19 roadmap sections. Commit 18 now owns workspace runtime settings/BYOK plus sandboxed verifier policy;Commit 19 owns public evidence, demo video, docs reconciliation, and Project 6 closeout.
+- **自己设计了什么**:Kept auth/DB separate from sandbox safety. User identity and run history solve workspace ownership;safe `mcp-test-runner` deployment is still a separate execution boundary and must not be claimed until sandbox evidence exists.
+- **验证方式**:Checked current tracker, deploy docs, README/DESIGN notes, and existing sandbox warnings before writing the roadmap.
+- **下一步**:Start Commit 18 with `docs/design_notes/015_workspace_runtime_and_sandbox.md`, then decide the exact BYOK storage mode and sandbox execution topology before writing production code.
 
 ### 2026-06-05 — Workspace UI polish — `answer cards + elapsed timer`
 

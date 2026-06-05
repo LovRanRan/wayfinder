@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 
 from wayfinder.graph.architecture import ArchitectureScanner, MCPArchitectureScanner
@@ -19,6 +20,12 @@ from wayfinder.mcp.project5 import build_project5_mcp_configs, build_project5_mc
 _TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_OPENAI_MODEL = "gpt-5.5"
+
+
+@dataclass(frozen=True)
+class VerifierSandboxPolicy:
+    status: str
+    message: str
 
 
 def project5_repo_mapper_config() -> MCPServerConfig:
@@ -162,7 +169,8 @@ def entry_scanner_from_env(
 def verifier_runner_from_env(
     env: Mapping[str, str] | None = None,
 ) -> TestRunner | None:
-    mode = (env or {}).get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower()
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower()
 
     if mode in ("", "placeholder"):
         return None
@@ -170,7 +178,61 @@ def verifier_runner_from_env(
     if mode == "mcp":
         return build_project5_verifier_runner()
 
+    if mode == "sandboxed_mcp":
+        return None
+
     raise ValueError(f"Unsupported verifier runner mode: {mode}")
+
+
+def verifier_sandbox_policy_from_env(
+    env: Mapping[str, str] | None = None,
+) -> VerifierSandboxPolicy:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower()
+
+    if mode in ("", "placeholder"):
+        return VerifierSandboxPolicy(
+            status="disabled",
+            message=(
+                "Executable test verification is disabled; AST/repository evidence can "
+                "still verify code facts."
+            ),
+        )
+
+    if mode == "mcp":
+        return VerifierSandboxPolicy(
+            status="enabled",
+            message="Local Project 5 test runner is enabled for trusted local development only.",
+        )
+
+    if mode == "sandboxed_mcp":
+        sandbox_url = active_env.get("WAYFINDER_TEST_SANDBOX_URL", "").strip()
+        sandbox_health = active_env.get("WAYFINDER_TEST_SANDBOX_HEALTH", "").strip().lower()
+        if not sandbox_url:
+            return VerifierSandboxPolicy(
+                status="unavailable",
+                message=(
+                    "Sandboxed verifier requested but WAYFINDER_TEST_SANDBOX_URL is "
+                    "not configured."
+                ),
+            )
+        if sandbox_health != "ok":
+            return VerifierSandboxPolicy(
+                status="unavailable",
+                message="Sandboxed verifier requested but the sandbox health gate is not ok.",
+            )
+        return VerifierSandboxPolicy(
+            status="unavailable",
+            message=(
+                "Sandbox health gate is configured, but this API build has no remote "
+                "sandbox adapter yet."
+            ),
+        )
+
+    return VerifierSandboxPolicy(
+        status="unavailable",
+        message=f"Unsupported verifier runner mode: {mode}",
+    )
 
 
 def llm_router_from_env(

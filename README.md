@@ -279,6 +279,7 @@ Set the API service to:
 WAYFINDER_REQUIRE_AUTH=1
 WAYFINDER_RUN_STORE=sqlite
 WAYFINDER_RUN_STORE_PATH=/data/wayfinder/runs.sqlite
+WAYFINDER_KEY_ENCRYPTION_SECRET=<long-random-secret>
 WAYFINDER_START_PROJECT5_HTTP_MCP=1
 WAYFINDER_ARCHITECTURE_SCANNER=mcp_http
 WAYFINDER_ENTRY_SCANNER=mcp_http
@@ -298,11 +299,16 @@ and can be lost on rebuild.
 Optional grounded LLM synthesis:
 
 ```env
-OPENAI_API_KEY=...
 WAYFINDER_LLM_ROUTING=openai
 WAYFINDER_FINAL_WRITER=openai
 WAYFINDER_OPENAI_MODEL=gpt-5.5
 ```
+
+In authenticated workspace mode, users add their own OpenAI key in the dashboard
+Settings tab. The API stores only an encrypted key envelope plus a masked label;
+the raw key is not returned in `/workspace/settings`, run history, or trace
+metadata. `WAYFINDER_KEY_ENCRYPTION_SECRET` is required before the API accepts a
+workspace key.
 
 Optional community context:
 
@@ -320,6 +326,18 @@ cannot override repository/AST/test evidence.
 stronger remote execution sandbox is added. The reader MCPs run in the API
 container, not as separate Railway services, because they need access to the
 same cloned repository path as the API.
+
+Sandbox gate:
+
+```env
+WAYFINDER_VERIFIER_RUNNER=placeholder
+WAYFINDER_TEST_SANDBOX_URL=
+WAYFINDER_TEST_SANDBOX_HEALTH=
+```
+
+`WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` currently reports unavailable unless a
+separate sandbox worker URL and health gate are configured; this API build does
+not execute arbitrary public repo tests inside `wayfinder-api`.
 
 Cloud Run:
 
