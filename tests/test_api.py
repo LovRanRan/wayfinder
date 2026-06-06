@@ -790,7 +790,43 @@ def test_explain_marks_timed_out_graph_failed(monkeypatch: pytest.MonkeyPatch) -
     status_response = client.get(f"/status/{explain_response.json()['job_id']}")
     payload = status_response.json()
     assert payload["status"] == "failed"
-    assert "exceeded 0s timeout" in payload["error"]
+    assert payload["error"].startswith("Wayfinder job exceeded ")
+    assert payload["error"].endswith("s timeout.")
+    assert payload["errors"][0]["error_type"] == "JobExecutionTimeout"
+
+
+def test_explain_marks_timed_out_runtime_graph_build_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def slow_architecture_scanner_from_env(
+        env: Mapping[str, str] | None = None,
+    ) -> ArchitectureScanner | None:
+        del env
+        time.sleep(0.2)
+        return None
+
+    monkeypatch.setenv("WAYFINDER_RUNTIME_BUILD_TIMEOUT_SECONDS", "0.01")
+    monkeypatch.setenv("WAYFINDER_JOB_TIMEOUT_SECONDS", "1")
+    monkeypatch.setenv("WAYFINDER_LLM_ROUTING", "off")
+    monkeypatch.setenv("WAYFINDER_FINAL_WRITER", "deterministic")
+    monkeypatch.setenv("WAYFINDER_VERIFIER_RUNNER", "placeholder")
+    monkeypatch.setattr(
+        "wayfinder.api.main.architecture_scanner_from_env",
+        slow_architecture_scanner_from_env,
+        raising=False,
+    )
+
+    client = TestClient(app)
+    explain_response = client.post(
+        "/explain",
+        json={"repo_url": "local", "query": "Map architecture"},
+    )
+
+    assert explain_response.status_code == 202
+    status_response = client.get(f"/status/{explain_response.json()['job_id']}")
+    payload = status_response.json()
+    assert payload["status"] == "failed"
+    assert "runtime setup exceeded 0.01s timeout" in payload["error"]
     assert payload["errors"][0]["error_type"] == "JobExecutionTimeout"
 
 

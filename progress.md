@@ -466,6 +466,15 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-06 — Commit 20 hotfix — `Runtime setup timeout`
+
+- **做了什么**:A later live screenshot still showed `LovRanRan/wayfinder` stuck at `running`, `agent=supervisor`, `tool=none`, `mcp=none`, and `latency=0.0s` after more than three minutes. That points to a boundary before LangGraph node execution, not inside a reader/verifier/final-writer node.
+- **自己设计了什么**:Added `WAYFINDER_RUNTIME_BUILD_TIMEOUT_SECONDS` (default 15s) around runtime graph setup. This covers sandbox health checks and runtime adapter construction, then keeps the existing graph invoke timeout and node watchdogs for actual graph execution.
+- **Codex 帮了哪里**:Codex moved runtime graph construction under timeout protection, added a regression where runtime setup sleeps longer than its budget, updated deployment docs, and confirmed both public `/health` endpoints respond.
+- **验证方式**:`uv run pytest tests/test_api.py::test_explain_marks_timed_out_graph_failed tests/test_api.py::test_explain_marks_timed_out_runtime_graph_build_failed tests/test_api.py::test_status_marks_stale_running_job_failed -q`(3 passed);`uv run pytest tests/test_api.py tests/test_graph_runtime.py tests/test_verifier.py tests/test_graph_contract.py -q`(99 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(242 passed,8 skipped).
+- **问题记录**:This explains why previous graph-node watchdog commits did not affect screenshots stuck at `supervisor/tool none`:the graph had not necessarily been built yet.
+- **下一步**:Push, set `WAYFINDER_RUNTIME_BUILD_TIMEOUT_SECONDS=15` in Railway API, wait for redeploy, and retest the same prompt.
+
 ### 2026-06-06 — Commit 20 hotfix — `Preapproved verifier watchdog`
 
 - **做了什么**:After the dashboard polling fix, live Railway runs still stayed `running` for behavior/data-flow prompts with `sandboxed_mcp` + `auto_approve`, now past the graph-node watchdog window and before the API's 240s timeout.

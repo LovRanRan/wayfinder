@@ -160,6 +160,12 @@ make that budget visible and prevent a slow repo scan from consuming the full
 API job timeout. Tool failures degrade into limitations in the answer instead
 of blocking the whole run.
 
+Runtime graph setup is also bounded before LangGraph execution begins.
+`WAYFINDER_RUNTIME_BUILD_TIMEOUT_SECONDS` defaults to `15` seconds and covers
+sandbox health checks plus runtime adapter construction. This prevents a run
+from sitting at `supervisor / tool none / latency 0.0s` until the full API job
+timeout.
+
 The graph also wraps slow node boundaries in a watchdog controlled by
 `WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS` (default `30`). This catches slow
 supervisor, reader, final-writer, and pre-approved verifier boundaries not
@@ -225,6 +231,7 @@ WAYFINDER_JOB_TIMEOUT_SECONDS=240
 WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS=8
 WAYFINDER_MCP_MAX_ATTEMPTS=1
 WAYFINDER_OPENAI_TIMEOUT_SECONDS=20
+WAYFINDER_RUNTIME_BUILD_TIMEOUT_SECONDS=15
 WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS=30
 ```
 

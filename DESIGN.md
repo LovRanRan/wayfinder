@@ -324,7 +324,9 @@ ephemeral repo copy/cleanup.
 
 Public Railway runs also keep external reader tools on short budgets. HTTP MCP
 sidecars default to an 8 second tool timeout and one attempt, configurable with
-`WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS` and `WAYFINDER_MCP_MAX_ATTEMPTS`. OpenAI
+`WAYFINDER_MCP_TOOL_TIMEOUT_SECONDS` and `WAYFINDER_MCP_MAX_ATTEMPTS`. Runtime
+graph setup, including sandbox health checks and runtime adapter construction,
+is bounded by `WAYFINDER_RUNTIME_BUILD_TIMEOUT_SECONDS` (default `15`). OpenAI
 Responses calls use `WAYFINDER_OPENAI_TIMEOUT_SECONDS` and fall back to the
 deterministic writer/router path when unavailable. The API-level job timeout is
 only a final guard, not the primary failure-handling mechanism.

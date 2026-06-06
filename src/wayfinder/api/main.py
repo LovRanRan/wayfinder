@@ -1,6 +1,7 @@
 """FastAPI entrypoint for the Wayfinder scaffold."""
 
 import os
+import time
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -66,6 +67,7 @@ _TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 _DEFAULT_GITHUB_ALLOWLIST = "langchain-ai/langchain,lovranran/wayfinder"
 _DEFAULT_OPENAI_MODEL = "gpt-5.5"
 _DEFAULT_JOB_TIMEOUT_SECONDS = 240.0
+_DEFAULT_RUNTIME_BUILD_TIMEOUT_SECONDS = 15.0
 _DEFAULT_DEV_USER = AuthenticatedUser(
     user_id="local-dev",
     workspace_id="local-dev",
@@ -437,9 +439,8 @@ def _execute_job(job_id: str, phase: str) -> None:
     )
 
     try:
-        graph = _build_runtime_graph(env)
-        result = _invoke_graph_with_timeout(
-            graph,
+        result = _run_runtime_graph_with_timeout(
+            env,
             graph_input,
             config=runnable_config_for_trace(trace_context),
             timeout_seconds=_job_timeout_seconds(env),
@@ -464,6 +465,48 @@ class JobExecutionTimeout(RuntimeError):
     """Raised when a graph run exceeds the API job timeout."""
 
 
+def _run_runtime_graph_with_timeout(
+    env: Mapping[str, str],
+    graph_input: WayfinderState,
+    *,
+    config: Any,
+    timeout_seconds: float,
+) -> WayfinderState:
+    started_at = time.monotonic()
+    graph = _build_runtime_graph_with_timeout(
+        env,
+        timeout_seconds=min(_runtime_build_timeout_seconds(env), timeout_seconds),
+    )
+    elapsed_seconds = time.monotonic() - started_at
+    remaining_timeout_seconds = timeout_seconds - elapsed_seconds
+    if remaining_timeout_seconds <= 0:
+        raise JobExecutionTimeout(f"Wayfinder job exceeded {timeout_seconds:g}s timeout.")
+    return _invoke_graph_with_timeout(
+        graph,
+        graph_input,
+        config=config,
+        timeout_seconds=remaining_timeout_seconds,
+    )
+
+
+def _build_runtime_graph_with_timeout(
+    env: Mapping[str, str],
+    *,
+    timeout_seconds: float,
+) -> WayfinderGraph:
+    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="wayfinder-job")
+    future = executor.submit(_build_runtime_graph, env)
+    try:
+        return future.result(timeout=timeout_seconds)
+    except FutureTimeoutError as exc:
+        future.cancel()
+        raise JobExecutionTimeout(
+            f"Wayfinder runtime setup exceeded {timeout_seconds:g}s timeout."
+        ) from exc
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+
 def _invoke_graph_with_timeout(
     graph: WayfinderGraph,
     graph_input: WayfinderState,
@@ -478,7 +521,7 @@ def _invoke_graph_with_timeout(
     except FutureTimeoutError as exc:
         future.cancel()
         raise JobExecutionTimeout(
-            f"Wayfinder job exceeded {timeout_seconds:.0f}s timeout."
+            f"Wayfinder job exceeded {timeout_seconds:g}s timeout."
         ) from exc
     finally:
         executor.shutdown(wait=False, cancel_futures=True)
@@ -538,6 +581,20 @@ def _job_timeout_seconds(env: Mapping[str, str]) -> float:
         return _DEFAULT_JOB_TIMEOUT_SECONDS
     if timeout_seconds <= 0:
         return _DEFAULT_JOB_TIMEOUT_SECONDS
+    return timeout_seconds
+
+
+def _runtime_build_timeout_seconds(env: Mapping[str, str]) -> float:
+    raw = env.get(
+        "WAYFINDER_RUNTIME_BUILD_TIMEOUT_SECONDS",
+        str(_DEFAULT_RUNTIME_BUILD_TIMEOUT_SECONDS),
+    ).strip()
+    try:
+        timeout_seconds = float(raw)
+    except ValueError:
+        return _DEFAULT_RUNTIME_BUILD_TIMEOUT_SECONDS
+    if timeout_seconds <= 0:
+        return _DEFAULT_RUNTIME_BUILD_TIMEOUT_SECONDS
     return timeout_seconds
 
 
