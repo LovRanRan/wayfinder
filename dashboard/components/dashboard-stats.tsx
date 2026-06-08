@@ -20,9 +20,9 @@ export function DashboardStats({ metrics, onOpenMetrics }: DashboardStatsProps) 
   const cards: StatButtonProps[] = [
     {
       icon: ShieldCheck,
-      label: "Verification rate",
-      value: formatPercent(metrics.verificationRate),
-      detail: `${metrics.verifiedClaims} verified claims`,
+      label: "Run success rate",
+      value: formatPercent(metrics.successRate),
+      detail: `${metrics.completedRuns} completed / ${metrics.failedRuns} failed`,
       onClick: onOpenMetrics,
     },
     {
@@ -34,9 +34,9 @@ export function DashboardStats({ metrics, onOpenMetrics }: DashboardStatsProps) 
     },
     {
       icon: TimerReset,
-      label: "P95 latency",
-      value: formatSeconds(metrics.p95Latency),
-      detail: `P50 ${formatSeconds(metrics.p50Latency)}`,
+      label: "Latest latency",
+      value: formatSeconds(metrics.latestCompletedLatency),
+      detail: `${metrics.completedLatencySamples} completed samples · P95 ${formatSeconds(metrics.p95Latency)}`,
       onClick: onOpenMetrics,
     },
     {

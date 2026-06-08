@@ -48,6 +48,12 @@ export function toDashboardRun(run: ApiRunSummary): DashboardRun {
 }
 
 export function buildDashboardMetrics(runs: DashboardRun[]): DashboardMetrics {
+  const activeRuns = runs.filter((run) => run.status === "queued" || run.status === "running").length;
+  const completedRuns = runs.filter((run) => run.status === "completed").length;
+  const failedRuns = runs.filter((run) => run.status === "failed").length;
+  const terminalRuns = completedRuns + failedRuns;
+  const completedLatencyRuns = runs.filter((run) => run.status === "completed" && run.latency > 0);
+  const completedLatencies = completedLatencyRuns.map((run) => run.latency);
   const verifiedClaims = sum(runs, (run) => run.verifiedCount);
   const unverifiedClaims = sum(runs, (run) => run.unverifiedCount);
   const contradictedClaims = sum(runs, (run) => run.contradictedCount);
@@ -55,19 +61,19 @@ export function buildDashboardMetrics(runs: DashboardRun[]): DashboardMetrics {
 
   return {
     totalRuns: runs.length,
-    activeRuns: runs.filter((run) => run.status === "queued" || run.status === "running").length,
+    activeRuns,
+    completedRuns,
+    failedRuns,
+    terminalRuns,
+    successRate: terminalRuns === 0 ? 0 : completedRuns / terminalRuns,
     verifiedClaims,
     unverifiedClaims,
     contradictedClaims,
     verificationRate: denominator === 0 ? 0 : verifiedClaims / denominator,
-    p50Latency: percentile(
-      runs.map((run) => run.latency),
-      50,
-    ),
-    p95Latency: percentile(
-      runs.map((run) => run.latency),
-      95,
-    ),
+    latestCompletedLatency: latestCompletedLatency(completedLatencyRuns),
+    completedLatencySamples: completedLatencyRuns.length,
+    p50Latency: percentile(completedLatencies, 50),
+    p95Latency: percentile(completedLatencies, 95),
     totalTokens: sum(runs, (run) => run.tokens),
     totalCostUsd: sum(runs, (run) => run.costUsd),
   };
@@ -97,6 +103,9 @@ export function latencyByAgent(
 ): { agent: string; p50: number; p95: number; runCount: number }[] {
   const grouped = new Map<string, number[]>();
   for (const run of runs) {
+    if (run.status !== "completed" || run.latency <= 0) {
+      continue;
+    }
     const latencies = grouped.get(run.agentName) ?? [];
     latencies.push(run.latency);
     grouped.set(run.agentName, latencies);
@@ -197,6 +206,21 @@ function numberValue(value: TraceMetadataValue | undefined): number {
 
 function sum(runs: DashboardRun[], valueForRun: (run: DashboardRun) => number): number {
   return runs.reduce((total, run) => total + valueForRun(run), 0);
+}
+
+function latestCompletedLatency(runs: DashboardRun[]): number {
+  let latestRun: DashboardRun | null = null;
+  for (const run of runs) {
+    if (latestRun === null || timestamp(run.updatedAt) > timestamp(latestRun.updatedAt)) {
+      latestRun = run;
+    }
+  }
+  return latestRun?.latency ?? 0;
+}
+
+function timestamp(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function percentile(values: number[], target: number): number {

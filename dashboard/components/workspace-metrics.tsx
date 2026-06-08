@@ -78,8 +78,8 @@ export function WorkspaceMetrics({ runs }: WorkspaceMetricsProps) {
             Metrics window
           </div>
           <p className="mt-1 font-mono text-xs text-muted-foreground">
-            {filteredRuns.length} runs · {formatPercent(metrics.verificationRate)} verified · P95{" "}
-            {formatSeconds(metrics.p95Latency)}
+            {filteredRuns.length} runs · {formatPercent(metrics.successRate)} success · latest{" "}
+            {formatSeconds(metrics.latestCompletedLatency)} · P95 completed {formatSeconds(metrics.p95Latency)}
           </p>
         </div>
         <div className="grid grid-cols-4 gap-2 sm:flex">
@@ -190,7 +190,7 @@ export function WorkspaceMetrics({ runs }: WorkspaceMetricsProps) {
 
 function LatencyTrend({ runs }: { runs: DashboardRun[] }) {
   const points = runs
-    .filter((run) => run.latency > 0 && run.status !== "queued" && run.status !== "running")
+    .filter((run) => run.status === "completed" && run.latency > 0)
     .slice()
     .sort((a, b) => timestamp(a.createdAt) - timestamp(b.createdAt))
     .slice(-16)

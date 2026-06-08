@@ -113,10 +113,16 @@ export type DashboardRun = {
 export type DashboardMetrics = {
   totalRuns: number;
   activeRuns: number;
+  completedRuns: number;
+  failedRuns: number;
+  terminalRuns: number;
+  successRate: number;
   verifiedClaims: number;
   unverifiedClaims: number;
   contradictedClaims: number;
   verificationRate: number;
+  latestCompletedLatency: number;
+  completedLatencySamples: number;
   p50Latency: number;
   p95Latency: number;
   totalTokens: number;

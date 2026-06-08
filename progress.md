@@ -153,8 +153,8 @@ Guided design mode:
 |---|---|
 | **Current Commit** | [ ] **Commit 21** — Repo conversation threads + memory layer |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 21 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Commit 21 is planned but not started;Haichuan needs to confirm the interaction model before code changes. |
-| **Last Activity** | 2026-06-08 · Planned Commit 21 to turn Wayfinder from a one-shot repo analyzer into a repo-scoped conversational agent thread with memory. |
+| **Blocker** | Commit 21 is planned but not started;pre-Commit21 dashboard metric semantics hotfix is being closed separately. |
+| **Last Activity** | 2026-06-08 · Fixed dashboard metric semantics:top card now shows run success rate, and latency uses completed-only samples with latest completed latency as the primary value. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Make Wayfinder feel like a repo-aware agent workspace:a user can open one repo thread, ask follow-up questions, and see answers grounded in the repo packet plus conversation memory. |
 | **Next Action** | In the next chat,start Commit 21 by writing `docs/design_notes/017_repo_conversation_threads.md`,then implement the smallest repo-thread/chat API and dashboard flow. |
@@ -503,6 +503,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-08 — Pre-Commit 21 hotfix — `Dashboard metric semantics`
+
+- **做了什么**:Haichuan caught that the top dashboard still showed `75%` and `28.0s` after recent runs changed. The issue was metric meaning, not polling:the first card was claim verification rate, and latency used all recent samples including stale small-sample P95 behavior.
+- **自己设计了什么**:Top dashboard cards should answer "how is my workspace running?" not "what share of extracted claims were verified?". The primary card is now run success rate, and the primary latency value is the latest completed run latency.
+- **Codex 帮了哪里**:Codex changed dashboard metrics to count completed/failed/active runs separately, compute success rate from terminal runs, exclude failed/queued/running zero-latency samples from latency stats, and keep claim verification in the Metrics detail area.
+- **验证方式**:dashboard `npm run lint`;dashboard `npm run typecheck`;dashboard `NEXT_TELEMETRY_DISABLED=1 npm run build`;`git diff --check`.
+- **问题记录**:Claim verification remains useful, but it should not be the top-left health signal because failed runs with no claims do not affect that denominator.
+- **下一步**:Commit/push this as a small hotfix outside Commit 21, then let Railway dashboard redeploy before checking the top cards again.
 
 ### 2026-06-08 — Roadmap update — `Commit 21 repo conversation threads`
 
