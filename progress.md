@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [ ] **Commit 21** — Repo conversation threads + memory layer |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 21 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Commit 21 is planned but not started;pre-Commit21 dashboard metric UI/semantics hotfix is being closed separately. |
-| **Last Activity** | 2026-06-08 · Refined dashboard metrics:top metrics now use a tabbed panel, `Active runs` is replaced by completed-run volume, and cost is labeled as app-tracked instead of OpenAI billing. |
+| **Current Commit** | [x] **Commit 21** — Repo conversation threads + memory layer ✅ local 2026-06-09 |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **21 / 21 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Commit 21 local implementation is complete;commit/push/deploy/public smoke are the remaining operational handoff. |
+| **Last Activity** | 2026-06-09 · Added repo-scoped conversation threads, persisted message history, bounded memory packets, follow-up chat API, and dashboard Threads workspace. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Make Wayfinder feel like a repo-aware agent workspace:a user can open one repo thread, ask follow-up questions, and see answers grounded in the repo packet plus conversation memory. |
-| **Next Action** | In the next chat,start Commit 21 by writing `docs/design_notes/017_repo_conversation_threads.md`,then implement the smallest repo-thread/chat API and dashboard flow. |
+| **Next Action** | Review diff, commit/push Commit 21, redeploy API/dashboard, then public-smoke one repo thread with two follow-up questions. |
 
 ---
 
@@ -449,43 +449,43 @@ Guided design mode:
     - [x] Unsafe commands are denied with recorded evidence ✅ 2026-06-05
     - [x] Full local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and Docker Compose config;Railway/public sandbox-worker smoke stays pending until deployed ✅ 2026-06-05
 
-- [ ] **Commit 21 — Repo conversation threads + memory layer**
-  - [ ] Design gate before code:
-    - [ ] Write `docs/design_notes/017_repo_conversation_threads.md` with problem, target interaction, thread lifecycle, state/data model, memory policy, API contract, dashboard IA, failure modes, tests, and interview explanation.
-    - [ ] Reframe the product gap explicitly:current Wayfinder is a one-shot grounded synthesis panel;Commit 21 makes it an interactive repo copilot where the user can continue asking questions after the first analysis.
-    - [ ] Define the primary user story:paste a GitHub repo once, create/open a repo thread, ask an initial architecture/onboarding question, then ask follow-ups like "where should I change X?", "explain this file", "what tests cover this path?", or "summarize what we learned so far".
-    - [ ] Define non-goals:v1 is not an autonomous coding agent, not a full IDE, not arbitrary shell execution, and not ungrounded ChatGPT over a repo.
-  - [ ] Backend data model:
-    - [ ] Add a repo-scoped `ConversationThread` concept owned by a workspace user. Required fields:thread_id,user_id,repo_url,repo_name,repo_handle/cache key,title,status,created_at,updated_at,last_run_id,summary_memory.
-    - [ ] Add `ThreadMessage` records. Required fields:message_id,thread_id,role(`user`/`assistant`/`system`),content,created_at,source_run_id,evidence_refs,verified/unverified/contradicted counts,trace_metadata.
-    - [ ] Persist threads/messages in the existing run store layer;SQLite auth deployments must survive refresh/restart.
-    - [ ] Keep run history and thread history related but separate:runs are execution traces;threads are the human conversation surface.
-  - [ ] Agent / memory behavior:
-    - [ ] Reuse the first repo analysis packet as the repo context seed for the thread:repo structure, key files, AST evidence, verified/unverified claims, limitations, and sandbox status.
-    - [ ] Add a bounded memory layer:short rolling conversation summary + last N messages + selected evidence refs;never pass unbounded full history to OpenAI.
-    - [ ] Follow-up answers must call the same grounded graph/evidence path when the question needs new code facts;LLM-only memory can summarize prior discussion but cannot create verified code claims.
-    - [ ] Add response policy for uncertainty:if the follow-up asks for facts not in the cached packet and the tool path cannot verify them, mark those claims unverified and suggest a narrower follow-up.
-  - [ ] API contract:
-    - [ ] `POST /threads` creates a repo thread from `repo_url` and optional first question;it may immediately start the first Wayfinder run.
-    - [ ] `GET /threads` lists the user's repo threads with latest message, repo, status, and updated timestamp.
-    - [ ] `GET /threads/{thread_id}` returns thread metadata, messages, and linked runs.
-    - [ ] `POST /threads/{thread_id}/messages` appends a user follow-up and runs grounded synthesis with thread memory.
-    - [ ] Existing `/explain` can remain for backward compatibility, but dashboard primary flow should move to threads.
-  - [ ] Dashboard interaction:
-    - [ ] Replace the current one-shot Run-first flow with a workspace layout closer to Codex:thread list/sidebar, repo header, message timeline, evidence drawer, and composer at the bottom.
-    - [ ] Opening a repo should land in that repo's thread, not a prefilled run form.
-    - [ ] Each assistant answer card should show answer text plus compact grounding chips:verified/unverified/contradicted, MCP tool used, linked run, and expandable evidence.
-    - [ ] Keep Metrics and Settings as workspace tabs, but make the main daily-use surface the repo conversation.
-  - [ ] Tests and verification:
-    - [ ] API tests cover auth isolation for threads/messages, thread creation, follow-up message creation, persistence, and missing-thread access control.
-    - [ ] Graph/runtime tests cover memory packet construction, bounded context, and grounded follow-up behavior.
-    - [ ] Frontend type/lint/build gates pass;manual smoke covers create thread, ask follow-up, refresh page, reopen thread, and verify message history remains.
-  - [ ] Commit 21 Definition of Done:
-    - [ ] A logged-in user can create one repo thread, ask an initial question, then ask at least two follow-up questions without re-pasting the repo URL.
-    - [ ] Refreshing the dashboard returns to the same thread with prior messages.
-    - [ ] Follow-up answers clearly separate memory-derived context from newly verified repo evidence.
-    - [ ] Thread history is user-scoped and persisted in SQLite.
-    - [ ] README/DESIGN/progress explain Wayfinder as a grounded repo copilot with conversational threads, not a deterministic fact panel or one-shot report.
+- [x] **Commit 21 — Repo conversation threads + memory layer** ✅ local 2026-06-09
+  - [x] Design gate before code:
+    - [x] Write `docs/design_notes/017_repo_conversation_threads.md` with problem, target interaction, thread lifecycle, state/data model, memory policy, API contract, dashboard IA, failure modes, tests, and interview explanation ✅ 2026-06-09
+    - [x] Reframe the product gap explicitly:current Wayfinder is a one-shot grounded synthesis panel;Commit 21 makes it an interactive repo copilot where the user can continue asking questions after the first analysis ✅ 2026-06-09
+    - [x] Define the primary user story:paste a GitHub repo once, create/open a repo thread, ask an initial architecture/onboarding question, then ask follow-ups like "where should I change X?", "explain this file", "what tests cover this path?", or "summarize what we learned so far" ✅ 2026-06-09
+    - [x] Define non-goals:v1 is not an autonomous coding agent, not a full IDE, not arbitrary shell execution, and not ungrounded ChatGPT over a repo ✅ 2026-06-09
+  - [x] Backend data model:
+    - [x] Add a repo-scoped `ConversationThread` concept owned by a workspace user. Required fields:thread_id,user_id,repo_url,repo_name,title,status,created_at,updated_at,last_run_id,summary_memory ✅ 2026-06-09
+    - [x] Add `ThreadMessage` records. Required fields:message_id,thread_id,role(`user`/`assistant`/`system`),content,created_at,source_run_id,evidence_refs,verified/unverified/contradicted counts,trace_metadata ✅ 2026-06-09
+    - [x] Persist threads/messages in the existing run store layer;SQLite auth deployments must survive refresh/restart ✅ 2026-06-09
+    - [x] Keep run history and thread history related but separate:runs are execution traces;threads are the human conversation surface ✅ 2026-06-09
+  - [x] Agent / memory behavior:
+    - [x] Reuse the first repo analysis packet as the repo context seed for the thread:repo structure, key files, AST evidence, verified/unverified claims, limitations, and sandbox status ✅ 2026-06-09
+    - [x] Add a bounded memory layer:short rolling conversation summary + last N messages + selected evidence refs;never pass unbounded full history to OpenAI ✅ 2026-06-09
+    - [x] Follow-up answers call the same grounded graph/evidence path when the question needs new code facts;memory is continuity context only and cannot create verified code claims ✅ 2026-06-09
+    - [x] Add response policy for uncertainty:follow-up output includes a thread-memory note and keeps new code facts tied to repo/AST/test evidence labels ✅ 2026-06-09
+  - [x] API contract:
+    - [x] `POST /threads` creates a repo thread from `repo_url` and optional first question;it may immediately start the first Wayfinder run ✅ 2026-06-09
+    - [x] `GET /threads` lists the user's repo threads with messages, repo, status, and updated timestamp ✅ 2026-06-09
+    - [x] `GET /threads/{thread_id}` returns thread metadata, messages, and linked runs ✅ 2026-06-09
+    - [x] `POST /threads/{thread_id}/messages` appends a user follow-up and runs grounded synthesis with thread memory ✅ 2026-06-09
+    - [x] Existing `/explain` remains for backward compatibility, while dashboard primary flow moves to threads ✅ 2026-06-09
+  - [x] Dashboard interaction:
+    - [x] Replace the one-shot Run-first default with a Threads workspace:thread sidebar, repo header, message timeline, evidence chips, and bottom composer ✅ 2026-06-09
+    - [x] Opening a repo lands in that repo's thread, not a prefilled run form ✅ 2026-06-09
+    - [x] Each assistant answer card shows answer text plus compact grounding chips:verified/unverified/contradicted, linked run, and evidence refs ✅ 2026-06-09
+    - [x] Keep Metrics and Settings as workspace tabs, with repo conversation as the main daily-use surface ✅ 2026-06-09
+  - [x] Tests and verification:
+    - [x] API tests cover auth isolation for threads/messages, thread creation, two follow-up messages, persistence, and missing-thread access control ✅ 2026-06-09
+    - [x] Graph/runtime tests cover memory packet construction, bounded context, and grounded follow-up behavior ✅ 2026-06-09
+    - [x] Frontend type/lint/build gates pass;browser smoke covers create thread, ask follow-up, URL returns to the thread, and message history remains visible ✅ 2026-06-09
+  - [x] Commit 21 Definition of Done:
+    - [x] A logged-in user can create one repo thread, ask an initial question, then ask at least two follow-up questions without re-pasting the repo URL ✅ 2026-06-09
+    - [x] Refreshing the dashboard returns to the same thread with prior messages via `?tab=threads&thread=<id>` ✅ 2026-06-09
+    - [x] Follow-up answers clearly separate memory-derived context from newly verified repo evidence ✅ 2026-06-09
+    - [x] Thread history is user-scoped and persisted in SQLite ✅ 2026-06-09
+    - [x] README/DESIGN/progress explain Wayfinder as a grounded repo copilot with conversational threads, not a deterministic fact panel or one-shot report ✅ 2026-06-09
 
 ### Ship
 
@@ -503,6 +503,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-09 — Commit 21 closed locally — `Repo conversation threads + memory layer`
+
+- **做了什么**:Added repo-scoped conversation threads, persisted thread messages, linked thread runs, bounded memory packets, `/threads` API endpoints, dashboard proxy routes, and a new Threads workspace with thread list, message timeline, evidence chips, and follow-up composer.
+- **自己设计了什么**:Kept thread history and run history separate:threads are the human conversation surface, runs are grounded graph execution traces. Follow-up memory is continuity context only;new code facts still go through repo/AST/test evidence and remain labeled when unverified.
+- **Codex 帮了哪里**:Codex implemented the explicitly delegated Commit 21 slice after writing `docs/design_notes/017_repo_conversation_threads.md`, fixed a browser-smoke issue where raw memory leaked into deterministic answers, and kept `/explain` as a backward-compatible one-shot path.
+- **验证方式**:`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(249 passed,8 skipped);dashboard `npm run lint`;dashboard `npm run typecheck`;dashboard `NEXT_TELEMETRY_DISABLED=1 npm run build`;Browser smoke created a local repo thread, sent a follow-up, preserved `?tab=threads&thread=<id>`, and confirmed raw memory packet text was not printed.
+- **问题记录**:Commit 21 is complete locally but not yet committed/pushed/deployed. Public Railway smoke still needs to create a repo thread and ask two follow-ups after deploy.
+- **下一步**:Review diff, commit/push Commit 21, deploy API/dashboard, then run public repo-thread smoke.
 
 ### 2026-06-08 — Pre-Commit 21 hotfix — `Dashboard metric tabs and cost boundary`
 

@@ -118,6 +118,7 @@ def grounded_synthesis_packet(
     return {
         "query": state.get("query", ""),
         "repo_url": state.get("repo_url", ""),
+        "conversation_memory": state.get("conversation_memory", ""),
         "route_decision": state.get("route_decision"),
         "repo_metadata": state.get("repo_metadata", {}),
         "module_dep_graph": state.get("module_dep_graph"),
@@ -136,6 +137,7 @@ def grounded_synthesis_packet(
         "grounding_policy": {
             "primary_code_facts": "Project 5 MCP evidence and verifier labels",
             "community_context": "supporting context only; never verified code facts",
+            "conversation_memory": "continuity context only; never verified code facts",
             "must_label_uncertainty": True,
         },
     }
@@ -177,5 +179,7 @@ Rules:
 - Label unverified runtime/data-flow claims as unverified.
 - Do not restate contradicted claims as true.
 - Treat community_context as external supporting context only.
+- Treat conversation_memory as continuity context only. Do not quote the raw
+  memory packet unless the user explicitly asks for a transcript.
 - Mention important limitations when errors or unverified claims exist.
 """.strip()

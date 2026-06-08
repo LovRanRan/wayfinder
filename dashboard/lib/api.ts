@@ -1,10 +1,19 @@
 import { mockRuns } from "@/lib/mock-data";
 import { toDashboardRun } from "@/lib/metrics";
 import { authorizationHeader, sessionTokenFromCookies } from "@/lib/session";
-import type { ApiRunSummary, ApiUserProfile, DashboardRun, DashboardUser } from "@/lib/types";
+import { toDashboardThread } from "@/lib/threads";
+import type {
+  ApiConversationThreadDetail,
+  ApiRunSummary,
+  ApiUserProfile,
+  DashboardRun,
+  DashboardThread,
+  DashboardUser,
+} from "@/lib/types";
 
 export type DashboardData = {
   runs: DashboardRun[];
+  threads: DashboardThread[];
   user: DashboardUser | null;
   source: "api" | "demo";
   apiBaseUrl: string;
@@ -24,27 +33,64 @@ export async function getDashboardData(): Promise<DashboardData> {
     });
 
     if (meResponse.status === 401) {
-      return { runs: [], user: null, source: "api", apiBaseUrl, publicApiBaseUrl };
+      return { runs: [], threads: [], user: null, source: "api", apiBaseUrl, publicApiBaseUrl };
     }
 
     if (!meResponse.ok) {
-      return { runs: mockRuns, user: null, source: "demo", apiBaseUrl, publicApiBaseUrl };
+      return {
+        runs: mockRuns,
+        threads: [],
+        user: null,
+        source: "demo",
+        apiBaseUrl,
+        publicApiBaseUrl,
+      };
     }
 
     const user = toDashboardUser((await meResponse.json()) as ApiUserProfile);
-    const response = await fetch(`${apiBaseUrl}/runs?limit=10`, {
-      headers: authHeaders,
-      cache: "no-store",
-    });
+    const [runsResponse, threadsResponse] = await Promise.all([
+      fetch(`${apiBaseUrl}/runs?limit=10`, {
+        headers: authHeaders,
+        cache: "no-store",
+      }),
+      fetch(`${apiBaseUrl}/threads?limit=20`, {
+        headers: authHeaders,
+        cache: "no-store",
+      }),
+    ]);
 
-    if (!response.ok) {
-      return { runs: mockRuns, user, source: "demo", apiBaseUrl, publicApiBaseUrl };
+    if (!runsResponse.ok) {
+      return {
+        runs: mockRuns,
+        threads: [],
+        user,
+        source: "demo",
+        apiBaseUrl,
+        publicApiBaseUrl,
+      };
     }
 
-    const runs = (await response.json()) as ApiRunSummary[];
-    return { runs: runs.map(toDashboardRun), user, source: "api", apiBaseUrl, publicApiBaseUrl };
+    const runs = (await runsResponse.json()) as ApiRunSummary[];
+    const threads = threadsResponse.ok
+      ? ((await threadsResponse.json()) as ApiConversationThreadDetail[])
+      : [];
+    return {
+      runs: runs.map(toDashboardRun),
+      threads: threads.map(toDashboardThread),
+      user,
+      source: "api",
+      apiBaseUrl,
+      publicApiBaseUrl,
+    };
   } catch {
-    return { runs: mockRuns, user: null, source: "demo", apiBaseUrl, publicApiBaseUrl };
+    return {
+      runs: mockRuns,
+      threads: [],
+      user: null,
+      source: "demo",
+      apiBaseUrl,
+      publicApiBaseUrl,
+    };
   }
 }
 

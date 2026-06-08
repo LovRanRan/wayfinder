@@ -700,3 +700,39 @@
 - "The worker does not receive OpenAI keys, session secrets, or API database access. It sees only a repo-cache checkout, copies it to an ephemeral directory, runs an allowlisted test command, and deletes the workdir."
 - "The product behavior is honest:if the worker is missing, runtime claims stay unverified; if the worker is healthy, `sandboxed_mcp` becomes a real verifier backend."
 - "This turned `mcp-test-runner` from a local trusted tool into a deployable public verification path without weakening the API runtime."
+
+---
+
+## Commit 21 — Repo Conversation Threads + Memory Layer
+
+### 📚 Sources
+
+- [x] Project-local design note: [`docs/design_notes/017_repo_conversation_threads.md`](docs/design_notes/017_repo_conversation_threads.md) — thread lifecycle, memory policy, API contract, dashboard IA, failure modes, tests, and interview explanation ✅ 2026-06-09
+- [x] API store and schemas: [`src/wayfinder/api/run_store.py`](src/wayfinder/api/run_store.py), [`src/wayfinder/api/schemas.py`](src/wayfinder/api/schemas.py) — `ConversationThread`, `ThreadMessage`, SQLite persistence, linked runs, and bounded memory packets ✅ 2026-06-09
+- [x] API routes: [`src/wayfinder/api/main.py`](src/wayfinder/api/main.py) — `/threads`, `/threads/{thread_id}`, `/threads/{thread_id}/messages`, and follow-up run queuing ✅ 2026-06-09
+- [x] Dashboard workspace: [`dashboard/components/repo-conversation-workspace.tsx`](dashboard/components/repo-conversation-workspace.tsx), [`dashboard/components/agent-workbench.tsx`](dashboard/components/agent-workbench.tsx), [`dashboard/lib/threads.ts`](dashboard/lib/threads.ts) — thread list, timeline, composer, proxy routes, and URL state ✅ 2026-06-09
+- [x] Final writer and synthesis packet: [`src/wayfinder/graph/nodes.py`](src/wayfinder/graph/nodes.py), [`src/wayfinder/graph/synthesis.py`](src/wayfinder/graph/synthesis.py) — memory note in deterministic output and bounded memory in LLM packet ✅ 2026-06-09
+- [x] Regression tests: [`tests/test_api.py`](tests/test_api.py), [`tests/test_grounded_synthesis.py`](tests/test_grounded_synthesis.py) — auth isolation, two follow-ups, SQLite persistence, bounded memory, and no raw memory packet leakage ✅ 2026-06-09
+
+### 🧠 Concepts Internalized
+
+- Threads and runs are different product objects. A run is the grounded graph execution trace; a thread is the human repo workspace where the user keeps asking questions.
+- Conversation memory should create continuity, not truth. It can summarize prior discussion, but it cannot create verified code claims.
+- Bounded memory needs ordering discipline. Preserve repo identity, grounding policy, and recent messages before trimming older summary text.
+- Follow-up chat should reuse the repo URL and thread context, but still call the same grounded graph path when the user asks new code questions.
+- Dashboard default matters. Making Threads the primary tab changes the product from "submit run, inspect answer" to "open repo, continue investigation."
+
+### ⚠️ Gotchas Debugged
+
+- The first follow-up implementation appended the raw memory packet into `query`. Deterministic fallback then printed the entire memory packet in the answer. The fix was to keep `query` as the user's text and pass `conversation_memory` as a separate state field.
+- Creating a thread initially switched the UI into the Answer tab because the thread component reused the old `selectRun()` callback. Commit 21 now syncs linked runs without leaving the thread surface.
+- SQLite persistence needs thread/message tables in the same run store layer as users, sessions, settings, and runs; otherwise refresh/restart would preserve runs but lose the actual conversation.
+- Auth isolation must return 404 for another user's thread, not a leaked thread id or metadata.
+
+### 💼 Interview Soundbites
+
+- "I separated the repo conversation surface from execution traces:threads hold human context, while runs hold LangGraph evidence and verifier labels."
+- "Follow-up chat does not bypass grounding. It reuses bounded memory for continuity, then sends new code questions through the same repo/AST/test evidence path."
+- "The memory layer is intentionally bounded:rolling summary, last messages, selected evidence refs, and a grounding policy. It never passes unlimited history."
+- "I caught and fixed a subtle product bug where raw memory leaked into deterministic answers;now the answer shows a memory note while keeping the actual packet internal."
+- "This is what makes Wayfinder feel like a repo-aware copilot workspace rather than a one-shot deterministic fact panel."

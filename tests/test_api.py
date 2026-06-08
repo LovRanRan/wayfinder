@@ -228,6 +228,241 @@ def test_workspace_auth_scopes_runs_to_owner(monkeypatch: pytest.MonkeyPatch) ->
     assert bob_status.status_code == 404
 
 
+def test_thread_initial_query_creates_run_and_assistant_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs: list[WayfinderState] = []
+
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
+    ) -> FakeApiGraph:
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
+        return FakeApiGraph(inputs=inputs)
+
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+
+    client = TestClient(app)
+    response = client.post(
+        "/threads",
+        json={
+            "repo_url": "local",
+            "title": "Local repo",
+            "initial_query": "Map architecture",
+        },
+    )
+
+    assert response.status_code == 202
+    thread_id = response.json()["thread"]["thread_id"]
+    detail = client.get(f"/threads/{thread_id}").json()
+    assert detail["thread"]["repo_url"] == "local"
+    assert detail["thread"]["last_run_id"] is not None
+    assert [message["role"] for message in detail["messages"]] == ["user", "assistant"]
+    assert detail["messages"][0]["content"] == "Map architecture"
+    assert detail["messages"][1]["source_run_id"] == detail["thread"]["last_run_id"]
+    assert "fake output for Map architecture" in detail["messages"][1]["content"]
+    assert detail["runs"][0]["trace_metadata"]["conversation_thread_id"] == thread_id
+    assert inputs[0]["conversation_thread_id"] == thread_id
+
+
+def test_thread_followup_reuses_repo_and_bounded_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs: list[WayfinderState] = []
+
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
+    ) -> FakeApiGraph:
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
+        return FakeApiGraph(inputs=inputs)
+
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+
+    client = TestClient(app)
+    thread_response = client.post(
+        "/threads",
+        json={"repo_url": "local", "title": "Local repo"},
+    )
+    thread_id = thread_response.json()["thread"]["thread_id"]
+
+    followup_response = client.post(
+        f"/threads/{thread_id}/messages",
+        json={"content": "Where should I change the CLI entry behavior?"},
+    )
+
+    assert followup_response.status_code == 202
+    second_followup_response = client.post(
+        f"/threads/{thread_id}/messages",
+        json={"content": "What tests should cover that path?"},
+    )
+    assert second_followup_response.status_code == 202
+    detail = client.get(f"/threads/{thread_id}").json()
+    assert [message["role"] for message in detail["messages"]] == [
+        "user",
+        "assistant",
+        "user",
+        "assistant",
+    ]
+    assert {run["repo_url"] for run in detail["runs"]} == {"local"}
+    assert inputs[0]["repo_url"] == "local"
+    assert inputs[0]["query"] == "Where should I change the CLI entry behavior?"
+    assert "Wayfinder repo conversation memory" in inputs[0]["conversation_memory"]
+    assert "new code facts must still be grounded" in inputs[0]["conversation_memory"]
+    assert inputs[1]["repo_url"] == "local"
+    assert inputs[1]["query"] == "What tests should cover that path?"
+
+
+def test_threads_are_scoped_to_authenticated_owner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")
+    client = TestClient(app)
+    alice_token = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "alice-threads",
+            "password": "correct-horse",
+            "display_name": "Alice",
+        },
+    ).json()["token"]
+    bob_token = client.post(
+        "/auth/register",
+        json={
+            "workspace_id": "bob-threads",
+            "password": "correct-horse",
+            "display_name": "Bob",
+        },
+    ).json()["token"]
+    alice_headers = {"Authorization": f"Bearer {alice_token}"}
+    bob_headers = {"Authorization": f"Bearer {bob_token}"}
+
+    thread_response = client.post(
+        "/threads",
+        json={"repo_url": "local", "title": "Alice repo"},
+        headers=alice_headers,
+    )
+    thread_id = thread_response.json()["thread"]["thread_id"]
+
+    alice_threads = client.get("/threads", headers=alice_headers).json()
+    assert alice_threads[0]["thread"]["thread_id"] == thread_id
+    assert client.get("/threads", headers=bob_headers).json() == []
+    assert client.get(f"/threads/{thread_id}", headers=bob_headers).status_code == 404
+    assert (
+        client.post(
+            f"/threads/{thread_id}/messages",
+            json={"content": "Explain the entrypoint"},
+            headers=bob_headers,
+        ).status_code
+        == 404
+    )
+
+
+def test_sqlite_thread_history_persists_messages_and_linked_run(tmp_path: Path) -> None:
+    db_path = tmp_path / "runs.sqlite"
+    user = AuthenticatedUser(
+        user_id="user-1",
+        workspace_id="alice",
+        display_name="Alice",
+    )
+    store = SQLiteRunStore(db_path)
+    thread = store.create_thread(user=user, repo_url="local", title="Local repo")
+    user_message = store.append_thread_message(
+        user_id=user.user_id,
+        thread_id=thread.thread_id,
+        role="user",
+        content="Map architecture",
+    )
+    run = store.create(
+        user=user,
+        request=ExplainRequest(repo_url="local", query="Map architecture"),
+        graph_input={"repo_url": "local", "query": "Map architecture"},
+        conversation_thread_id=thread.thread_id,
+        source_message_id=user_message.message_id,
+    )
+    store.mark_completed(
+        run.job_id,
+        result={
+            "final_output": "thread answer",
+            "partial_summaries": {"architect_mapper": "summary"},
+            "verified_claims": [],
+            "unverified_claims": [],
+            "contradicted_claims": [],
+        },
+        trace_metadata={"phase": "thread_initial"},
+    )
+
+    reopened = SQLiteRunStore(db_path)
+    threads = reopened.list_threads(user_id=user.user_id, limit=5)
+    messages = reopened.messages_for_thread(user_id=user.user_id, thread_id=thread.thread_id)
+    runs = reopened.runs_for_thread(user_id=user.user_id, thread_id=thread.thread_id)
+
+    assert threads[0].thread_id == thread.thread_id
+    assert threads[0].last_run_id == run.job_id
+    assert [message.role for message in messages] == ["user", "assistant"]
+    assert messages[1].content == "thread answer"
+    assert messages[1].evidence_refs == [f"run:{run.job_id}", "summary:architect_mapper"]
+    assert runs[0].job_id == run.job_id
+
+
+def test_thread_memory_packet_is_bounded() -> None:
+    store = InMemoryRunStore()
+    user = AuthenticatedUser(
+        user_id="local-dev",
+        workspace_id="local-dev",
+        display_name="Local developer",
+    )
+    thread = store.create_thread(user=user, repo_url="local", title="Local repo")
+    for index in range(10):
+        store.append_thread_message(
+            user_id=user.user_id,
+            thread_id=thread.thread_id,
+            role="user",
+            content=f"message {index} " + ("x" * 200),
+        )
+
+    packet = store.build_thread_memory_packet(
+        user_id=user.user_id,
+        thread_id=thread.thread_id,
+        max_messages=3,
+        max_chars=700,
+    )
+
+    assert len(packet) <= 700
+    assert "message 9" in packet
+    assert "message 0" not in packet
+    assert "new code facts must still be" in packet
+
+
 def test_workspace_settings_defaults_to_safe_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
     monkeypatch.setenv("WAYFINDER_OPENAI_MODEL", "chat-latest")

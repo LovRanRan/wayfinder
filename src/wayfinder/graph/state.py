@@ -64,6 +64,9 @@ class WayfinderState(TypedDict, total=False):
     repo_handle: RepoHandle
     thread_id: str
     user_id: str
+    conversation_thread_id: str
+    source_message_id: str
+    conversation_memory: str
 
     intent: Intent
     route_decision: RouteDecision

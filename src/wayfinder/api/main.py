@@ -23,12 +23,16 @@ from wayfinder.api.run_store import InMemoryRunStore, SQLiteRunStore
 from wayfinder.api.schemas import (
     AuthRequest,
     AuthResponse,
+    ConversationThread,
+    ConversationThreadDetail,
     ExplainRequest,
     RefineRequest,
     RunSummary,
     RuntimeFinalWriter,
     RuntimeLLMRouting,
     SandboxStatus,
+    ThreadCreateRequest,
+    ThreadMessageRequest,
     UserProfile,
     WorkspaceRuntimeSettings,
     WorkspaceSettingsRequest,
@@ -171,6 +175,106 @@ def list_runs(
     ]
 
 
+@app.get("/threads", response_model=list[ConversationThreadDetail])
+def list_threads(
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+    limit: int = Query(default=10, ge=1, le=50),
+) -> list[ConversationThreadDetail]:
+    return [
+        _thread_detail_for_user(user=user, thread_id=thread.thread_id)
+        for thread in _RUNS.list_threads(user_id=user.user_id, limit=limit)
+    ]
+
+
+@app.post(
+    "/threads",
+    response_model=ConversationThreadDetail,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_thread(
+    request: ThreadCreateRequest,
+    background_tasks: BackgroundTasks,
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ConversationThreadDetail:
+    repo_url = request.repo_url.strip()
+    thread = _RUNS.create_thread(
+        user=user,
+        repo_url=repo_url,
+        title=request.title.strip() if request.title is not None else None,
+    )
+    if request.initial_query is not None:
+        user_message = _RUNS.append_thread_message(
+            user_id=user.user_id,
+            thread_id=thread.thread_id,
+            role="user",
+            content=request.initial_query.strip(),
+        )
+        _queue_thread_run(
+            user=user,
+            thread=thread,
+            user_message_id=user_message.message_id,
+            query=request.initial_query.strip(),
+            background_tasks=background_tasks,
+            phase="thread_initial",
+        )
+    return _thread_detail_for_user(user=user, thread_id=thread.thread_id)
+
+
+@app.get("/threads/{thread_id}", response_model=ConversationThreadDetail)
+def get_thread(
+    thread_id: str,
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ConversationThreadDetail:
+    return _thread_detail_for_user(user=user, thread_id=thread_id)
+
+
+@app.post(
+    "/threads/{thread_id}/messages",
+    response_model=ConversationThreadDetail,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def append_thread_message(
+    thread_id: str,
+    request: ThreadMessageRequest,
+    background_tasks: BackgroundTasks,
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ConversationThreadDetail:
+    try:
+        thread = _RUNS.get_thread_for_user(user_id=user.user_id, thread_id=thread_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="thread not found",
+        ) from exc
+    if thread.status == "running":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="thread already has a running Wayfinder job",
+        )
+
+    content = request.content.strip()
+    user_message = _RUNS.append_thread_message(
+        user_id=user.user_id,
+        thread_id=thread.thread_id,
+        role="user",
+        content=content,
+    )
+    memory_packet = _RUNS.build_thread_memory_packet(
+        user_id=user.user_id,
+        thread_id=thread.thread_id,
+    )
+    _queue_thread_run(
+        user=user,
+        thread=thread,
+        user_message_id=user_message.message_id,
+        query=content,
+        background_tasks=background_tasks,
+        phase="thread_followup",
+        memory_packet=memory_packet,
+    )
+    return _thread_detail_for_user(user=user, thread_id=thread.thread_id)
+
+
 @app.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(request: AuthRequest) -> AuthResponse:
     try:
@@ -270,6 +374,59 @@ def explain(
     run = _RUNS.create(user=user, request=request, graph_input=graph_input)
     background_tasks.add_task(_execute_job, run.job_id, "explain")
     return run
+
+
+def _queue_thread_run(
+    *,
+    user: AuthenticatedUser,
+    thread: ConversationThread,
+    user_message_id: str,
+    query: str,
+    background_tasks: BackgroundTasks,
+    phase: str,
+    memory_packet: str | None = None,
+) -> RunSummary:
+    request = ExplainRequest(repo_url=thread.repo_url, query=query)
+    graph_input = _graph_input_from_request(request)
+    if memory_packet is not None:
+        graph_input["conversation_memory"] = memory_packet
+    run = _RUNS.create(
+        user=user,
+        request=request,
+        graph_input=graph_input,
+        conversation_thread_id=thread.thread_id,
+        source_message_id=user_message_id,
+    )
+    background_tasks.add_task(_execute_job, run.job_id, phase)
+    return run
+
+
+def _thread_detail_for_user(
+    *,
+    user: AuthenticatedUser,
+    thread_id: str,
+) -> ConversationThreadDetail:
+    try:
+        thread = _RUNS.get_thread_for_user(user_id=user.user_id, thread_id=thread_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="thread not found",
+        ) from exc
+    messages = _RUNS.messages_for_thread(user_id=user.user_id, thread_id=thread_id)
+    runs = [
+        _mark_stale_running_run_failed(run, env=_runtime_env())
+        for run in _RUNS.runs_for_thread(user_id=user.user_id, thread_id=thread_id)
+    ]
+    active_run = None
+    if thread.last_run_id is not None:
+        active_run = next((run for run in runs if run.job_id == thread.last_run_id), None)
+    return ConversationThreadDetail(
+        thread=thread,
+        messages=messages,
+        runs=runs,
+        active_run=active_run,
+    )
 
 
 def _graph_input_from_request(request: ExplainRequest) -> WayfinderState:

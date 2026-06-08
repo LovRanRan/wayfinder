@@ -20,9 +20,13 @@ from wayfinder.api.auth import (
     verify_password,
 )
 from wayfinder.api.schemas import (
+    ConversationThread,
     ExplainRequest,
     RunError,
     RunSummary,
+    ThreadMessage,
+    ThreadMessageRole,
+    ThreadStatus,
     WorkspaceRuntimeSettings,
 )
 from wayfinder.graph.state import WayfinderState
@@ -38,6 +42,9 @@ class InMemoryRunStore:
         self._users_by_id: dict[str, tuple[AuthenticatedUser, str]] = {}
         self._workspace_to_user_id: dict[str, str] = {}
         self._sessions: dict[str, tuple[str, datetime]] = {}
+        self._threads: dict[str, ConversationThread] = {}
+        self._thread_order: list[str] = []
+        self._thread_messages: dict[str, list[ThreadMessage]] = {}
         self._lock = RLock()
 
     def create_user(
@@ -112,11 +119,17 @@ class InMemoryRunStore:
         user: AuthenticatedUser,
         request: ExplainRequest,
         graph_input: WayfinderState,
+        conversation_thread_id: str | None = None,
+        source_message_id: str | None = None,
     ) -> RunSummary:
         now = datetime.now(UTC)
         job_id = str(uuid4())
         graph_input["thread_id"] = job_id
         graph_input["user_id"] = user.user_id
+        if conversation_thread_id is not None:
+            graph_input["conversation_thread_id"] = conversation_thread_id
+        if source_message_id is not None:
+            graph_input["source_message_id"] = source_message_id
         run = RunSummary(
             job_id=job_id,
             user_id=user.user_id,
@@ -124,6 +137,10 @@ class InMemoryRunStore:
             query=request.query,
             status="queued",
             current_node="queued",
+            trace_metadata=_conversation_trace_metadata(
+                conversation_thread_id=conversation_thread_id,
+                source_message_id=source_message_id,
+            ),
             created_at=now,
             updated_at=now,
         )
@@ -131,6 +148,12 @@ class InMemoryRunStore:
             self._runs[job_id] = run
             self._graph_inputs[job_id] = _copy_graph_input(graph_input)
             self._run_order.insert(0, job_id)
+            if conversation_thread_id is not None:
+                self._set_thread_running(
+                    thread_id=conversation_thread_id,
+                    run_id=job_id,
+                    updated_at=now,
+                )
         return run
 
     def get(self, job_id: str) -> RunSummary:
@@ -171,7 +194,8 @@ class InMemoryRunStore:
         result: WayfinderState,
         trace_metadata: dict[str, str | int | float | bool | None],
     ) -> RunSummary:
-        return self._update(
+        existing = self.get(job_id)
+        updated = self._update(
             job_id,
             status="completed",
             current_node=None,
@@ -182,9 +206,11 @@ class InMemoryRunStore:
             verified_count=len(result.get("verified_claims", [])),
             unverified_count=len(result.get("unverified_claims", [])),
             contradicted_count=len(result.get("contradicted_claims", [])),
-            trace_metadata=trace_metadata,
+            trace_metadata={**existing.trace_metadata, **trace_metadata},
             updated_at=datetime.now(UTC),
         )
+        self._record_thread_assistant_message_from_run(updated)
+        return updated
 
     def mark_failed(
         self,
@@ -195,7 +221,8 @@ class InMemoryRunStore:
         trace_metadata: dict[str, str | int | float | bool | None],
     ) -> RunSummary:
         message = str(exc) or type(exc).__name__
-        return self._update(
+        existing = self.get(job_id)
+        updated = self._update(
             job_id,
             status="failed",
             current_node=None,
@@ -208,9 +235,11 @@ class InMemoryRunStore:
                     retryable=False,
                 )
             ],
-            trace_metadata=trace_metadata,
+            trace_metadata={**existing.trace_metadata, **trace_metadata},
             updated_at=datetime.now(UTC),
         )
+        self._record_thread_assistant_message_from_run(updated)
+        return updated
 
     def queue_refine(self, *, user_id: str, job_id: str, correction: str) -> RunSummary:
         with self._lock:
@@ -239,6 +268,178 @@ class InMemoryRunStore:
             )
             self._runs[job_id] = updated
             return updated
+
+    def create_thread(
+        self,
+        *,
+        user: AuthenticatedUser,
+        repo_url: str,
+        title: str | None = None,
+    ) -> ConversationThread:
+        now = datetime.now(UTC)
+        repo_name = _repo_name_from_ref(repo_url)
+        thread = ConversationThread(
+            thread_id=str(uuid4()),
+            user_id=user.user_id,
+            repo_url=repo_url,
+            repo_name=repo_name,
+            title=(title or repo_name).strip(),
+            status="active",
+            created_at=now,
+            updated_at=now,
+        )
+        with self._lock:
+            self._threads[thread.thread_id] = thread
+            self._thread_messages[thread.thread_id] = []
+            self._thread_order.insert(0, thread.thread_id)
+        return thread
+
+    def list_threads(self, *, user_id: str, limit: int) -> list[ConversationThread]:
+        with self._lock:
+            threads = [
+                self._threads[thread_id]
+                for thread_id in self._thread_order
+                if self._threads[thread_id].user_id == user_id
+            ]
+        return sorted(threads, key=lambda thread: thread.updated_at, reverse=True)[:limit]
+
+    def get_thread_for_user(self, *, user_id: str, thread_id: str) -> ConversationThread:
+        with self._lock:
+            thread = self._threads[thread_id]
+            if thread.user_id != user_id:
+                raise KeyError(thread_id)
+            return thread
+
+    def messages_for_thread(self, *, user_id: str, thread_id: str) -> list[ThreadMessage]:
+        self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        with self._lock:
+            return list(self._thread_messages.get(thread_id, []))
+
+    def runs_for_thread(self, *, user_id: str, thread_id: str) -> list[RunSummary]:
+        self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        with self._lock:
+            runs = [
+                run
+                for run in self._runs.values()
+                if run.user_id == user_id
+                and run.trace_metadata.get("conversation_thread_id") == thread_id
+            ]
+        return sorted(runs, key=lambda run: run.created_at)
+
+    def append_thread_message(
+        self,
+        *,
+        user_id: str,
+        thread_id: str,
+        role: ThreadMessageRole,
+        content: str,
+        source_run_id: str | None = None,
+        evidence_refs: list[str] | None = None,
+        verified_count: int = 0,
+        unverified_count: int = 0,
+        contradicted_count: int = 0,
+        trace_metadata: dict[str, str | int | float | bool | None] | None = None,
+    ) -> ThreadMessage:
+        self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        now = datetime.now(UTC)
+        message = ThreadMessage(
+            message_id=str(uuid4()),
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            created_at=now,
+            source_run_id=source_run_id,
+            evidence_refs=evidence_refs or [],
+            verified_count=verified_count,
+            unverified_count=unverified_count,
+            contradicted_count=contradicted_count,
+            trace_metadata=trace_metadata or {},
+        )
+        with self._lock:
+            self._thread_messages.setdefault(thread_id, []).append(message)
+            thread = self._threads[thread_id]
+            self._threads[thread_id] = thread.model_copy(
+                update={
+                    "updated_at": now,
+                    "summary_memory": _summary_memory_from_messages(
+                        self._thread_messages[thread_id]
+                    ),
+                }
+            )
+        return message
+
+    def build_thread_memory_packet(
+        self,
+        *,
+        user_id: str,
+        thread_id: str,
+        max_messages: int = 6,
+        max_chars: int = 4000,
+    ) -> str:
+        thread = self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        messages = self.messages_for_thread(user_id=user_id, thread_id=thread_id)
+        return _bounded_memory_packet(
+            thread=thread,
+            messages=messages,
+            max_messages=max_messages,
+            max_chars=max_chars,
+        )
+
+    def _set_thread_running(
+        self,
+        *,
+        thread_id: str,
+        run_id: str,
+        updated_at: datetime,
+    ) -> None:
+        thread = self._threads.get(thread_id)
+        if thread is None:
+            return
+        self._threads[thread_id] = thread.model_copy(
+            update={
+                "status": "running",
+                "last_run_id": run_id,
+                "updated_at": updated_at,
+            }
+        )
+
+    def _record_thread_assistant_message_from_run(self, run: RunSummary) -> None:
+        thread_id = _string_trace_value(run.trace_metadata.get("conversation_thread_id"))
+        if thread_id is None:
+            return
+        with self._lock:
+            thread = self._threads.get(thread_id)
+            if thread is None or thread.user_id != run.user_id:
+                return
+            if _message_for_run_exists(self._thread_messages.get(thread_id, []), run.job_id):
+                return
+        role: ThreadMessageRole = "assistant" if run.status == "completed" else "system"
+        content = (
+            run.final_output
+            if run.status == "completed" and run.final_output
+            else f"Wayfinder run failed: {run.error or 'unknown error'}"
+        )
+        self.append_thread_message(
+            user_id=run.user_id,
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            source_run_id=run.job_id,
+            evidence_refs=_evidence_refs_from_run(run),
+            verified_count=run.verified_count,
+            unverified_count=run.unverified_count,
+            contradicted_count=run.contradicted_count,
+            trace_metadata=run.trace_metadata,
+        )
+        with self._lock:
+            thread = self._threads[thread_id]
+            self._threads[thread_id] = thread.model_copy(
+                update={
+                    "status": "active" if run.status == "completed" else "failed",
+                    "last_run_id": run.job_id,
+                    "updated_at": run.updated_at,
+                }
+            )
 
     def _update(self, job_id: str, **updates: object) -> RunSummary:
         with self._lock:
@@ -290,6 +491,35 @@ class SQLiteRunStore(InMemoryRunStore):
                     settings_json TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS conversation_threads (
+                    thread_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL REFERENCES users(user_id),
+                    repo_url TEXT NOT NULL,
+                    repo_name TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    last_run_id TEXT,
+                    summary_memory TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_conversation_threads_user_updated
+                    ON conversation_threads(user_id, updated_at DESC);
+                CREATE TABLE IF NOT EXISTS thread_messages (
+                    message_id TEXT PRIMARY KEY,
+                    thread_id TEXT NOT NULL REFERENCES conversation_threads(thread_id),
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    source_run_id TEXT,
+                    evidence_refs_json TEXT NOT NULL,
+                    verified_count INTEGER NOT NULL,
+                    unverified_count INTEGER NOT NULL,
+                    contradicted_count INTEGER NOT NULL,
+                    trace_metadata_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_thread_messages_thread_created
+                    ON thread_messages(thread_id, created_at ASC);
                 """
             )
 
@@ -435,11 +665,17 @@ class SQLiteRunStore(InMemoryRunStore):
         user: AuthenticatedUser,
         request: ExplainRequest,
         graph_input: WayfinderState,
+        conversation_thread_id: str | None = None,
+        source_message_id: str | None = None,
     ) -> RunSummary:
         now = datetime.now(UTC)
         job_id = str(uuid4())
         graph_input["thread_id"] = job_id
         graph_input["user_id"] = user.user_id
+        if conversation_thread_id is not None:
+            graph_input["conversation_thread_id"] = conversation_thread_id
+        if source_message_id is not None:
+            graph_input["source_message_id"] = source_message_id
         run = RunSummary(
             job_id=job_id,
             user_id=user.user_id,
@@ -447,10 +683,20 @@ class SQLiteRunStore(InMemoryRunStore):
             query=request.query,
             status="queued",
             current_node="queued",
+            trace_metadata=_conversation_trace_metadata(
+                conversation_thread_id=conversation_thread_id,
+                source_message_id=source_message_id,
+            ),
             created_at=now,
             updated_at=now,
         )
         self._write_run(run=run, graph_input=graph_input)
+        if conversation_thread_id is not None:
+            self._set_thread_running(
+                thread_id=conversation_thread_id,
+                run_id=job_id,
+                updated_at=now,
+            )
         return run
 
     def get(self, job_id: str) -> RunSummary:
@@ -548,6 +794,287 @@ class SQLiteRunStore(InMemoryRunStore):
             _graph_input_from_jsonable(json.loads(str(row["graph_input_json"]))),
         )
 
+    def create_thread(
+        self,
+        *,
+        user: AuthenticatedUser,
+        repo_url: str,
+        title: str | None = None,
+    ) -> ConversationThread:
+        now = datetime.now(UTC)
+        repo_name = _repo_name_from_ref(repo_url)
+        thread = ConversationThread(
+            thread_id=str(uuid4()),
+            user_id=user.user_id,
+            repo_url=repo_url,
+            repo_name=repo_name,
+            title=(title or repo_name).strip(),
+            status="active",
+            created_at=now,
+            updated_at=now,
+        )
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO conversation_threads (
+                    thread_id,
+                    user_id,
+                    repo_url,
+                    repo_name,
+                    title,
+                    status,
+                    last_run_id,
+                    summary_memory,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    thread.thread_id,
+                    thread.user_id,
+                    thread.repo_url,
+                    thread.repo_name,
+                    thread.title,
+                    thread.status,
+                    thread.last_run_id,
+                    thread.summary_memory,
+                    _datetime_to_text(thread.created_at),
+                    _datetime_to_text(thread.updated_at),
+                ),
+            )
+        return thread
+
+    def list_threads(self, *, user_id: str, limit: int) -> list[ConversationThread]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT *
+                FROM conversation_threads
+                WHERE user_id = ?
+                ORDER BY updated_at DESC
+                LIMIT ?
+                """,
+                (user_id, limit),
+            ).fetchall()
+        return [_thread_from_row(row) for row in rows]
+
+    def get_thread_for_user(self, *, user_id: str, thread_id: str) -> ConversationThread:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT * FROM conversation_threads WHERE thread_id = ?",
+                (thread_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(thread_id)
+        thread = _thread_from_row(row)
+        if thread.user_id != user_id:
+            raise KeyError(thread_id)
+        return thread
+
+    def messages_for_thread(self, *, user_id: str, thread_id: str) -> list[ThreadMessage]:
+        self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT *
+                FROM thread_messages
+                WHERE thread_id = ?
+                ORDER BY created_at ASC
+                """,
+                (thread_id,),
+            ).fetchall()
+        return [_message_from_row(row) for row in rows]
+
+    def runs_for_thread(self, *, user_id: str, thread_id: str) -> list[RunSummary]:
+        self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT run_json
+                FROM runs
+                WHERE user_id = ?
+                ORDER BY created_at ASC
+                """,
+                (user_id,),
+            ).fetchall()
+        runs = [RunSummary.model_validate_json(str(row["run_json"])) for row in rows]
+        return [
+            run
+            for run in runs
+            if run.trace_metadata.get("conversation_thread_id") == thread_id
+        ]
+
+    def append_thread_message(
+        self,
+        *,
+        user_id: str,
+        thread_id: str,
+        role: ThreadMessageRole,
+        content: str,
+        source_run_id: str | None = None,
+        evidence_refs: list[str] | None = None,
+        verified_count: int = 0,
+        unverified_count: int = 0,
+        contradicted_count: int = 0,
+        trace_metadata: dict[str, str | int | float | bool | None] | None = None,
+    ) -> ThreadMessage:
+        self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        now = datetime.now(UTC)
+        message = ThreadMessage(
+            message_id=str(uuid4()),
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            created_at=now,
+            source_run_id=source_run_id,
+            evidence_refs=evidence_refs or [],
+            verified_count=verified_count,
+            unverified_count=unverified_count,
+            contradicted_count=contradicted_count,
+            trace_metadata=trace_metadata or {},
+        )
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO thread_messages (
+                    message_id,
+                    thread_id,
+                    role,
+                    content,
+                    source_run_id,
+                    evidence_refs_json,
+                    verified_count,
+                    unverified_count,
+                    contradicted_count,
+                    trace_metadata_json,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    message.message_id,
+                    message.thread_id,
+                    message.role,
+                    message.content,
+                    message.source_run_id,
+                    json.dumps(message.evidence_refs, sort_keys=True),
+                    message.verified_count,
+                    message.unverified_count,
+                    message.contradicted_count,
+                    json.dumps(message.trace_metadata, sort_keys=True),
+                    _datetime_to_text(message.created_at),
+                ),
+            )
+            rows = self._connection.execute(
+                """
+                SELECT *
+                FROM thread_messages
+                WHERE thread_id = ?
+                ORDER BY created_at ASC
+                """,
+                (thread_id,),
+            ).fetchall()
+            summary_memory = _summary_memory_from_messages([_message_from_row(row) for row in rows])
+            self._connection.execute(
+                """
+                UPDATE conversation_threads
+                SET updated_at = ?, summary_memory = ?
+                WHERE thread_id = ?
+                """,
+                (_datetime_to_text(now), summary_memory, thread_id),
+            )
+        return message
+
+    def build_thread_memory_packet(
+        self,
+        *,
+        user_id: str,
+        thread_id: str,
+        max_messages: int = 6,
+        max_chars: int = 4000,
+    ) -> str:
+        thread = self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        messages = self.messages_for_thread(user_id=user_id, thread_id=thread_id)
+        return _bounded_memory_packet(
+            thread=thread,
+            messages=messages,
+            max_messages=max_messages,
+            max_chars=max_chars,
+        )
+
+    def _set_thread_running(
+        self,
+        *,
+        thread_id: str,
+        run_id: str,
+        updated_at: datetime,
+    ) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE conversation_threads
+                SET status = ?, last_run_id = ?, updated_at = ?
+                WHERE thread_id = ?
+                """,
+                ("running", run_id, _datetime_to_text(updated_at), thread_id),
+            )
+
+    def _record_thread_assistant_message_from_run(self, run: RunSummary) -> None:
+        thread_id = _string_trace_value(run.trace_metadata.get("conversation_thread_id"))
+        if thread_id is None:
+            return
+        with self._lock:
+            thread_row = self._connection.execute(
+                "SELECT user_id FROM conversation_threads WHERE thread_id = ?",
+                (thread_id,),
+            ).fetchone()
+            if thread_row is None or str(thread_row["user_id"]) != run.user_id:
+                return
+            existing = self._connection.execute(
+                """
+                SELECT 1
+                FROM thread_messages
+                WHERE thread_id = ? AND source_run_id = ?
+                LIMIT 1
+                """,
+                (thread_id, run.job_id),
+            ).fetchone()
+            if existing is not None:
+                return
+        role: ThreadMessageRole = "assistant" if run.status == "completed" else "system"
+        content = (
+            run.final_output
+            if run.status == "completed" and run.final_output
+            else f"Wayfinder run failed: {run.error or 'unknown error'}"
+        )
+        self.append_thread_message(
+            user_id=run.user_id,
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            source_run_id=run.job_id,
+            evidence_refs=_evidence_refs_from_run(run),
+            verified_count=run.verified_count,
+            unverified_count=run.unverified_count,
+            contradicted_count=run.contradicted_count,
+            trace_metadata=run.trace_metadata,
+        )
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE conversation_threads
+                SET status = ?, last_run_id = ?, updated_at = ?
+                WHERE thread_id = ?
+                """,
+                (
+                    "active" if run.status == "completed" else "failed",
+                    run.job_id,
+                    _datetime_to_text(run.updated_at),
+                    thread_id,
+                ),
+            )
+
 
 def _user_from_row(row: sqlite3.Row) -> AuthenticatedUser:
     return AuthenticatedUser(
@@ -555,6 +1082,44 @@ def _user_from_row(row: sqlite3.Row) -> AuthenticatedUser:
         workspace_id=str(row["workspace_id"]),
         display_name=str(row["display_name"]),
     )
+
+
+def _thread_from_row(row: sqlite3.Row) -> ConversationThread:
+    return ConversationThread(
+        thread_id=str(row["thread_id"]),
+        user_id=str(row["user_id"]),
+        repo_url=str(row["repo_url"]),
+        repo_name=str(row["repo_name"]),
+        title=str(row["title"]),
+        status=cast(ThreadStatus, str(row["status"])),
+        created_at=_datetime_from_text(str(row["created_at"])),
+        updated_at=_datetime_from_text(str(row["updated_at"])),
+        last_run_id=_optional_text(row["last_run_id"]),
+        summary_memory=_optional_text(row["summary_memory"]),
+    )
+
+
+def _message_from_row(row: sqlite3.Row) -> ThreadMessage:
+    return ThreadMessage(
+        message_id=str(row["message_id"]),
+        thread_id=str(row["thread_id"]),
+        role=cast(ThreadMessageRole, str(row["role"])),
+        content=str(row["content"]),
+        created_at=_datetime_from_text(str(row["created_at"])),
+        source_run_id=_optional_text(row["source_run_id"]),
+        evidence_refs=_json_string_list(str(row["evidence_refs_json"])),
+        verified_count=int(row["verified_count"]),
+        unverified_count=int(row["unverified_count"]),
+        contradicted_count=int(row["contradicted_count"]),
+        trace_metadata=_json_trace_metadata(str(row["trace_metadata_json"])),
+    )
+
+
+def _optional_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value)
+    return text if text else None
 
 
 def _datetime_to_text(value: datetime) -> str:
@@ -621,3 +1186,119 @@ def _graph_input_from_jsonable(payload: object) -> WayfinderState:
 
 def _is_json_scalar(value: object) -> bool:
     return value is None or isinstance(value, str | int | float | bool)
+
+
+def _conversation_trace_metadata(
+    *,
+    conversation_thread_id: str | None,
+    source_message_id: str | None,
+) -> dict[str, str | int | float | bool | None]:
+    metadata: dict[str, str | int | float | bool | None] = {}
+    if conversation_thread_id is not None:
+        metadata["conversation_thread_id"] = conversation_thread_id
+    if source_message_id is not None:
+        metadata["source_message_id"] = source_message_id
+    return metadata
+
+
+def _string_trace_value(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _repo_name_from_ref(repo_ref: str) -> str:
+    stripped = repo_ref.strip().rstrip("/")
+    if not stripped:
+        return "repo"
+    if stripped.startswith("http://") or stripped.startswith("https://"):
+        parts = [part for part in stripped.split("/") if part]
+        if len(parts) >= 2:
+            return "/".join(parts[-2:])
+    path = Path(stripped)
+    if path.name:
+        return path.name
+    parts = [part for part in stripped.split("/") if part]
+    return parts[-1] if parts else stripped
+
+
+def _message_for_run_exists(messages: list[ThreadMessage], run_id: str) -> bool:
+    return any(message.source_run_id == run_id for message in messages)
+
+
+def _evidence_refs_from_run(run: RunSummary) -> list[str]:
+    refs = [f"run:{run.job_id}"]
+    refs.extend(f"summary:{name}" for name in sorted(run.partial_summaries))
+    if run.trace_url is not None:
+        refs.append(f"trace:{run.trace_url}")
+    return refs
+
+
+def _summary_memory_from_messages(messages: list[ThreadMessage]) -> str | None:
+    if not messages:
+        return None
+    lines = [
+        f"{message.role}: {_single_line_excerpt(message.content, max_chars=180)}"
+        for message in messages[-6:]
+    ]
+    return _truncate_text("\n".join(lines), max_chars=1200)
+
+
+def _bounded_memory_packet(
+    *,
+    thread: ConversationThread,
+    messages: list[ThreadMessage],
+    max_messages: int,
+    max_chars: int,
+) -> str:
+    recent_messages = messages[-max_messages:]
+    lines = [
+        "Wayfinder repo conversation memory:",
+        f"Repo: {thread.repo_name} ({thread.repo_url})",
+        "Memory source: bounded thread summary plus recent messages.",
+        "Policy: memory can summarize prior discussion; new code facts must still be "
+        "grounded in repo/AST/test evidence and labeled when unverified.",
+    ]
+    if recent_messages:
+        lines.extend(["", f"Last {len(recent_messages)} messages:"])
+        message_excerpt_chars = 220 if max_chars >= 1200 else 80
+        for message in recent_messages:
+            evidence = (
+                f" [evidence: {', '.join(message.evidence_refs[:3])}]"
+                if message.evidence_refs
+                else ""
+            )
+            lines.append(
+                f"- {message.role}: "
+                f"{_single_line_excerpt(message.content, max_chars=message_excerpt_chars)}"
+                f"{evidence}"
+            )
+    if thread.summary_memory:
+        lines.extend(["", "Rolling summary:", _truncate_text(thread.summary_memory, max_chars=900)])
+    return _truncate_text("\n".join(lines), max_chars=max_chars)
+
+
+def _single_line_excerpt(text: str, *, max_chars: int) -> str:
+    return _truncate_text(" ".join(text.split()), max_chars=max_chars)
+
+
+def _truncate_text(text: str, *, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    return f"{text[: max_chars - 3]}..."
+
+
+def _json_string_list(payload: str) -> list[str]:
+    parsed = json.loads(payload)
+    if not isinstance(parsed, list):
+        return []
+    return [item for item in parsed if isinstance(item, str)]
+
+
+def _json_trace_metadata(payload: str) -> dict[str, str | int | float | bool | None]:
+    parsed = json.loads(payload)
+    if not isinstance(parsed, dict):
+        return {}
+    metadata: dict[str, str | int | float | bool | None] = {}
+    for key, value in parsed.items():
+        if isinstance(key, str) and _is_json_scalar(value):
+            metadata[key] = cast(str | int | float | bool | None, value)
+    return metadata

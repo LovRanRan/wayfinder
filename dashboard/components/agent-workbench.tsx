@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CurrentRunConsole } from "@/components/current-run-console";
 import { DashboardStats } from "@/components/dashboard-stats";
+import { RepoConversationWorkspace } from "@/components/repo-conversation-workspace";
 import { RunBriefingPanel } from "@/components/run-briefing-panel";
 import { RunLauncher } from "@/components/run-launcher";
 import { RunStatusTable } from "@/components/run-status-table";
@@ -12,26 +13,35 @@ import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
 import { WorkspaceMetrics } from "@/components/workspace-metrics";
 import { WorkspaceSettingsPanel } from "@/components/workspace-settings";
 import { buildDashboardMetrics, toDashboardRun } from "@/lib/metrics";
-import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
+import { upsertThread } from "@/lib/threads";
+import type { ApiRunSummary, DashboardRun, DashboardThread, RunStatus } from "@/lib/types";
 
 const activeStatuses: RunStatus[] = ["queued", "running"];
 
 type AgentWorkbenchProps = {
   runs: DashboardRun[];
+  threads: DashboardThread[];
   source: "api" | "demo";
   publicApiBaseUrl: string;
 };
 
-export function AgentWorkbench({ runs, source, publicApiBaseUrl }: AgentWorkbenchProps) {
+export function AgentWorkbench({
+  runs,
+  threads,
+  source,
+  publicApiBaseUrl,
+}: AgentWorkbenchProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedJobId = searchParams.get("job");
+  const selectedThreadId = searchParams.get("thread");
   const requestedTab = workspaceTabFromParam(searchParams.get("tab"));
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(() =>
-    requestedTab ?? (selectedJobId === null ? "run" : "answer"),
+    requestedTab ?? (selectedJobId === null ? "threads" : "answer"),
   );
   const [liveRuns, setLiveRuns] = useState<DashboardRun[]>(runs);
+  const [liveThreads, setLiveThreads] = useState<DashboardThread[]>(threads);
   const [selectedRun, setSelectedRun] = useState<DashboardRun | null>(() =>
     runFromJobId(runs, selectedJobId),
   );
@@ -44,13 +54,20 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl }: AgentWorkbenc
   );
 
   const updateUrl = useCallback(
-    (updates: { job?: string | null; tab?: WorkspaceTab | null }) => {
+    (updates: { job?: string | null; thread?: string | null; tab?: WorkspaceTab | null }) => {
       const params = new URLSearchParams(searchParams.toString());
       if (updates.job !== undefined) {
         if (updates.job === null) {
           params.delete("job");
         } else {
           params.set("job", updates.job);
+        }
+      }
+      if (updates.thread !== undefined) {
+        if (updates.thread === null) {
+          params.delete("thread");
+        } else {
+          params.set("thread", updates.thread);
         }
       }
       if (updates.tab !== undefined) {
@@ -82,9 +99,29 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl }: AgentWorkbenc
     [updateUrl],
   );
 
+  const syncRun = useCallback((run: DashboardRun | null) => {
+    setSelectedRun(run);
+    if (run !== null) {
+      setLiveRuns((currentRuns) => upsertRun(currentRuns, run));
+    }
+  }, []);
+
+  const selectThread = useCallback(
+    (thread: DashboardThread) => {
+      setLiveThreads((currentThreads) => upsertThread(currentThreads, thread));
+      updateUrl({ thread: thread.threadId, tab: "threads" });
+      setActiveTab("threads");
+    },
+    [updateUrl],
+  );
+
   useEffect(() => {
     setLiveRuns(runs);
   }, [runs]);
+
+  useEffect(() => {
+    setLiveThreads(threads);
+  }, [threads]);
 
   useEffect(() => {
     setSelectedRun((currentRun) => {
@@ -108,8 +145,12 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl }: AgentWorkbenc
     }
     if (selectedJobId !== null) {
       setActiveTab("answer");
+      return;
     }
-  }, [requestedTab, selectedJobId]);
+    if (selectedThreadId !== null) {
+      setActiveTab("threads");
+    }
+  }, [requestedTab, selectedJobId, selectedThreadId]);
 
   useEffect(() => {
     if (
@@ -241,6 +282,16 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl }: AgentWorkbenc
       <DashboardStats metrics={metrics} onOpenMetrics={() => changeTab("metrics")} />
       <WorkspaceTabs activeTab={activeTab} onTabChange={changeTab} />
 
+      {activeTab === "threads" ? (
+        <RepoConversationWorkspace
+          threads={liveThreads}
+          selectedThreadId={selectedThreadId}
+          source={source}
+          onThreadChange={selectThread}
+          onRunChange={syncRun}
+        />
+      ) : null}
+
       {activeTab === "run" ? (
         <div className="grid gap-4 xl:grid-cols-[minmax(360px,0.74fr)_minmax(0,1.26fr)]">
           <div className="grid gap-4 self-start">
@@ -296,6 +347,7 @@ function runFromJobId(runs: DashboardRun[], jobId: string | null): DashboardRun 
 
 function workspaceTabFromParam(value: string | null): WorkspaceTab | null {
   if (
+    value === "threads" ||
     value === "run" ||
     value === "answer" ||
     value === "history" ||

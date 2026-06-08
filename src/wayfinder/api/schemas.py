@@ -6,6 +6,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 RunStatus = Literal["queued", "running", "completed", "failed"]
+ThreadStatus = Literal["active", "running", "failed", "archived"]
+ThreadMessageRole = Literal["user", "assistant", "system"]
 TraceMetadataValue = str | int | float | bool | None
 RuntimeLLMRouting = Literal["off", "openai"]
 RuntimeFinalWriter = Literal["deterministic", "openai"]
@@ -19,6 +21,16 @@ class ExplainRequest(BaseModel):
 
 class RefineRequest(BaseModel):
     correction: str = Field(min_length=1)
+
+
+class ThreadCreateRequest(BaseModel):
+    repo_url: str = Field(min_length=1)
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    initial_query: str | None = Field(default=None, min_length=1)
+
+
+class ThreadMessageRequest(BaseModel):
+    content: str = Field(min_length=1)
 
 
 class AuthRequest(BaseModel):
@@ -93,3 +105,37 @@ class RunSummary(BaseModel):
     trace_metadata: dict[str, TraceMetadataValue] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
+
+
+class ThreadMessage(BaseModel):
+    message_id: str
+    thread_id: str
+    role: ThreadMessageRole
+    content: str
+    created_at: datetime
+    source_run_id: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    verified_count: int = 0
+    unverified_count: int = 0
+    contradicted_count: int = 0
+    trace_metadata: dict[str, TraceMetadataValue] = Field(default_factory=dict)
+
+
+class ConversationThread(BaseModel):
+    thread_id: str
+    user_id: str
+    repo_url: str
+    repo_name: str
+    title: str
+    status: ThreadStatus
+    created_at: datetime
+    updated_at: datetime
+    last_run_id: str | None = None
+    summary_memory: str | None = None
+
+
+class ConversationThreadDetail(BaseModel):
+    thread: ConversationThread
+    messages: list[ThreadMessage] = Field(default_factory=list)
+    runs: list[RunSummary] = Field(default_factory=list)
+    active_run: RunSummary | None = None

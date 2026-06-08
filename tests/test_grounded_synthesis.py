@@ -77,6 +77,24 @@ def test_final_writer_falls_back_when_llm_synthesis_fails() -> None:
     assert result["errors"][0]["error_type"] == "llm_synthesis_unavailable"
 
 
+def test_final_writer_marks_thread_memory_without_dumping_packet() -> None:
+    node = build_final_writer_node()
+
+    result = node(
+        {
+            "repo_url": "repo",
+            "query": "Summarize what we learned",
+            "conversation_memory": "RAW MEMORY PACKET SHOULD NOT BE PRINTED",
+            "partial_summaries": {"architect_mapper": "Repository facts"},
+        }
+    )
+
+    assert "Thread memory: prior repo conversation context was used" in (
+        result["final_output"] or ""
+    )
+    assert "RAW MEMORY PACKET SHOULD NOT BE PRINTED" not in (result["final_output"] or "")
+
+
 def test_final_writer_collects_community_context_as_supporting_context_only() -> None:
     context_items: list[CommunityContextItem] = [
         {

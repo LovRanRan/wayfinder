@@ -1,4 +1,4 @@
-# wayfinder DESIGN v1.1
+# wayfinder DESIGN v1.2
 
 ## 1. Product Contract
 
@@ -157,20 +157,31 @@ FastAPI endpoints:
 
 - `GET /health`
 - `GET /runs?limit=10`
+- `GET /threads?limit=20`
+- `POST /threads`
+- `GET /threads/{thread_id}`
+- `POST /threads/{thread_id}/messages`
 - `POST /explain`
 - `GET /status/{job_id}`
 - `POST /refine/{job_id}`
 
-`POST /explain` creates a queued job and schedules graph execution with FastAPI `BackgroundTasks`.
+`POST /threads` creates a repo-scoped conversation thread and can immediately
+start the first grounded run when `initial_query` is present. `POST
+/threads/{thread_id}/messages` appends a follow-up message, builds a bounded
+conversation memory packet, and starts the same grounded graph path without the
+user re-pasting the repo URL. `POST /explain` remains as a compatible one-shot
+run endpoint.
 
 The API stores:
 
 - public `RunSummary`;
+- user-scoped `ConversationThread` and `ThreadMessage` records;
 - internal graph input by `job_id`;
 - process-local checkpointer;
 - trace metadata.
 
-`job_id` is the graph `thread_id`.
+`job_id` is the graph `thread_id`. `ConversationThread.thread_id` is the human
+repo workspace identifier and is linked through run trace metadata.
 
 Production caveat: current runtime is process-local. Multi-worker deployment needs a durable run store and checkpointer.
 
@@ -203,8 +214,10 @@ The dashboard consumes the same metadata for latency, cost, token, route, and fa
 
 Next.js dashboard behavior:
 
-- server-side fetch from `GET /runs?limit=10`;
+- server-side fetch from `GET /threads?limit=20` and `GET /runs?limit=10`;
 - fallback to seeded demo data when API is unavailable;
+- repo thread sidebar, selected thread timeline, evidence chips, and follow-up
+  composer as the primary workspace surface;
 - recent runs table with trace links;
 - current run summary;
 - per-agent P50/P95 latency;
@@ -372,3 +385,30 @@ WAYFINDER_TEST_SANDBOX_TOKEN=
 repository/AST evidence can still verify code facts. `sandboxed_mcp` performs a
 live sandbox worker health check before returning a remote verifier adapter. If
 the worker is missing or unhealthy, executable claims remain unverified.
+
+## 16. Repo Conversation Threads
+
+Commit 21 makes Wayfinder a repo-aware conversation workspace instead of only a
+one-shot run dashboard. Threads and runs have separate responsibilities:
+
+- `ConversationThread` is the human workspace for one repo and one user.
+- `ThreadMessage` stores user, assistant, and system messages with linked run
+  ids, evidence refs, verification counts, and trace metadata.
+- `RunSummary` remains the execution trace for a graph run.
+
+Thread persistence uses the existing run store layer. In SQLite mode, the same
+database stores users, sessions, workspace settings, runs, threads, and
+messages, so refreshing or restarting the API preserves repo conversations.
+
+Follow-up messages build a bounded memory packet:
+
+- repo title and repo URL;
+- rolling thread summary;
+- last N messages;
+- selected evidence refs;
+- grounding policy text.
+
+The memory packet is continuity context, not a new source of code truth. If a
+follow-up asks for new code facts, the API still starts the grounded graph path.
+Memory-derived context is allowed to summarize prior discussion, but verified
+code claims must still come from repo, AST, or sandbox/test evidence.

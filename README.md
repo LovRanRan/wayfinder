@@ -33,6 +33,9 @@ User / Dashboard
       |
       v
 FastAPI runtime
+  POST /threads
+  GET  /threads
+  POST /threads/{thread_id}/messages
   POST /explain
   GET  /runs
   GET  /status/{job_id}
@@ -52,6 +55,7 @@ final_writer + resilience/reflection layer
       |
       v
 RunSummary + trace metadata + dashboard panels
+ConversationThread + bounded memory + message history
 ```
 
 ## Tech Stack
@@ -131,9 +135,42 @@ test path.
 
 ## API
 
+### `POST /threads`
+
+Creates a repo-scoped conversation thread. If `initial_query` is provided, the
+API stores the first user message and starts a normal grounded Wayfinder run.
+
+```bash
+curl -X POST http://localhost:8000/threads \
+  -H "Content-Type: application/json" \
+  -d '{"repo_url":".","initial_query":"Map the architecture and entry points"}'
+```
+
+### `GET /threads`
+
+Returns the current user's repo threads, messages, and linked runs.
+
+```bash
+curl "http://localhost:8000/threads?limit=20"
+```
+
+### `POST /threads/{thread_id}/messages`
+
+Adds a follow-up question to an existing repo thread. The follow-up reuses the
+thread repo URL and a bounded memory packet, then starts the same grounded graph
+path as a normal run.
+
+```bash
+curl -X POST http://localhost:8000/threads/<thread_id>/messages \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Where should I change the CLI entry behavior?"}'
+```
+
 ### `POST /explain`
 
-Starts a queued run.
+Starts a queued one-shot run. This remains available for backward compatibility
+and run-level debugging; the dashboard primary path is repo conversation
+threads.
 
 ```bash
 curl -X POST http://localhost:8000/explain \
@@ -175,9 +212,13 @@ curl "http://localhost:8000/runs?limit=10"
 
 ## Dashboard
 
-The dashboard reads `GET /runs?limit=10` from `WAYFINDER_API_BASE_URL`.
+The dashboard reads `GET /threads?limit=20` and `GET /runs?limit=10` from
+`WAYFINDER_API_BASE_URL`.
 The browser-facing launcher uses dashboard proxy routes:
 
+- `POST /api/wayfinder/threads`
+- `GET /api/wayfinder/threads/{thread_id}`
+- `POST /api/wayfinder/threads/{thread_id}/messages`
 - `POST /api/wayfinder/explain`
 - `GET /api/wayfinder/status/{job_id}`
 - `POST /api/wayfinder/refine/{job_id}`
@@ -188,8 +229,9 @@ public API URL shown in browser links.
 
 Panels:
 
+- repo conversation thread list, message timeline, evidence chips, and follow-up composer;
 - recent runs table with trace links;
-- run launcher with submit, polling, refresh, and refine actions;
+- legacy run launcher with submit, polling, refresh, and refine actions;
 - run briefing panel with selected job status, reader MCP state, verifier policy, and recent answer links;
 - dedicated answer tab for grounded evidence cards and limitations;
 - per-agent P50/P95 latency;
@@ -215,6 +257,7 @@ cd dashboard && npm run lint && npm run typecheck && npm run build
 Current local and deploy evidence:
 
 - backend gates cover API lifecycle, auth, recent runs, refine/resume, error serialization, trace metadata, workspace settings, sandbox policy, and the sandbox worker request boundary;
+- thread gates cover repo-thread creation, follow-up messages, auth isolation, SQLite persistence, linked runs, and bounded memory packets;
 - Project 5 MCP integration covers repo mapper, AST explorer, and test runner through real local MCP packages when the env-gated integration test is enabled;
 - dashboard gates cover lint, typecheck, and production build;
 - public Railway smoke evidence is tracked in [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md).
@@ -428,6 +471,7 @@ Case-study docs:
 
 - Deterministic tools should own source truth;LLMs should not invent structure or symbols.
 - LLMs are the synthesis layer:use them to turn bounded MCP/verifier evidence into a readable answer, not to create new facts.
+- Repo threads are the user workspace; runs are execution traces linked to messages.
 - `unverified` is a product state. It prevents missing coverage from becoming fake confidence.
 - Graph resume needs the same `thread_id` in API state, LangGraph config, and trace metadata.
 - Observability should start as a schema contract before dashboards and evals depend on it.
@@ -437,6 +481,7 @@ Case-study docs:
 
 - "Wayfinder is a codebase onboarding workflow, not a chatbot wrapper."
 - "I used three self-authored MCP servers as the fact layer, then LangGraph as the orchestration layer."
+- "Conversation memory gives continuity, but new code facts still go through repo/AST/test evidence."
 - "The verifier only checks high-risk runtime claims and labels missing coverage as unverified."
 - "The reflection loop repairs unsafe final prose without inventing new facts or changing verifier labels."
 - "The dashboard reads the same run summary and trace metadata that Project 7 can use for evals."

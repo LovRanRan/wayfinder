@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getDashboardData } from "@/lib/api";
 
 export default async function DashboardPage() {
-  const { runs, user, source, publicApiBaseUrl } = await getDashboardData();
+  const { runs, threads, user, source, publicApiBaseUrl } = await getDashboardData();
   const latest = runs[0];
 
   if (user === null) {
@@ -86,6 +86,7 @@ export default async function DashboardPage() {
 
         <AgentWorkbench
           runs={runs}
+          threads={threads}
           source={source}
           publicApiBaseUrl={publicApiBaseUrl}
         />

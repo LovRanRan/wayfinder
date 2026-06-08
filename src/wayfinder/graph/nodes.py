@@ -144,19 +144,29 @@ def deterministic_final_writer_output(state: WayfinderState) -> str:
     architect_summary = partial_summaries.get("architect_mapper")
     entry_summary = partial_summaries.get("entry_explainer")
     verifier_summary = partial_summaries.get("verifier")
+    memory_note = _conversation_memory_note(state)
     if entry_summary is not None:
         verification_section = (
             f"\n\n{verifier_summary}" if verifier_summary is not None else ""
         )
         return (
             f"Entry explanation for {repo_ref}: {query}\n\n"
-            f"{entry_summary}{verification_section}"
+            f"{entry_summary}{verification_section}{memory_note}"
         )
 
     if verifier_summary is not None:
-        return f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}"
+        return f"Verification result for {repo_ref}: {query}\n\n{verifier_summary}{memory_note}"
 
     if architect_summary is not None:
-        return f"Architecture overview for {repo_ref}: {query}\n\n{architect_summary}"
+        return f"Architecture overview for {repo_ref}: {query}\n\n{architect_summary}{memory_note}"
 
-    return f"Wayfinder could not collect a scanner summary for {repo_ref}: {query}"
+    return f"Wayfinder could not collect a scanner summary for {repo_ref}: {query}{memory_note}"
+
+
+def _conversation_memory_note(state: WayfinderState) -> str:
+    if not state.get("conversation_memory"):
+        return ""
+    return (
+        "\n\nThread memory: prior repo conversation context was used for continuity; "
+        "new code facts still require repo, AST, or test evidence."
+    )

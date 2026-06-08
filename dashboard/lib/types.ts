@@ -1,4 +1,6 @@
 export type RunStatus = "queued" | "running" | "completed" | "failed";
+export type ThreadStatus = "active" | "running" | "failed" | "archived";
+export type ThreadMessageRole = "user" | "assistant" | "system";
 
 export type RunIntent = "architectural" | "runtime" | "behavioral" | "debug" | "mixed";
 
@@ -80,6 +82,40 @@ export type ApiRunSummary = {
   updated_at: string;
 };
 
+export type ApiThreadMessage = {
+  message_id: string;
+  thread_id: string;
+  role: ThreadMessageRole;
+  content: string;
+  created_at: string;
+  source_run_id: string | null;
+  evidence_refs: string[];
+  verified_count: number;
+  unverified_count: number;
+  contradicted_count: number;
+  trace_metadata: Record<string, TraceMetadataValue>;
+};
+
+export type ApiConversationThread = {
+  thread_id: string;
+  user_id: string;
+  repo_url: string;
+  repo_name: string;
+  title: string;
+  status: ThreadStatus;
+  created_at: string;
+  updated_at: string;
+  last_run_id: string | null;
+  summary_memory: string | null;
+};
+
+export type ApiConversationThreadDetail = {
+  thread: ApiConversationThread;
+  messages: ApiThreadMessage[];
+  runs: ApiRunSummary[];
+  active_run: ApiRunSummary | null;
+};
+
 export type DashboardRun = {
   jobId: string;
   userId: string;
@@ -108,6 +144,36 @@ export type DashboardRun = {
   failureModes: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type DashboardThreadMessage = {
+  messageId: string;
+  threadId: string;
+  role: ThreadMessageRole;
+  content: string;
+  createdAt: string;
+  sourceRunId: string | null;
+  evidenceRefs: string[];
+  verifiedCount: number;
+  unverifiedCount: number;
+  contradictedCount: number;
+  traceMetadata: Record<string, TraceMetadataValue>;
+};
+
+export type DashboardThread = {
+  threadId: string;
+  userId: string;
+  repoUrl: string;
+  repoName: string;
+  title: string;
+  status: ThreadStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastRunId: string | null;
+  summaryMemory: string | null;
+  messages: DashboardThreadMessage[];
+  runs: DashboardRun[];
+  activeRun: DashboardRun | null;
 };
 
 export type DashboardMetrics = {
