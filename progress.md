@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 21** — Repo conversation threads + memory layer ✅ local 2026-06-09 |
+| **Current Commit** | [x] **Commit 21** — Repo conversation threads + memory layer ✅ pushed/deployed `532a87e` 2026-06-09 |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **21 / 21 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Commit 21 local implementation is complete;commit/push/deploy/public smoke are the remaining operational handoff. |
-| **Last Activity** | 2026-06-09 · Added repo-scoped conversation threads, persisted message history, bounded memory packets, follow-up chat API, and dashboard Threads workspace. |
+| **Blocker** | No remaining Commit 21 engineering blocker;demo video remains Haichuan-owned. |
+| **Last Activity** | 2026-06-09 · Pushed Commit 21, Railway redeployed API/dashboard to `532a87e`, and public-smoked one repo thread with two follow-up questions. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Make Wayfinder feel like a repo-aware agent workspace:a user can open one repo thread, ask follow-up questions, and see answers grounded in the repo packet plus conversation memory. |
-| **Next Action** | Review diff, commit/push Commit 21, redeploy API/dashboard, then public-smoke one repo thread with two follow-up questions. |
+| **Next Action** | Haichuan records the Wayfinder recursive demo video, then decide whether to do one final polish increment before Project 7. |
 
 ---
 
@@ -449,7 +449,7 @@ Guided design mode:
     - [x] Unsafe commands are denied with recorded evidence ✅ 2026-06-05
     - [x] Full local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and Docker Compose config;Railway/public sandbox-worker smoke stays pending until deployed ✅ 2026-06-05
 
-- [x] **Commit 21 — Repo conversation threads + memory layer** ✅ local 2026-06-09
+- [x] **Commit 21 — Repo conversation threads + memory layer** ✅ pushed/deployed `532a87e` 2026-06-09
   - [x] Design gate before code:
     - [x] Write `docs/design_notes/017_repo_conversation_threads.md` with problem, target interaction, thread lifecycle, state/data model, memory policy, API contract, dashboard IA, failure modes, tests, and interview explanation ✅ 2026-06-09
     - [x] Reframe the product gap explicitly:current Wayfinder is a one-shot grounded synthesis panel;Commit 21 makes it an interactive repo copilot where the user can continue asking questions after the first analysis ✅ 2026-06-09
@@ -480,6 +480,7 @@ Guided design mode:
     - [x] API tests cover auth isolation for threads/messages, thread creation, two follow-up messages, persistence, and missing-thread access control ✅ 2026-06-09
     - [x] Graph/runtime tests cover memory packet construction, bounded context, and grounded follow-up behavior ✅ 2026-06-09
     - [x] Frontend type/lint/build gates pass;browser smoke covers create thread, ask follow-up, URL returns to the thread, and message history remains visible ✅ 2026-06-09
+    - [x] Public Railway smoke covers deployed API/dashboard thread routes and one `pallets/click` repo thread with two follow-up messages through the dashboard proxy ✅ 2026-06-09
   - [x] Commit 21 Definition of Done:
     - [x] A logged-in user can create one repo thread, ask an initial question, then ask at least two follow-up questions without re-pasting the repo URL ✅ 2026-06-09
     - [x] Refreshing the dashboard returns to the same thread with prior messages via `?tab=threads&thread=<id>` ✅ 2026-06-09
@@ -504,14 +505,14 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
-### 2026-06-09 — Commit 21 closed locally — `Repo conversation threads + memory layer`
+### 2026-06-09 — Commit 21 pushed and public-smoked — `Repo conversation threads + memory layer`
 
 - **做了什么**:Added repo-scoped conversation threads, persisted thread messages, linked thread runs, bounded memory packets, `/threads` API endpoints, dashboard proxy routes, and a new Threads workspace with thread list, message timeline, evidence chips, and follow-up composer.
 - **自己设计了什么**:Kept thread history and run history separate:threads are the human conversation surface, runs are grounded graph execution traces. Follow-up memory is continuity context only;new code facts still go through repo/AST/test evidence and remain labeled when unverified.
 - **Codex 帮了哪里**:Codex implemented the explicitly delegated Commit 21 slice after writing `docs/design_notes/017_repo_conversation_threads.md`, fixed a browser-smoke issue where raw memory leaked into deterministic answers, and kept `/explain` as a backward-compatible one-shot path.
-- **验证方式**:`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(249 passed,8 skipped);dashboard `npm run lint`;dashboard `npm run typecheck`;dashboard `NEXT_TELEMETRY_DISABLED=1 npm run build`;Browser smoke created a local repo thread, sent a follow-up, preserved `?tab=threads&thread=<id>`, and confirmed raw memory packet text was not printed.
-- **问题记录**:Commit 21 is complete locally but not yet committed/pushed/deployed. Public Railway smoke still needs to create a repo thread and ask two follow-ups after deploy.
-- **下一步**:Review diff, commit/push Commit 21, deploy API/dashboard, then run public repo-thread smoke.
+- **验证方式**:`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(249 passed,8 skipped);dashboard `npm run lint`;dashboard `npm run typecheck`;dashboard `NEXT_TELEMETRY_DISABLED=1 npm run build`;Browser smoke created a local repo thread, sent a follow-up, preserved `?tab=threads&thread=<id>`, and confirmed raw memory packet text was not printed. Public Railway smoke confirmed `/health` commit `532a87eff999`, API/dashboard proxy `/threads` auth boundary, and one `pallets/click` repo thread with two follow-up messages through the dashboard proxy.
+- **问题记录**:The first public-smoke script used zsh's read-only `status` variable and was restarted with the same thread session;the product flow itself completed. Smoke workspace credentials were intentionally not recorded.
+- **下一步**:Haichuan records the Wayfinder recursive demo video, then choose whether to do one final polish increment before Project 7.
 
 ### 2026-06-08 — Pre-Commit 21 hotfix — `Dashboard metric tabs and cost boundary`
 

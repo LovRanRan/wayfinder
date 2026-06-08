@@ -260,7 +260,7 @@ Current local and deploy evidence:
 - thread gates cover repo-thread creation, follow-up messages, auth isolation, SQLite persistence, linked runs, and bounded memory packets;
 - Project 5 MCP integration covers repo mapper, AST explorer, and test runner through real local MCP packages when the env-gated integration test is enabled;
 - dashboard gates cover lint, typecheck, and production build;
-- public Railway smoke evidence is tracked in [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md).
+- public Railway smoke evidence is tracked in [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md) and [`docs/evidence/commit21_repo_threads_public_smoke.md`](docs/evidence/commit21_repo_threads_public_smoke.md).
 
 ## Failure Modes
 
@@ -441,7 +441,7 @@ API health: https://wayfinder-api-production.up.railway.app/health
 ## Demo And Launch Assets
 
 - Demo recording script: [`docs/demo/recursive_demo_script.md`](docs/demo/recursive_demo_script.md)
-- Public smoke evidence: [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md)
+- Public smoke evidence: [`docs/evidence/commit19_public_smoke.md`](docs/evidence/commit19_public_smoke.md), [`docs/evidence/commit21_repo_threads_public_smoke.md`](docs/evidence/commit21_repo_threads_public_smoke.md)
 - Bilingual launch draft: [`docs/blog/wayfinder_launch_post.md`](docs/blog/wayfinder_launch_post.md)
 - Deploy notes: [`docs/deploy/README.md`](docs/deploy/README.md)
 
