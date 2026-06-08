@@ -102,7 +102,13 @@ def test_health() -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "wayfinder"}
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "wayfinder"
+    assert "commit" in payload
+    assert "job_timeout_seconds" in payload
+    assert "runtime_build_timeout_seconds" in payload
+    assert "graph_node_timeout_seconds" in payload
 
 
 def test_explain_status_and_refine_flow(tmp_path: Path) -> None:
@@ -827,6 +833,7 @@ def test_explain_marks_timed_out_runtime_graph_build_failed(
     payload = status_response.json()
     assert payload["status"] == "failed"
     assert "runtime setup exceeded 0.01s timeout" in payload["error"]
+    assert payload["errors"][0]["node"] == "runtime_setup"
     assert payload["errors"][0]["error_type"] == "JobExecutionTimeout"
 
 

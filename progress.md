@@ -466,6 +466,15 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-08 — Commit 20 hotfix — `Deploy diagnostics and local redline cleanup`
+
+- **做了什么**:Reviewed the live Railway dashboard/API/sandbox variables after another screenshot showed a new architecture prompt still running at `supervisor / none / 0.0s` past one minute.
+- **自己设计了什么**:The variables look structurally correct, so the next missing layer is observability. `/health` now returns non-secret build/runtime timeout fields, and API jobs now report `runtime_setup` until the runtime graph is built, then `supervisor` once LangGraph execution begins.
+- **Codex 帮了哪里**:Codex cleaned a corrupted local `dashboard/node_modules` tree that produced VSCode/TypeScript red lines like `Cannot find type definition file for 'react 4'`, reran `npm ci`, and verified dashboard lint/typecheck.
+- **验证方式**:`uv run pytest tests/test_api.py::test_health tests/test_api.py::test_explain_marks_timed_out_graph_failed tests/test_api.py::test_explain_marks_timed_out_runtime_graph_build_failed -q`(3 passed);`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(242 passed,8 skipped);dashboard `npm run lint`;dashboard `npm run typecheck`.
+- **问题记录**:Without deploy/runtime diagnostics, screenshots cannot prove whether Railway is running the latest commit. After this hotfix, `/health` should show timeout settings and a commit field so stale deploys are visible.
+- **下一步**:Push, redeploy API, open `/health`, confirm the timeout fields, then rerun the architecture prompt and inspect whether `current_node` is `runtime_setup` or `supervisor` if it stalls.
+
 ### 2026-06-06 — Commit 20 hotfix — `Runtime setup timeout`
 
 - **做了什么**:A later live screenshot still showed `LovRanRan/wayfinder` stuck at `running`, `agent=supervisor`, `tool=none`, `mcp=none`, and `latency=0.0s` after more than three minutes. That points to a boundary before LangGraph node execution, not inside a reader/verifier/final-writer node.

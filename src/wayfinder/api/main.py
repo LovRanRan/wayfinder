@@ -148,7 +148,15 @@ def _session_ttl_days(env: Mapping[str, str]) -> int:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "wayfinder"}
+    env = _runtime_env()
+    return {
+        "status": "ok",
+        "service": "wayfinder",
+        "commit": _deployment_commit(env),
+        "job_timeout_seconds": f"{_job_timeout_seconds(env):g}",
+        "runtime_build_timeout_seconds": f"{_runtime_build_timeout_seconds(env):g}",
+        "graph_node_timeout_seconds": env.get("WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS", "30"),
+    }
 
 
 @app.get("/runs", response_model=list[RunSummary])
@@ -425,7 +433,7 @@ def refine(
 
 
 def _execute_job(job_id: str, phase: str) -> None:
-    current_node = "supervisor"
+    current_node = "runtime_setup"
     run = _RUNS.get(job_id)
     graph_input = _RUNS.graph_input(job_id)
     _RUNS.mark_running(job_id, current_node=current_node)
@@ -439,11 +447,27 @@ def _execute_job(job_id: str, phase: str) -> None:
     )
 
     try:
-        result = _run_runtime_graph_with_timeout(
+        started_at = time.monotonic()
+        graph = _build_runtime_graph_with_timeout(
             env,
+            timeout_seconds=min(
+                _runtime_build_timeout_seconds(env),
+                _job_timeout_seconds(env),
+            ),
+        )
+        elapsed_seconds = time.monotonic() - started_at
+        remaining_timeout_seconds = _job_timeout_seconds(env) - elapsed_seconds
+        if remaining_timeout_seconds <= 0:
+            raise JobExecutionTimeout(
+                f"Wayfinder job exceeded {_job_timeout_seconds(env):g}s timeout."
+            )
+        current_node = "supervisor"
+        _RUNS.mark_running(job_id, current_node=current_node)
+        result = _run_runtime_graph_with_timeout(
+            graph,
             graph_input,
             config=runnable_config_for_trace(trace_context),
-            timeout_seconds=_job_timeout_seconds(env),
+            timeout_seconds=remaining_timeout_seconds,
         )
     except Exception as exc:  # pragma: no cover - defensive API boundary
         _RUNS.mark_failed(
@@ -466,26 +490,17 @@ class JobExecutionTimeout(RuntimeError):
 
 
 def _run_runtime_graph_with_timeout(
-    env: Mapping[str, str],
+    graph: WayfinderGraph,
     graph_input: WayfinderState,
     *,
     config: Any,
     timeout_seconds: float,
 ) -> WayfinderState:
-    started_at = time.monotonic()
-    graph = _build_runtime_graph_with_timeout(
-        env,
-        timeout_seconds=min(_runtime_build_timeout_seconds(env), timeout_seconds),
-    )
-    elapsed_seconds = time.monotonic() - started_at
-    remaining_timeout_seconds = timeout_seconds - elapsed_seconds
-    if remaining_timeout_seconds <= 0:
-        raise JobExecutionTimeout(f"Wayfinder job exceeded {timeout_seconds:g}s timeout.")
     return _invoke_graph_with_timeout(
         graph,
         graph_input,
         config=config,
-        timeout_seconds=remaining_timeout_seconds,
+        timeout_seconds=timeout_seconds,
     )
 
 
@@ -596,6 +611,20 @@ def _runtime_build_timeout_seconds(env: Mapping[str, str]) -> float:
     if timeout_seconds <= 0:
         return _DEFAULT_RUNTIME_BUILD_TIMEOUT_SECONDS
     return timeout_seconds
+
+
+def _deployment_commit(env: Mapping[str, str]) -> str:
+    for key in (
+        "WAYFINDER_BUILD_COMMIT",
+        "RAILWAY_GIT_COMMIT_SHA",
+        "SOURCE_COMMIT",
+        "GIT_COMMIT",
+        "VERCEL_GIT_COMMIT_SHA",
+    ):
+        value = env.get(key, "").strip()
+        if value:
+            return value[:12]
+    return "unknown"
 
 
 def _mark_stale_running_run_failed(run: RunSummary, *, env: Mapping[str, str]) -> RunSummary:

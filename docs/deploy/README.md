@@ -262,6 +262,11 @@ curl -fsSI https://wayfinder-dashboard-production-f8d7.up.railway.app
 curl -i 'https://wayfinder-api-production.up.railway.app/runs?limit=3'
 ```
 
+The API health payload includes non-secret deploy diagnostics:
+`commit`, `job_timeout_seconds`, `runtime_build_timeout_seconds`, and
+`graph_node_timeout_seconds`. Check these before a demo so stale deploys or
+missing timeout variables are visible immediately.
+
 In auth-required mode, unauthenticated `/runs` should return `401`. The real
 product smoke is browser-based:register or log in, add a workspace OpenAI key in
 Settings, submit a public GitHub URL, and confirm the answer plus user-scoped
