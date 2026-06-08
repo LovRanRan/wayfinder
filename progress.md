@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field | Value |
 |---|---|
-| **Current Commit** | [x] **Commit 20** — Sandboxed test runner worker |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 20 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video recording is user-owned pending;dashboard product polish is being closed so refresh, active-run state, and metrics match live API behavior. |
-| **Last Activity** | 2026-06-08 · Added dashboard live metrics, job URL answer default, empty Run composer, and `/runs` stale-job cleanup for Active runs. |
+| **Current Commit** | [ ] **Commit 21** — Repo conversation threads + memory layer |
+| **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 21 done** · ship **7 / 8 core artifacts done** |
+| **Blocker** | Commit 21 is planned but not started;Haichuan needs to confirm the interaction model before code changes. |
+| **Last Activity** | 2026-06-08 · Planned Commit 21 to turn Wayfinder from a one-shot repo analyzer into a repo-scoped conversational agent thread with memory. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Make the live dashboard behave like a product cockpit:no stale active runs, no unwanted prefilled composer, and clickable time-window metrics. |
-| **Next Action** | Push/redeploy, then verify refresh behavior, active-run stats, and Metrics time windows against one active run plus recent completed runs. |
+| **Today's North Star** | Make Wayfinder feel like a repo-aware agent workspace:a user can open one repo thread, ask follow-up questions, and see answers grounded in the repo packet plus conversation memory. |
+| **Next Action** | In the next chat,start Commit 21 by writing `docs/design_notes/017_repo_conversation_threads.md`,then implement the smallest repo-thread/chat API and dashboard flow. |
 
 ---
 
@@ -449,6 +449,44 @@ Guided design mode:
     - [x] Unsafe commands are denied with recorded evidence ✅ 2026-06-05
     - [x] Full local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and Docker Compose config;Railway/public sandbox-worker smoke stays pending until deployed ✅ 2026-06-05
 
+- [ ] **Commit 21 — Repo conversation threads + memory layer**
+  - [ ] Design gate before code:
+    - [ ] Write `docs/design_notes/017_repo_conversation_threads.md` with problem, target interaction, thread lifecycle, state/data model, memory policy, API contract, dashboard IA, failure modes, tests, and interview explanation.
+    - [ ] Reframe the product gap explicitly:current Wayfinder is a one-shot grounded synthesis panel;Commit 21 makes it an interactive repo copilot where the user can continue asking questions after the first analysis.
+    - [ ] Define the primary user story:paste a GitHub repo once, create/open a repo thread, ask an initial architecture/onboarding question, then ask follow-ups like "where should I change X?", "explain this file", "what tests cover this path?", or "summarize what we learned so far".
+    - [ ] Define non-goals:v1 is not an autonomous coding agent, not a full IDE, not arbitrary shell execution, and not ungrounded ChatGPT over a repo.
+  - [ ] Backend data model:
+    - [ ] Add a repo-scoped `ConversationThread` concept owned by a workspace user. Required fields:thread_id,user_id,repo_url,repo_name,repo_handle/cache key,title,status,created_at,updated_at,last_run_id,summary_memory.
+    - [ ] Add `ThreadMessage` records. Required fields:message_id,thread_id,role(`user`/`assistant`/`system`),content,created_at,source_run_id,evidence_refs,verified/unverified/contradicted counts,trace_metadata.
+    - [ ] Persist threads/messages in the existing run store layer;SQLite auth deployments must survive refresh/restart.
+    - [ ] Keep run history and thread history related but separate:runs are execution traces;threads are the human conversation surface.
+  - [ ] Agent / memory behavior:
+    - [ ] Reuse the first repo analysis packet as the repo context seed for the thread:repo structure, key files, AST evidence, verified/unverified claims, limitations, and sandbox status.
+    - [ ] Add a bounded memory layer:short rolling conversation summary + last N messages + selected evidence refs;never pass unbounded full history to OpenAI.
+    - [ ] Follow-up answers must call the same grounded graph/evidence path when the question needs new code facts;LLM-only memory can summarize prior discussion but cannot create verified code claims.
+    - [ ] Add response policy for uncertainty:if the follow-up asks for facts not in the cached packet and the tool path cannot verify them, mark those claims unverified and suggest a narrower follow-up.
+  - [ ] API contract:
+    - [ ] `POST /threads` creates a repo thread from `repo_url` and optional first question;it may immediately start the first Wayfinder run.
+    - [ ] `GET /threads` lists the user's repo threads with latest message, repo, status, and updated timestamp.
+    - [ ] `GET /threads/{thread_id}` returns thread metadata, messages, and linked runs.
+    - [ ] `POST /threads/{thread_id}/messages` appends a user follow-up and runs grounded synthesis with thread memory.
+    - [ ] Existing `/explain` can remain for backward compatibility, but dashboard primary flow should move to threads.
+  - [ ] Dashboard interaction:
+    - [ ] Replace the current one-shot Run-first flow with a workspace layout closer to Codex:thread list/sidebar, repo header, message timeline, evidence drawer, and composer at the bottom.
+    - [ ] Opening a repo should land in that repo's thread, not a prefilled run form.
+    - [ ] Each assistant answer card should show answer text plus compact grounding chips:verified/unverified/contradicted, MCP tool used, linked run, and expandable evidence.
+    - [ ] Keep Metrics and Settings as workspace tabs, but make the main daily-use surface the repo conversation.
+  - [ ] Tests and verification:
+    - [ ] API tests cover auth isolation for threads/messages, thread creation, follow-up message creation, persistence, and missing-thread access control.
+    - [ ] Graph/runtime tests cover memory packet construction, bounded context, and grounded follow-up behavior.
+    - [ ] Frontend type/lint/build gates pass;manual smoke covers create thread, ask follow-up, refresh page, reopen thread, and verify message history remains.
+  - [ ] Commit 21 Definition of Done:
+    - [ ] A logged-in user can create one repo thread, ask an initial question, then ask at least two follow-up questions without re-pasting the repo URL.
+    - [ ] Refreshing the dashboard returns to the same thread with prior messages.
+    - [ ] Follow-up answers clearly separate memory-derived context from newly verified repo evidence.
+    - [ ] Thread history is user-scoped and persisted in SQLite.
+    - [ ] README/DESIGN/progress explain Wayfinder as a grounded repo copilot with conversational threads, not a deterministic fact panel or one-shot report.
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -465,6 +503,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-08 — Roadmap update — `Commit 21 repo conversation threads`
+
+- **做了什么**:Haichuan identified the missing product interaction:Wayfinder can analyze a repo, but it does not yet feel like an agent because there is no repo-scoped place to continue the conversation.
+- **自己设计了什么**:Commit 21 should add repo conversation threads:one thread per repo/workspace context, message history, bounded memory, follow-up questions, and a Codex-like chat surface grounded in existing MCP/LLM/verifier evidence.
+- **Codex 帮了哪里**:Codex translated the vague "少了人机交互场景" concern into a concrete commit scope:thread/message data model, memory policy, follow-up API, dashboard thread UI, and acceptance tests.
+- **验证方式**:Planning/progress update only;no production code changed.
+- **问题记录**:This is a product-level correction. Metrics and answer cards make the system observable, but the core user experience should be "open a repo thread and keep asking", not "submit independent one-off runs".
+- **下一步**:Open a fresh chat and start Commit 21 with `docs/design_notes/017_repo_conversation_threads.md` before implementation.
 
 ### 2026-06-08 — Commit 20 dashboard polish — `Live metrics and refresh defaults`
 
