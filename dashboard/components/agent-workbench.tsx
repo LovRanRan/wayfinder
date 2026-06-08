@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CurrentRunConsole } from "@/components/current-run-console";
+import { DashboardStats } from "@/components/dashboard-stats";
 import { RunBriefingPanel } from "@/components/run-briefing-panel";
 import { RunLauncher } from "@/components/run-launcher";
 import { RunStatusTable } from "@/components/run-status-table";
 import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
 import { WorkspaceMetrics } from "@/components/workspace-metrics";
 import { WorkspaceSettingsPanel } from "@/components/workspace-settings";
-import { toDashboardRun } from "@/lib/metrics";
+import { buildDashboardMetrics, toDashboardRun } from "@/lib/metrics";
 import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
 
 const activeStatuses: RunStatus[] = ["queued", "running"];
@@ -19,33 +20,28 @@ type AgentWorkbenchProps = {
   runs: DashboardRun[];
   source: "api" | "demo";
   publicApiBaseUrl: string;
-  metrics: {
-    latencyRows: { agent: string; p50: number; p95: number; runCount: number }[];
-    routeRows: { label: string; count: number; share: number }[];
-    statusRows: { label: string; count: number; share: number }[];
-    failureRows: { label: string; count: number; share: number }[];
-    verification: {
-      verified: number;
-      unverified: number;
-      contradicted: number;
-      verificationRate: number;
-    };
-  };
 };
 
-export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: AgentWorkbenchProps) {
+export function AgentWorkbench({ runs, source, publicApiBaseUrl }: AgentWorkbenchProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedJobId = searchParams.get("job");
   const requestedTab = workspaceTabFromParam(searchParams.get("tab"));
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => requestedTab ?? "run");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() =>
+    requestedTab ?? (selectedJobId === null ? "run" : "answer"),
+  );
+  const [liveRuns, setLiveRuns] = useState<DashboardRun[]>(runs);
   const [selectedRun, setSelectedRun] = useState<DashboardRun | null>(() =>
-    runFromJobId(runs, selectedJobId) ?? runs[0] ?? null,
+    runFromJobId(runs, selectedJobId),
   );
   const refreshedCompletedJobsRef = useRef<Set<string>>(new Set());
   const selectedRunJobId = selectedRun?.jobId ?? null;
   const selectedRunStatus = selectedRun?.status ?? null;
+  const activeRunCount = useMemo(
+    () => liveRuns.filter((run) => activeStatuses.includes(run.status)).length,
+    [liveRuns],
+  );
 
   const updateUrl = useCallback(
     (updates: { job?: string | null; tab?: WorkspaceTab | null }) => {
@@ -58,7 +54,9 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
         }
       }
       if (updates.tab !== undefined) {
-        if (updates.tab === null || updates.tab === "run") {
+        if (updates.tab === null) {
+          params.delete("tab");
+        } else if (updates.tab === "run" && !params.has("job")) {
           params.delete("tab");
         } else {
           params.set("tab", updates.tab);
@@ -73,6 +71,9 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
   const selectRun = useCallback(
     (run: DashboardRun | null) => {
       setSelectedRun(run);
+      if (run !== null) {
+        setLiveRuns((currentRuns) => upsertRun(currentRuns, run));
+      }
       updateUrl({ job: run?.jobId ?? null, tab: run === null ? null : "answer" });
       if (run !== null) {
         setActiveTab("answer");
@@ -82,25 +83,33 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
   );
 
   useEffect(() => {
+    setLiveRuns(runs);
+  }, [runs]);
+
+  useEffect(() => {
     setSelectedRun((currentRun) => {
-      const linkedRun = runFromJobId(runs, selectedJobId);
+      const linkedRun = runFromJobId(liveRuns, selectedJobId);
       if (linkedRun !== null) {
         return linkedRun;
       }
 
       if (currentRun === null) {
-        return runs[0] ?? null;
+        return null;
       }
 
-      return runs.find((run) => run.jobId === currentRun.jobId) ?? currentRun;
+      return liveRuns.find((run) => run.jobId === currentRun.jobId) ?? currentRun;
     });
-  }, [runs, selectedJobId]);
+  }, [liveRuns, selectedJobId]);
 
   useEffect(() => {
     if (requestedTab !== null) {
       setActiveTab(requestedTab);
+      return;
     }
-  }, [requestedTab]);
+    if (selectedJobId !== null) {
+      setActiveTab("answer");
+    }
+  }, [requestedTab, selectedJobId]);
 
   useEffect(() => {
     if (
@@ -134,6 +143,7 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
         }
         const nextRun = toDashboardRun(payload as ApiRunSummary);
         setSelectedRun(nextRun);
+        setLiveRuns((currentRuns) => upsertRun(currentRuns, nextRun));
         if (activeStatuses.includes(nextRun.status)) {
           schedulePoll(1400);
           return;
@@ -161,6 +171,53 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
     };
   }, [router, selectedRunJobId, selectedRunStatus, source]);
 
+  useEffect(() => {
+    if (source !== "api" || activeRunCount === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | null = null;
+    const schedulePoll = (delayMs: number) => {
+      timer = window.setTimeout(() => {
+        void pollRuns();
+      }, delayMs);
+    };
+    const pollRuns = async () => {
+      try {
+        const response = await fetch("/api/wayfinder/runs?limit=10", {
+          headers: { "content-type": "application/json" },
+        });
+        const payload = await response.json().catch(() => null);
+        if (cancelled || !response.ok || !Array.isArray(payload)) {
+          if (!cancelled) {
+            schedulePoll(3000);
+          }
+          return;
+        }
+
+        const nextRuns = (payload as ApiRunSummary[]).map(toDashboardRun);
+        setLiveRuns(nextRuns);
+        if (nextRuns.some((run) => activeStatuses.includes(run.status))) {
+          schedulePoll(2500);
+        }
+      } catch {
+        if (!cancelled) {
+          schedulePoll(3000);
+        }
+      }
+    };
+
+    schedulePoll(2500);
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [activeRunCount, source]);
+
   const changeTab = useCallback(
     (tab: WorkspaceTab) => {
       setActiveTab(tab);
@@ -171,14 +228,17 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
 
   const visibleRuns = useMemo(() => {
     if (selectedRun === null) {
-      return runs;
+      return liveRuns;
     }
 
-    return [selectedRun, ...runs.filter((run) => run.jobId !== selectedRun.jobId)];
-  }, [runs, selectedRun]);
+    return [selectedRun, ...liveRuns.filter((run) => run.jobId !== selectedRun.jobId)];
+  }, [liveRuns, selectedRun]);
+
+  const metrics = useMemo(() => buildDashboardMetrics(liveRuns), [liveRuns]);
 
   return (
     <section className="grid gap-4">
+      <DashboardStats metrics={metrics} onOpenMetrics={() => changeTab("metrics")} />
       <WorkspaceTabs activeTab={activeTab} onTabChange={changeTab} />
 
       {activeTab === "run" ? (
@@ -210,11 +270,21 @@ export function AgentWorkbench({ runs, source, publicApiBaseUrl, metrics }: Agen
         </div>
       ) : null}
 
-      {activeTab === "metrics" ? <WorkspaceMetrics {...metrics} /> : null}
+      {activeTab === "metrics" ? <WorkspaceMetrics runs={liveRuns} /> : null}
 
       {activeTab === "settings" ? <WorkspaceSettingsPanel /> : null}
     </section>
   );
+}
+
+function upsertRun(runs: DashboardRun[], nextRun: DashboardRun): DashboardRun[] {
+  const withoutRun = runs.filter((run) => run.jobId !== nextRun.jobId);
+  return [nextRun, ...withoutRun].sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt));
+}
+
+function timestamp(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function runFromJobId(runs: DashboardRun[], jobId: string | null): DashboardRun | null {

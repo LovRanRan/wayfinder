@@ -153,11 +153,11 @@ Guided design mode:
 |---|---|
 | **Current Commit** | [x] **Commit 20** — Sandboxed test runner worker |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 20 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Demo video recording is user-owned pending;Railway sandbox worker is live, but public sandbox smoke needs retry after approval/self-clone hotfix deploys. |
-| **Last Activity** | 2026-06-05 · Fixed public sandbox flow after `pallets/click` timed out:sandboxed verifier auto-approves and worker self-clones GitHub repos when API cache is not mounted. |
+| **Blocker** | Demo video recording is user-owned pending;dashboard product polish is being closed so refresh, active-run state, and metrics match live API behavior. |
+| **Last Activity** | 2026-06-08 · Added dashboard live metrics, job URL answer default, empty Run composer, and `/runs` stale-job cleanup for Active runs. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Keep the sandbox boundary honest:local executable verification is worker-backed;public Railway only claims it after the worker service is deployed and healthy. |
-| **Next Action** | Deploy the sandbox flow hotfix, retry `pallets/click` sandbox-enabled smoke, then record demo video if the answer completes cleanly. |
+| **Today's North Star** | Make the live dashboard behave like a product cockpit:no stale active runs, no unwanted prefilled composer, and clickable time-window metrics. |
+| **Next Action** | Push/redeploy, then verify refresh behavior, active-run stats, and Metrics time windows against one active run plus recent completed runs. |
 
 ---
 
@@ -465,6 +465,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-08 — Commit 20 dashboard polish — `Live metrics and refresh defaults`
+
+- **做了什么**:After live smoke started passing with a corrected OpenAI key, Haichuan found two product issues:refreshing a `job=` URL landed on the prefilled Run composer, and the four top stat cards stayed stale unless the page was refreshed or manually inspected.
+- **自己设计了什么**:Treat top stats as client-live workspace state, not a one-time server snapshot. A URL with `job=` now defaults to Answer unless `tab=run` is explicit;Run composer starts empty;Metrics gets time-window controls plus latency/status/verification charts.
+- **Codex 帮了哪里**:Codex moved stat calculation into `AgentWorkbench`, added a `/api/wayfinder/runs` dashboard proxy for active-run polling, and made API `/runs` mark stale running jobs failed the same way `/status/{job_id}` already did.
+- **验证方式**:`uv run ruff check .`;`uv run mypy src tests`;`uv run pytest -q`(243 passed,8 skipped);dashboard `npm run lint`;dashboard `npm run typecheck`;dashboard `NEXT_TELEMETRY_DISABLED=1 npm run build`;`git diff --check`.
+- **问题记录**:The old Active runs count could remain wrong because stale timeout cleanup only happened when opening one job's status endpoint;the recent-run list did not normalize stale running jobs.
+- **下一步**:Run full gates, push, redeploy API/dashboard, then test root refresh, `?job=...` refresh, active-run completion, and Metrics ranges.
 
 ### 2026-06-08 — Commit 20 hotfix — `Deploy diagnostics and local redline cleanup`
 

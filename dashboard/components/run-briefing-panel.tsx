@@ -39,7 +39,7 @@ const activeStatuses: RunStatus[] = ["queued", "running"];
 
 export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: RunBriefingPanelProps) {
   const [runtimePolicy, setRuntimePolicy] = useState<RuntimePolicy | null>(null);
-  const focusedRun = selectedRun ?? runs[0] ?? null;
+  const focusedRun = selectedRun;
   const activeRunCount = useMemo(
     () => runs.filter((run) => activeStatuses.includes(run.status)).length,
     [runs],

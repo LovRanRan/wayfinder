@@ -17,17 +17,14 @@ import { RunActivity } from "@/components/run-activity";
 import { formatSeconds, toDashboardRun } from "@/lib/metrics";
 import type { ApiRunSummary, DashboardRun, RunStatus } from "@/lib/types";
 
-const SAMPLE_REPO = "https://github.com/LovRanRan/wayfinder";
-const SAMPLE_QUERY = "Explain the behavior and data flow through wayfinder.graph.app.build_graph";
-
 type RunLauncherProps = {
   initialRun?: DashboardRun | null;
   onRunChange?: (run: DashboardRun | null) => void;
 };
 
 export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps) {
-  const [repoUrl, setRepoUrl] = useState(SAMPLE_REPO);
-  const [query, setQuery] = useState(SAMPLE_QUERY);
+  const [repoUrl, setRepoUrl] = useState("");
+  const [query, setQuery] = useState("");
   const [correction, setCorrection] = useState("");
   const [run, setRun] = useState<DashboardRun | null>(initialRun);
   const [error, setError] = useState<string | null>(null);
@@ -168,8 +165,8 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
               type="button"
               variant="outline"
               onClick={() => {
-                setRepoUrl(SAMPLE_REPO);
-                setQuery(SAMPLE_QUERY);
+                setRepoUrl("");
+                setQuery("");
                 setCorrection("");
                 setRun(null);
                 onRunChange?.(null);

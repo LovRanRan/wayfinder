@@ -164,7 +164,11 @@ def list_runs(
     user: Annotated[AuthenticatedUser, Depends(_current_user)],
     limit: int = Query(default=10, ge=1, le=50),
 ) -> list[RunSummary]:
-    return _RUNS.list_recent(user_id=user.user_id, limit=limit)
+    env = _runtime_env()
+    return [
+        _mark_stale_running_run_failed(run, env=env)
+        for run in _RUNS.list_recent(user_id=user.user_id, limit=limit)
+    ]
 
 
 @app.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)

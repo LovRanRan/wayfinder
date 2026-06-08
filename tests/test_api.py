@@ -863,6 +863,33 @@ def test_status_marks_stale_running_job_failed(monkeypatch: pytest.MonkeyPatch) 
     assert payload["trace_metadata"]["timeout_seconds"] == 1.0
 
 
+def test_runs_marks_stale_running_jobs_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = InMemoryRunStore()
+    monkeypatch.setattr("wayfinder.api.main._RUNS", store)
+    monkeypatch.setenv("WAYFINDER_JOB_TIMEOUT_SECONDS", "1")
+    user = AuthenticatedUser(
+        user_id="local-dev",
+        workspace_id="local-dev",
+        display_name="Local developer",
+    )
+    run = store.create(
+        user=user,
+        request=ExplainRequest(repo_url="local", query="Map architecture"),
+        graph_input={"repo_url": "local", "query": "Map architecture"},
+    )
+    store.mark_running(run.job_id, current_node="supervisor")
+    store._update(run.job_id, updated_at=datetime.now(UTC) - timedelta(seconds=5))
+
+    client = TestClient(app)
+    response = client.get("/runs?limit=10")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload[0]["job_id"] == run.job_id
+    assert payload[0]["status"] == "failed"
+    assert payload[0]["errors"][0]["error_type"] == "JobExecutionTimeout"
+
+
 def test_trace_metadata_hooks_are_passed_to_graph(monkeypatch: pytest.MonkeyPatch) -> None:
     configs: list[dict[str, Any] | None] = []
 

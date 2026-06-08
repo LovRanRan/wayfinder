@@ -1,36 +1,15 @@
-import {
-  Activity,
-  CircleDollarSign,
-  ExternalLink,
-  ShieldCheck,
-  TimerReset,
-} from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 import { AgentWorkbench } from "@/components/agent-workbench";
 import { AuthPanel } from "@/components/auth-panel";
-import { StatCard } from "@/components/stat-card";
 import { WorkspaceAccount } from "@/components/workspace-account";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDashboardData } from "@/lib/api";
-import {
-  buildDashboardMetrics,
-  failureModeCounts,
-  formatCurrency,
-  formatPercent,
-  formatSeconds,
-  groupedCounts,
-  latencyByAgent,
-} from "@/lib/metrics";
 
 export default async function DashboardPage() {
   const { runs, user, source, publicApiBaseUrl } = await getDashboardData();
   const latest = runs[0];
-  const metrics = buildDashboardMetrics(runs);
-  const routeRows = groupedCounts(runs, (run) => run.intent);
-  const statusRows = groupedCounts(runs, (run) => run.status);
-  const latencyRows = latencyByAgent(runs);
-  const failureRows = failureModeCounts(runs);
 
   if (user === null) {
     return (
@@ -105,49 +84,10 @@ export default async function DashboardPage() {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            icon={ShieldCheck}
-            label="Verification rate"
-            value={formatPercent(metrics.verificationRate)}
-            detail={`${metrics.verifiedClaims} verified claims`}
-          />
-          <StatCard
-            icon={Activity}
-            label="Active runs"
-            value={metrics.activeRuns.toString()}
-            detail={`${metrics.totalRuns} recent runs tracked`}
-          />
-          <StatCard
-            icon={TimerReset}
-            label="P95 latency"
-            value={formatSeconds(metrics.p95Latency)}
-            detail={`P50 ${formatSeconds(metrics.p50Latency)}`}
-          />
-          <StatCard
-            icon={CircleDollarSign}
-            label="Cost"
-            value={formatCurrency(metrics.totalCostUsd)}
-            detail={`${metrics.totalTokens} tokens recorded`}
-          />
-        </section>
-
         <AgentWorkbench
           runs={runs}
           source={source}
           publicApiBaseUrl={publicApiBaseUrl}
-          metrics={{
-            latencyRows,
-            routeRows,
-            statusRows,
-            failureRows,
-            verification: {
-              verified: metrics.verifiedClaims,
-              unverified: metrics.unverifiedClaims,
-              contradicted: metrics.contradictedClaims,
-              verificationRate: metrics.verificationRate,
-            },
-          }}
         />
       </div>
     </main>
