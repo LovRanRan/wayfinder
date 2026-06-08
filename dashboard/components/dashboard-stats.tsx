@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import {
-  Activity,
+  BarChart3,
+  CheckCircle2,
   CircleDollarSign,
   ShieldCheck,
   TimerReset,
@@ -16,68 +18,116 @@ type DashboardStatsProps = {
   onOpenMetrics: () => void;
 };
 
+type MetricTabId = "success" | "runs" | "latency" | "cost";
+
 export function DashboardStats({ metrics, onOpenMetrics }: DashboardStatsProps) {
-  const cards: StatButtonProps[] = [
+  const [activeTab, setActiveTab] = useState<MetricTabId>("success");
+  const tabs: MetricTab[] = [
     {
+      id: "success",
       icon: ShieldCheck,
-      label: "Run success rate",
+      label: "Success",
+      eyebrow: "Run success rate",
       value: formatPercent(metrics.successRate),
       detail: `${metrics.completedRuns} completed / ${metrics.failedRuns} failed`,
-      onClick: onOpenMetrics,
     },
     {
-      icon: Activity,
-      label: "Active runs",
-      value: metrics.activeRuns.toString(),
+      id: "runs",
+      icon: CheckCircle2,
+      label: "Runs",
+      eyebrow: "Completed runs",
+      value: metrics.completedRuns.toString(),
       detail: `${metrics.totalRuns} recent runs tracked`,
-      onClick: onOpenMetrics,
     },
     {
+      id: "latency",
       icon: TimerReset,
-      label: "Latest latency",
+      label: "Latency",
+      eyebrow: "Latest completed latency",
       value: formatSeconds(metrics.latestCompletedLatency),
       detail: `${metrics.completedLatencySamples} completed samples · P95 ${formatSeconds(metrics.p95Latency)}`,
-      onClick: onOpenMetrics,
     },
     {
+      id: "cost",
       icon: CircleDollarSign,
       label: "Cost",
+      eyebrow: "App-tracked cost",
       value: formatCurrency(metrics.totalCostUsd),
       detail: `${metrics.totalTokens} tokens recorded`,
-      onClick: onOpenMetrics,
     },
   ];
+  const selected = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+  const SelectedIcon = selected.icon;
 
   return (
-    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => (
-        <StatButton key={card.label} {...card} />
-      ))}
+    <section className="rounded-lg border border-border bg-card/95 p-3 text-card-foreground">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        {tabs.map((tab) => (
+          <MetricTabButton
+            key={tab.id}
+            icon={tab.icon}
+            label={tab.label}
+            isActive={tab.id === selected.id}
+            onClick={() => setActiveTab(tab.id)}
+          />
+        ))}
+      </div>
+      <div className="mt-3 rounded-md border border-border bg-background/60 p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <SelectedIcon className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span className="font-mono text-xs font-medium uppercase text-muted-foreground">
+                {selected.eyebrow}
+              </span>
+            </div>
+            <div className="mt-3 font-mono text-3xl font-semibold">{selected.value}</div>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">{selected.detail}</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 font-mono text-xs font-semibold uppercase text-muted-foreground transition hover:border-primary/60 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            onClick={onOpenMetrics}
+          >
+            <BarChart3 className="h-4 w-4" aria-hidden="true" />
+            Metrics
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
 
-type StatButtonProps = {
+type MetricTab = {
+  id: MetricTabId;
   icon: LucideIcon;
   label: string;
+  eyebrow: string;
   value: string;
   detail: string;
+};
+
+type MetricTabButtonProps = {
+  icon: LucideIcon;
+  label: string;
+  isActive: boolean;
   onClick: () => void;
 };
 
-function StatButton({ icon: Icon, label, value, detail, onClick }: StatButtonProps) {
+function MetricTabButton({ icon: Icon, label, isActive, onClick }: MetricTabButtonProps) {
   return (
     <button
       type="button"
-      className="group rounded-lg border border-border bg-card/95 p-4 text-left text-card-foreground transition hover:border-primary/60 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring"
+      className={`inline-flex h-12 items-center justify-center gap-2 rounded-md border px-3 font-mono text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-ring ${
+        isActive
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-background/50 text-muted-foreground hover:border-primary/60 hover:text-foreground"
+      }`}
       onClick={onClick}
+      aria-pressed={isActive}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className="font-mono text-xs font-medium uppercase text-muted-foreground">{label}</span>
-        <Icon className="h-4 w-4 text-primary transition group-hover:scale-105" aria-hidden="true" />
-      </div>
-      <div className="mt-3 font-mono text-2xl font-semibold">{value}</div>
-      <p className="mt-1 font-mono text-[11px] text-muted-foreground">{detail}</p>
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      {label}
     </button>
   );
 }

@@ -153,8 +153,8 @@ Guided design mode:
 |---|---|
 | **Current Commit** | [ ] **Commit 21** — Repo conversation threads + memory layer |
 | **Overall Progress** | Pre-build **3 / 3 done** · build commits **20 / 21 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | Commit 21 is planned but not started;pre-Commit21 dashboard metric semantics hotfix is being closed separately. |
-| **Last Activity** | 2026-06-08 · Fixed dashboard metric semantics:top card now shows run success rate, and latency uses completed-only samples with latest completed latency as the primary value. |
+| **Blocker** | Commit 21 is planned but not started;pre-Commit21 dashboard metric UI/semantics hotfix is being closed separately. |
+| **Last Activity** | 2026-06-08 · Refined dashboard metrics:top metrics now use a tabbed panel, `Active runs` is replaced by completed-run volume, and cost is labeled as app-tracked instead of OpenAI billing. |
 | **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
 | **Today's North Star** | Make Wayfinder feel like a repo-aware agent workspace:a user can open one repo thread, ask follow-up questions, and see answers grounded in the repo packet plus conversation memory. |
 | **Next Action** | In the next chat,start Commit 21 by writing `docs/design_notes/017_repo_conversation_threads.md`,then implement the smallest repo-thread/chat API and dashboard flow. |
@@ -503,6 +503,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-08 — Pre-Commit 21 hotfix — `Dashboard metric tabs and cost boundary`
+
+- **做了什么**:Haichuan flagged that four top metric cards were cramped, `Active runs` was low-value for a one-run-at-a-time product, and `Cost` could be misread as real OpenAI billing for the user's key.
+- **自己设计了什么**:The top metrics should behave like a compact metric switcher:one large panel with tabs for success, completed runs, latency, and cost. Cost should mean Wayfinder-recorded/app-estimated usage unless a future Admin API integration is explicitly added.
+- **Codex 帮了哪里**:Codex changed the dashboard top metrics into a tabbed panel, replaced `Active runs` with `Completed runs`, kept a direct `Metrics` drill-in button, and documented the OpenAI cost boundary.
+- **验证方式**:dashboard `npm run lint`;dashboard `npm run typecheck`;dashboard `NEXT_TELEMETRY_DISABLED=1 npm run build`;`git diff --check`.
+- **问题记录**:OpenAI's organization usage/cost APIs are Admin/organization scoped. They can group by `api_key_id`, but a normal model API key should not be treated as a billing-query credential.
+- **下一步**:Commit/push this as a small hotfix outside Commit 21, then start Commit 21 repo conversation threads in a fresh chat.
 
 ### 2026-06-08 — Pre-Commit 21 hotfix — `Dashboard metric semantics`
 
