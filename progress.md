@@ -153,11 +153,11 @@ Guided design mode:
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Current Commit**     | [x] **Commit 22** — Ambient repo chat workspace + Codex-like shell redesign                                                                                                                                                 |
 | **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** · ship **7 / 8 core artifacts done**                                                                                                                              |
-| **Blocker**            | None for Commit 22 code. Validation caveat:dashboard `npm run lint`, `npm run typecheck`, and `require("next")` hung locally without diagnostics;backend/API gates and TS transpile checks passed.                         |
-| **Last Activity**      | 2026-06-09 · Completed Commit 22 active repo context, `/chat` facade, deterministic chat router, chat-first dashboard shell, agent trace rail, thread-native metrics, and activity timeline.                                |
+| **Blocker**            | None for Commit 22 backend/product code. Dashboard validation is skipped as local dependency-install debt:Node cannot resolve `@next/env` from the current `node_modules`;rerun after `npm ci`.                              |
+| **Last Activity**      | 2026-06-09 · Closed Commit 22 validation follow-up:full backend gates pass, mypy type issues fixed, dashboard build failure traced to local `node_modules` / `@next/env` resolution.                                      |
 | **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
 | **Today's North Star** | Redesign Wayfinder so repo context is ambient in every chat turn:the user talks naturally, and Wayfinder decides when to answer conversationally, when to run grounded repo analysis, and when to show structured evidence. |
-| **Next Action**        | Commit Commit 22, then start Commit 23 true multi-agent implementation deepening:role prompts/contracts, multi-worker routing, verifier challenge loop, and final provenance.                                              |
+| **Next Action**        | Start Commit 23 true multi-agent implementation deepening:role prompts/contracts, multi-worker routing, verifier challenge loop, and final provenance.                                                                      |
 
 ---
 
@@ -556,6 +556,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-09 — Commit 22 validation closeout — `Backend gates green; dashboard dependency debt recorded`
+
+- **做了什么**:Reran the Commit 22 validation closeout before starting Commit 23. Fixed two backend mypy findings:removed a redundant `WayfinderState` cast in `run_store.py` and cast the lazy graph invoke result at the API boundary in `main.py`.
+- **自己设计了什么**:Treat backend/API validation as the required closeout for Commit 22 product correctness. Treat dashboard lint/typecheck/build as local dependency-install debt because the failure is `Cannot find module '@next/env'`, not a UI code assertion.
+- **Codex 帮了哪里**:Codex ran bounded validation commands, diagnosed the difference between code failures and local tool/dependency failures, and made only the two type-only backend fixes needed for mypy.
+- **验证方式**:`.venv/bin/ruff check src tests` passed;`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=src .venv/bin/pytest -q` passed(253 passed,8 skipped);`.venv/bin/mypy src tests` passed;`git diff --check` passed. Dashboard `npm run lint` timed out after 240s, `npm run typecheck` was intentionally stopped after user chose to skip, and `npm run build` failed because Node could not resolve `@next/env` from the current `node_modules`.
+- **问题记录**:Before using dashboard CLI gates again, refresh dependencies with `cd dashboard && npm ci`, then rerun `npm run lint`, `npm run typecheck`, and `NEXT_TELEMETRY_DISABLED=1 npm run build`. Do not treat this as Commit 22 product scope rollback.
+- **下一步**:Start Commit 23 true multi-agent implementation deepening.
 
 ### 2026-06-09 — Commit 22 implemented — `Ambient chat facade and workspace shell`
 

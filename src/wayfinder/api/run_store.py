@@ -1303,7 +1303,7 @@ def _copy_graph_input(graph_input: WayfinderState) -> WayfinderState:
     corrections = copied.get("user_corrections")
     if isinstance(corrections, list):
         copied["user_corrections"] = list(corrections)
-    return cast(WayfinderState, copied)
+    return copied
 
 
 def _partial_summaries_from_state(state: WayfinderState) -> dict[str, str]:

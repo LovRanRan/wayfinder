@@ -1174,7 +1174,7 @@ def _invoke_graph_with_timeout(
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="wayfinder-job")
     future = executor.submit(graph.invoke, graph_input, config=config)
     try:
-        return future.result(timeout=timeout_seconds)
+        return cast(WayfinderState, future.result(timeout=timeout_seconds))
     except FutureTimeoutError as exc:
         future.cancel()
         raise JobExecutionTimeout(
