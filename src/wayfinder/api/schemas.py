@@ -12,6 +12,25 @@ TraceMetadataValue = str | int | float | bool | None
 RuntimeLLMRouting = Literal["off", "openai"]
 RuntimeFinalWriter = Literal["deterministic", "openai"]
 SandboxStatus = Literal["disabled", "unavailable", "enabled"]
+AnswerMode = Literal["auto", "conversation", "report", "evidence", "clarify"]
+ChatIntent = Literal[
+    "chat_only",
+    "repo_question",
+    "context_switch",
+    "structured_report",
+    "evidence_request",
+    "clarification",
+    "unsupported_action",
+]
+AgentTraceRole = Literal[
+    "conversation_memory_agent",
+    "supervisor_agent",
+    "repo_cartographer_agent",
+    "symbol_investigator_agent",
+    "verification_agent",
+    "final_synthesizer_agent",
+    "external_context_scout",
+]
 
 
 class ExplainRequest(BaseModel):
@@ -31,6 +50,18 @@ class ThreadCreateRequest(BaseModel):
 
 class ThreadMessageRequest(BaseModel):
     content: str = Field(min_length=1)
+
+
+class ChatRequest(BaseModel):
+    content: str = Field(min_length=1)
+    thread_id: str | None = Field(default=None, min_length=1)
+    repo_url: str | None = Field(default=None, min_length=1)
+    answer_mode: AnswerMode = "auto"
+
+
+class WorkspaceContextRequest(BaseModel):
+    thread_id: str | None = Field(default=None, min_length=1)
+    repo_url: str | None = Field(default=None, min_length=1)
 
 
 class AuthRequest(BaseModel):
@@ -139,3 +170,53 @@ class ConversationThreadDetail(BaseModel):
     messages: list[ThreadMessage] = Field(default_factory=list)
     runs: list[RunSummary] = Field(default_factory=list)
     active_run: RunSummary | None = None
+
+
+class ActiveRepoContext(BaseModel):
+    context_id: str
+    user_id: str
+    repo_url: str | None = None
+    repo_name: str | None = None
+    default_thread_id: str | None = None
+    last_run_id: str | None = None
+    status: Literal["empty", "ready", "running", "failed"] = "empty"
+    summary_memory: str | None = None
+    active_focus: str | None = None
+    selected_files: list[str] = Field(default_factory=list)
+    selected_symbols: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    updated_at: datetime
+
+
+class ChatRouteDecision(BaseModel):
+    intent: ChatIntent
+    answer_mode: AnswerMode
+    requires_grounded_run: bool = False
+    requires_context_switch: bool = False
+    clarification_question: str | None = None
+    active_focus: str | None = None
+    reason: str
+
+
+class AgentTraceStep(BaseModel):
+    agent_name: AgentTraceRole
+    task: str
+    status: Literal["planned", "queued", "completed", "skipped"]
+    evidence_refs: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
+class AgentTraceAttachment(BaseModel):
+    route: ChatRouteDecision
+    steps: list[AgentTraceStep] = Field(default_factory=list)
+    tool_refs: list[str] = Field(default_factory=list)
+    verifier_status: str | None = None
+    final_handoff: str | None = None
+
+
+class ChatResponse(BaseModel):
+    thread: ConversationThreadDetail | None = None
+    active_context: ActiveRepoContext
+    active_run: RunSummary | None = None
+    route: ChatRouteDecision
+    agent_trace: AgentTraceAttachment

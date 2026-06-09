@@ -2,6 +2,7 @@ import time
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -11,11 +12,11 @@ from wayfinder.api.auth import AuthenticatedUser
 from wayfinder.api.main import app
 from wayfinder.api.run_store import InMemoryRunStore, SQLiteRunStore
 from wayfinder.api.schemas import ExplainRequest
-from wayfinder.graph.architecture import ArchitectureScanner
-from wayfinder.graph.entry import EntryScanner
-from wayfinder.graph.state import WayfinderState
 from wayfinder.ingestion.models import RepoHandle, RepoSource
-from wayfinder.sandbox.remote import SandboxHealthCheck
+
+ArchitectureScanner = Any
+EntryScanner = Any
+WayfinderState = dict[str, Any]
 
 
 class FakeApiArchitectureScanner:
@@ -463,6 +464,197 @@ def test_thread_memory_packet_is_bounded() -> None:
     assert "new code facts must still be" in packet
 
 
+def test_chat_without_active_repo_returns_clarification(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    client = TestClient(app)
+
+    response = client.post(
+        "/chat",
+        json={"content": "Explain the behavior through app.service.create_user"},
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["thread"] is None
+    assert payload["active_run"] is None
+    assert payload["active_context"]["status"] == "empty"
+    assert payload["route"]["intent"] == "clarification"
+    assert payload["route"]["answer_mode"] == "clarify"
+    assert "Which public GitHub repo" in payload["route"]["clarification_question"]
+    assert client.get("/runs").json() == []
+
+
+def test_chat_sets_active_repo_and_reuses_context_for_followup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    inputs: list[WayfinderState] = []
+
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
+    ) -> FakeApiGraph:
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
+        return FakeApiGraph(inputs=inputs)
+
+    (tmp_path / "app.py").write_text("def create_user():\n    return 'ok'\n")
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+    client = TestClient(app)
+
+    first = client.post(
+        "/chat",
+        json={
+            "repo_url": str(tmp_path),
+            "content": "Explain the behavior through app.service.create_user",
+        },
+    )
+    assert first.status_code == 202
+    first_payload = first.json()
+    assert first_payload["active_context"]["repo_url"] == str(tmp_path)
+    assert first_payload["active_context"]["active_focus"] == "app.service.create_user"
+    assert first_payload["route"]["requires_grounded_run"] is True
+    assert first_payload["active_run"] is not None
+    assert first_payload["agent_trace"]["steps"][2]["agent_name"] == "symbol_investigator_agent"
+
+    followup = client.post(
+        "/chat",
+        json={"content": "Show me the evidence behind that."},
+    )
+    assert followup.status_code == 202
+    followup_payload = followup.json()
+    assert followup_payload["active_context"]["repo_url"] == str(tmp_path)
+    assert followup_payload["route"]["intent"] == "evidence_request"
+    assert followup_payload["route"]["active_focus"] == "app.service.create_user"
+    assert {item["repo_url"] for item in followup_payload["thread"]["runs"]} == {str(tmp_path)}
+    assert inputs[0]["repo_url"] == str(tmp_path)
+    assert inputs[1]["repo_url"] == str(tmp_path)
+    assert "Active focus: app.service.create_user" in inputs[1]["query"]
+
+
+def test_chat_context_switch_clears_focus_and_does_not_leak_memory(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
+    ) -> FakeApiGraph:
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
+        return FakeApiGraph()
+
+    repo_a = tmp_path / "repo-a"
+    repo_b = tmp_path / "repo-b"
+    repo_a.mkdir()
+    repo_b.mkdir()
+    (repo_a / "a.py").write_text("def old_symbol():\n    return 'a'\n")
+    (repo_b / "b.py").write_text("def new_symbol():\n    return 'b'\n")
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+    client = TestClient(app)
+
+    first = client.post(
+        "/chat",
+        json={
+            "repo_url": str(repo_a),
+            "content": "Explain the behavior through app.service.old_symbol",
+        },
+    )
+    assert first.status_code == 202
+    assert first.json()["active_context"]["active_focus"] == "app.service.old_symbol"
+
+    switch = client.post(
+        "/chat",
+        json={"repo_url": str(repo_b), "content": "Switch to this repo"},
+    )
+
+    assert switch.status_code == 202
+    payload = switch.json()
+    assert payload["active_context"]["repo_url"] == str(repo_b)
+    assert payload["active_context"]["active_focus"] is None
+    assert payload["route"]["intent"] == "context_switch"
+    assert "old_symbol" not in payload["thread"]["thread"]["summary_memory"]
+    assert payload["active_run"] is None
+
+
+def test_chat_structured_report_selects_report_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_build_graph(
+        checkpointer: object = None,
+        *,
+        architecture_scanner: ArchitectureScanner | None = None,
+        entry_scanner: EntryScanner | None = None,
+        verifier_runner: object | None = None,
+        llm_router: object | None = None,
+        final_synthesizer: object | None = None,
+        community_context_provider: object | None = None,
+    ) -> FakeApiGraph:
+        del (
+            checkpointer,
+            architecture_scanner,
+            entry_scanner,
+            verifier_runner,
+            llm_router,
+            final_synthesizer,
+            community_context_provider,
+        )
+        return FakeApiGraph()
+
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    monkeypatch.setattr("wayfinder.api.main.build_graph", fake_build_graph)
+    client = TestClient(app)
+
+    context_response = client.post(
+        "/workspace/context",
+        json={"repo_url": str(tmp_path)},
+    )
+    assert context_response.status_code == 200
+
+    response = client.post(
+        "/chat",
+        json={"content": "Give me the structured report version", "answer_mode": "report"},
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["route"]["intent"] == "structured_report"
+    assert payload["route"]["answer_mode"] == "report"
+    assert payload["route"]["requires_grounded_run"] is True
+    assert payload["agent_trace"]["verifier_status"] == "queued"
+
+
 def test_workspace_settings_defaults_to_safe_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
     monkeypatch.setenv("WAYFINDER_OPENAI_MODEL", "chat-latest")
@@ -492,8 +684,8 @@ def test_workspace_settings_reports_enabled_sandbox_when_worker_is_healthy(
     monkeypatch.setenv("WAYFINDER_VERIFIER_RUNNER", "sandboxed_mcp")
     monkeypatch.setenv("WAYFINDER_TEST_SANDBOX_URL", "https://sandbox.example")
     monkeypatch.setattr(
-        "wayfinder.graph.runtime.check_sandbox_health",
-        lambda *args, **kwargs: SandboxHealthCheck(ok=True, message="ok"),
+        "wayfinder.api.main.verifier_sandbox_policy_from_env",
+        lambda env=None: SimpleNamespace(status="enabled", message="ok"),
     )
 
     client = TestClient(app)

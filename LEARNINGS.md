@@ -736,3 +736,39 @@
 - "The memory layer is intentionally bounded:rolling summary, last messages, selected evidence refs, and a grounding policy. It never passes unlimited history."
 - "I caught and fixed a subtle product bug where raw memory leaked into deterministic answers;now the answer shows a memory note while keeping the actual packet internal."
 - "This is what makes Wayfinder feel like a repo-aware copilot workspace rather than a one-shot deterministic fact panel."
+
+---
+
+## Commit 22 — Ambient Repo Chat Workspace + Codex-like Shell Redesign
+
+### 📚 Sources
+
+- [x] Project tracker: [`progress.md`](progress.md) — Commit 22 dashboard, roadmap, design gate, and Definition of Done for ambient repo chat ✅ 2026-06-09
+- [x] Four-step ownership workflow: [`../../planning/codebase_onboarding_theme/project6_four_step_method.md`](../../planning/codebase_onboarding_theme/project6_four_step_method.md) — design note before production code, Haichuan owns architecture/schema/routing/tests ✅ 2026-06-09
+- [x] Commit 21 design note: [`docs/design_notes/017_repo_conversation_threads.md`](docs/design_notes/017_repo_conversation_threads.md) — existing thread lifecycle, memory policy, API contract, dashboard IA, and failure cases ✅ 2026-06-09
+- [x] Current thread API and schemas: [`src/wayfinder/api/main.py`](src/wayfinder/api/main.py), [`src/wayfinder/api/schemas.py`](src/wayfinder/api/schemas.py), [`src/wayfinder/api/run_store.py`](src/wayfinder/api/run_store.py) — current `/threads` boundary, `ConversationThread`, `ThreadMessage`, and memory packet builder ✅ 2026-06-09
+- [x] Current dashboard thread surface: [`dashboard/components/repo-conversation-workspace.tsx`](dashboard/components/repo-conversation-workspace.tsx), [`dashboard/components/agent-workbench.tsx`](dashboard/components/agent-workbench.tsx), [`dashboard/components/workspace-tabs.tsx`](dashboard/components/workspace-tabs.tsx) — current form-first thread creation, tab routing, and diagnostics surfaces ✅ 2026-06-09
+- [x] Commit 22 design note: [`docs/design_notes/018_ambient_repo_chat_workspace.md`](docs/design_notes/018_ambient_repo_chat_workspace.md) — active repo context, `/chat` facade, chat routing, Codex-like IA, failure cases, and test plan ✅ 2026-06-09
+- [x] Commit 22 implementation files: [`src/wayfinder/api/chat_routing.py`](src/wayfinder/api/chat_routing.py), [`dashboard/lib/chat.ts`](dashboard/lib/chat.ts), [`dashboard/app/api/wayfinder/chat/route.ts`](dashboard/app/api/wayfinder/chat/route.ts) — deterministic chat routing, chat response mapping, and dashboard proxy ✅ 2026-06-09
+
+### 🧠 Concepts Internalized
+
+- Active repo context is not evidence. It is the product state that tells the agent which repo/thread/focus the user is talking about; new code claims still need repo/AST/test evidence.
+- A `/chat` facade lets the UI feel natural while keeping `/threads`, `/explain`, `/status`, and run history intact as lower-level execution surfaces.
+- Agent trace in Commit 22 is product provenance, not full multi-agent execution. It names the Project 6 roles and queued evidence path; Commit 23 owns distinct prompts and real multi-worker planning.
+- The dashboard should make the stable composer and active repo visible first. Metrics, latency, cost, and raw runs are diagnostics, not the primary workflow.
+
+### ⚠️ Gotchas Debugged
+
+- The phrase "Switch to this repo" should switch context without starting a grounded run. Treating the word `repo` itself as a code-question keyword made context switching too expensive, so the router now requires stronger code/evidence/report signals.
+- Follow-up evidence requests need active focus inheritance. `Show me the evidence behind that` can route to the previous symbol only if the focus is scoped to the same repo context.
+- Pytest on this machine auto-loaded the LangSmith plugin and stalled while importing `httpx`;use `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` for local API tests if this repeats. After that, `wayfinder.api.main` still needed lazy graph/runtime imports so API collection does not load LangGraph/LangChain unless a grounded run actually needs it.
+- Dashboard `npm run lint`, `npm run typecheck`, direct ESLint API, TypeScript Program checks, and `require("next")` hung locally without diagnostics;use a clean terminal/CI rerun for full frontend gates and keep a small `transpileModule` smoke as a local syntax fallback.
+- The untracked `dashboard/components/workspace-metrics 2.tsx` is an old duplicate/alternate metrics component and was left untouched to avoid deleting user files.
+
+### 💼 Interview Soundbites
+
+- "Commit 22 moved Wayfinder from a repo-plus-question form to an ambient repo workspace. The user attaches a repo once, then every turn inherits active context safely."
+- "I separated active context from grounding. Context chooses the repo and focus; Project 5 MCP tools and the verifier still decide which code claims are supported."
+- "The UI shows Project 6 agents in the trace, while Project 5 MCPs remain deterministic tools. That keeps the multi-agent story honest."
+- "History changed from a run table into a repo conversation timeline, because the user's mental model is investigation continuity, not isolated jobs."

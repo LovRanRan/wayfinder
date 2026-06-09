@@ -149,15 +149,15 @@ Guided design mode:
 
 ## 📊 Dashboard
 
-| Field | Value |
-|---|---|
-| **Current Commit** | [x] **Commit 21** — Repo conversation threads + memory layer ✅ pushed/deployed `532a87e` 2026-06-09 |
-| **Overall Progress** | Pre-build **3 / 3 done** · build commits **21 / 21 done** · ship **7 / 8 core artifacts done** |
-| **Blocker** | No remaining Commit 21 engineering blocker;demo video remains Haichuan-owned. |
-| **Last Activity** | 2026-06-09 · Pushed Commit 21, Railway redeployed API/dashboard to `532a87e`, and public-smoked one repo thread with two follow-up questions. |
-| **Working Mode** | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance. |
-| **Today's North Star** | Make Wayfinder feel like a repo-aware agent workspace:a user can open one repo thread, ask follow-up questions, and see answers grounded in the repo packet plus conversation memory. |
-| **Next Action** | Haichuan records the Wayfinder recursive demo video, then decide whether to do one final polish increment before Project 7. |
+| Field                  | Value                                                                                                                                                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Commit**     | [x] **Commit 22** — Ambient repo chat workspace + Codex-like shell redesign                                                                                                                                                 |
+| **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** · ship **7 / 8 core artifacts done**                                                                                                                              |
+| **Blocker**            | None for Commit 22 code. Validation caveat:dashboard `npm run lint`, `npm run typecheck`, and `require("next")` hung locally without diagnostics;backend/API gates and TS transpile checks passed.                         |
+| **Last Activity**      | 2026-06-09 · Completed Commit 22 active repo context, `/chat` facade, deterministic chat router, chat-first dashboard shell, agent trace rail, thread-native metrics, and activity timeline.                                |
+| **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
+| **Today's North Star** | Redesign Wayfinder so repo context is ambient in every chat turn:the user talks naturally, and Wayfinder decides when to answer conversationally, when to run grounded repo analysis, and when to show structured evidence. |
+| **Next Action**        | Commit Commit 22, then start Commit 23 true multi-agent implementation deepening:role prompts/contracts, multi-worker routing, verifier challenge loop, and final provenance.                                              |
 
 ---
 
@@ -238,7 +238,7 @@ Guided design mode:
   - [x] Final pre-output HITL summary shows X verified / Y unverified / Z contradicted ✅ 2026-06-04
   - [x] Tests cover verified, unverified(no tests), contradicted, skipped-by-user, and modified test filter paths ✅ 2026-06-04
 
-- [x] **Commit 6 — Reflection loop + resilience layer** ✅ 2026-06-04
+- [x] **Commit 6 — Reflection loop + resilience layer** ✅ 2026-06-09
   - [x] Design note for bounded reflection, eight failure modes, and Commit 3 deferred resilience scope ✅ 2026-06-04
   - [x] Reflection self-check rewrites final output when `contradicted_claims` exist:generate -> verify -> rewrite, max 2 iterations ✅ 2026-06-04
   - [x] Failure mode 1:repo >10k files -> sampling / user-confirmation requirement surfaced as final limitation ✅ 2026-06-04
@@ -488,6 +488,58 @@ Guided design mode:
     - [x] Thread history is user-scoped and persisted in SQLite ✅ 2026-06-09
     - [x] README/DESIGN/progress explain Wayfinder as a grounded repo copilot with conversational threads, not a deterministic fact panel or one-shot report ✅ 2026-06-09
 
+- [/] **Commit 22 — Ambient repo chat workspace + Codex-like shell redesign**
+  - [x] Design gate before code:
+    - [x] Write `docs/design_notes/018_ambient_repo_chat_workspace.md` with problem statement, target interaction, repo-context ownership, chat routing, UI information architecture, state/API changes, failure modes, tests, and interview explanation ✅ 2026-06-09
+    - [x] Reframe the product gap explicitly:Commit 21 still requires the user to create a repo thread from a `repo_url` + first question;Commit 22 makes the active repo/workspace context implicit in the chat, like Codex operating inside a current worktree ✅ 2026-06-09
+    - [x] Define the target mental model:Wayfinder is no longer "submit repo + prompt";it is "open a workspace, attach/select a repo once, then talk to the agent naturally while it carries repo memory forward" ✅ 2026-06-09
+    - [x] Define non-goals:v1 is not a full IDE clone, not autonomous code editing, not private-repo GitHub OAuth, and not ungrounded chat over code facts ✅ 2026-06-09
+    - [x] Correct the portfolio framing:P5 MCP servers are deterministic tool/fact sources, not agents;P6 should be described as a grounded repo-aware copilot with multi-agent orchestration over deterministic MCP tools ✅ 2026-06-09
+    - [x] Detail the true P6 multi-agent shape:Conversation/Memory Agent, Supervisor Agent, Repo Cartographer Agent, Symbol Investigator Agent, Verification Agent, Final Synthesizer Agent, optional External Context Scout, shared output contracts, and UI-visible agent trace ✅ 2026-06-09
+    - [x] Draft the minimal skeleton boundary:backend schemas, store helpers, deterministic chat router, `/chat` facade, dashboard shell, first tests, and Commit 23 exclusions ✅ 2026-06-09
+  - [x] Product interaction redesign:
+    - [x] Replace the manual repo-link/question entry as the primary daily path with one persistent chat composer that always uses the active repo context ✅ 2026-06-09
+    - [x] Add an active repo/workspace context layer:current repo, branch/ref when available, last repo packet, thread memory, selected files/symbols, and known limitations ✅ 2026-06-09
+    - [x] Support natural ChatGPT-like conversation for planning, clarification, and follow-up, while preserving the current structured Wayfinder answer as an optional "grounded report" view ✅ 2026-06-09
+    - [x] Add an explicit answer-mode contract:conversational answer, structured report, evidence-first deep dive, or clarification question. The user should not need to choose a form every turn ✅ 2026-06-09
+    - [x] Keep repo facts grounded:memory can explain prior context, but new claims about files/functions/tests still need repo/AST/test evidence labels ✅ 2026-06-09
+    - [x] Make multi-agent behavior visible in the product:each substantial answer should show route metadata, contributing agents, linked tools/evidence, verifier status, and limitations ✅ 2026-06-09
+  - [x] Codex-like dashboard shell:
+    - [x] Redesign the first viewport around a Codex-style workspace:repo/sidebar on the left, central chat transcript/composer, and collapsible right rail for evidence, run timeline, selected files, and settings ✅ 2026-06-09
+    - [x] Move Metrics and old Run form out of the primary path;they become diagnostics/history surfaces, not the core user journey ✅ 2026-06-09
+    - [x] Fold old Run and Answer tabs into Threads:run progress becomes message/right-rail detail;structured answers become assistant messages with expandable grounded-report attachments ✅ 2026-06-09
+    - [x] Redesign History from a single-run table into a repo/thread activity timeline:repo attach/switch events, user messages, assistant messages, linked grounded runs, evidence views, inherited focus, clarification states, failures, and attention items ✅ 2026-06-09
+    - [x] Replace the four old metric cards (`Success`, `Runs`, `Latency`, `Cost`) with thread-native metrics:`Threads`, `Grounding`, `Context`, and `Attention`;move old latency/cost into run diagnostics ✅ 2026-06-09
+    - [x] Add a stable chat viewport:bounded transcript scroll, persistent bottom composer, no long-answer layout pushdown, and visible send-disabled reasons such as run in progress or missing repo context ✅ 2026-06-09
+    - [x] Add repo switcher / context indicator so the user always knows what codebase the agent is talking about without re-pasting the URL ✅ 2026-06-09
+    - [x] Keep current evidence chips and linked runs, but render them as assistant-message attachments or side-panel details instead of forcing a separate answer page ✅ 2026-06-09
+  - [x] Backend/API/state shape:
+    - [x] Implement a minimal `WorkspaceContext` / active repo context boundary separate from `ConversationThread` so every message can inherit repo context ✅ 2026-06-09
+    - [x] Add chat-message routing semantics:general chat, repo question, structured report request, context switch, clarification, and unsupported action ✅ 2026-06-09
+    - [x] Decide whether Commit 22 reuses `/threads/{id}/messages` with richer context or adds a higher-level `/chat` endpoint that resolves active repo/thread automatically;design note chooses a product-level `/chat` facade over existing thread/run APIs ✅ 2026-06-09
+    - [x] Add an agent-trace response shape for `/chat`:route decision, agent plan, worker contributions, tool/evidence refs, verifier labels, and final synthesizer handoff ✅ 2026-06-09
+    - [x] Keep P5 MCPs as deterministic tools in the schema;do not model them as agents or LLM callers ✅ 2026-06-09
+    - [x] Preserve backward compatibility for existing `/threads` and `/explain` routes during the transition ✅ 2026-06-09
+  - [x] Tests and verification:
+    - [x] API tests cover sending a message without repeating `repo_url` after active repo context is set ✅ 2026-06-09
+    - [x] API tests cover context switch safety:asking about repo B must not leak repo A memory or evidence ✅ 2026-06-09
+    - [x] Router tests cover conversational-only questions, repo-grounded questions, structured report requests, and ambiguous/no-active-repo clarification ✅ 2026-06-09
+    - [x] API/UI tests cover visible agent trace for a repo-grounded answer:Supervisor route, worker agent contribution, tool evidence, verifier label, and final answer attachment ✅ 2026-06-09
+    - [x] Frontend syntax smoke covers default chat-first workspace, repo context indicator, message history, evidence side rail, old Run/Answer content inside thread/message details, redesigned history timeline, new `Threads`/`Grounding`/`Context`/`Attention` metrics, stable composer layout, explicit send-disabled reasons, and agent contribution trace ✅ TS transpile smoke 2026-06-09;full Next/ESLint/tsc CLI hung locally without diagnostics.
+  - [x] Commit 22 Definition of Done:
+    - [x] A logged-in user can open Wayfinder, select/attach a repo once, and then ask multiple natural-language questions without re-entering repo URL or separate prompt fields ✅ 2026-06-09
+    - [x] The same assistant can answer in a natural ChatGPT-like style or expand into the current structured grounded output when the question needs evidence ✅ 2026-06-09
+    - [x] The UI reads like a Codex-style agent workspace, not a dashboard with a chat widget bolted on ✅ 2026-06-09
+    - [x] The user can see that a grounded answer came from multiple Project 6 agents, not from the three Project 5 MCP servers being mislabeled as agents ✅ 2026-06-09
+    - [x] Active repo context, message history, and evidence links survive refresh and are visibly scoped to the current workspace/user ✅ 2026-06-09
+    - [x] README/DESIGN/progress explain the new product as a multi-agent repo onboarding copilot with MCP-grounded verification while preserving the grounded verification differentiator ✅ 2026-06-09
+  - [ ] Commit 23 follow-up candidate — True multi-agent implementation deepening:
+    - [ ] Split role prompts/contracts for Conversation/Memory, Supervisor, Repo Cartographer, Symbol Investigator, Verification, and Final Synthesizer agents.
+    - [ ] Add supervisor plans that can call more than one worker agent for one user question.
+    - [ ] Make worker outputs claim/evidence/limitation packets instead of final prose.
+    - [ ] Add verification challenge loop where the verifier can downgrade or contradict another agent's claim before final synthesis.
+    - [ ] Add tests proving multi-worker routing, verifier challenge behavior, and final answer provenance.
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
@@ -504,6 +556,24 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-09 — Commit 22 implemented — `Ambient chat facade and workspace shell`
+
+- **做了什么**:Implemented the Commit 22 product slice:active repo context schemas/store helpers, deterministic `chat_routing.py`, `POST /chat`, `GET/POST /workspace/context`, chat response agent trace attachments, dashboard `/chat` proxy, chat response mapper, Codex-like repo workspace shell, right-side context/agent-trace rail, thread-native top metrics, and repo/thread activity timeline.
+- **自己设计了什么**:`/chat` is a facade over the existing thread/run substrate, not a replacement. It resolves active context, records the user turn, decides whether the turn is chat-only/clarification/context-switch/grounded, and reuses the existing graph queue for grounded repo facts. P5 MCPs remain tool refs in the trace, not agents.
+- **Codex 帮了哪里**:Codex implemented the explicitly delegated full Commit 22 slice after the skeleton boundary was approved by user wording. It kept Commit 23 items out of scope:distinct prompts, true multi-worker routing, verifier challenge loops, and final provenance tests across worker agents.
+- **验证方式**:`.venv/bin/ruff check src/wayfinder/api tests/test_api.py` passed;`python3 -m py_compile src/wayfinder/api/schemas.py src/wayfinder/api/chat_routing.py src/wayfinder/api/run_store.py src/wayfinder/api/observability.py src/wayfinder/api/main.py tests/test_api.py` passed;`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=src .venv/bin/pytest tests/test_api.py -q` passed(36 passed);`git diff --check` passed;router smoke script confirmed no-repo clarification, evidence focus inheritance, and context switch without grounded run;dashboard changed files passed a TypeScript `transpileModule` syntax smoke(6 files).
+- **问题记录**:Plain `uv run pytest` first stalled on LangSmith/httpx plugin autoload;the fixed local command is `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=src .venv/bin/pytest tests/test_api.py -q`. `.venv/bin/mypy src/wayfinder/api tests/test_api.py`, dashboard `npm run lint`, `npm run typecheck`, direct ESLint API, TypeScript Program check, and `require("next")` hung locally without diagnostics, so full mypy/frontend CLI gates should be rerun in a clean terminal/CI. The untracked `dashboard/components/workspace-metrics 2.tsx` remains untouched because it looks like an older duplicate outside this slice.
+- **下一步**:Commit Commit 22, then start Commit 23 true multi-agent implementation deepening.
+
+### 2026-06-09 — Commit 22 scoped — `Ambient repo chat workspace + Codex-like shell redesign`
+
+- **做了什么**:Captured the next redesign direction and wrote `docs/design_notes/018_ambient_repo_chat_workspace.md`:stop making users manually enter `repo_url` + question as the main workflow, make repo context ambient in every chat turn, and define the minimal skeleton boundary before production code.
+- **自己设计了什么**:Commit 22 should make Wayfinder feel like a Codex/ChatGPT-style workspace:one persistent composer, active repo context, natural conversation, structured grounded reports on demand, and evidence/run details as message attachments or a side rail. Haichuan accepted the concrete IA correction:History becomes a repo/thread activity timeline;the four top metrics become `Threads`,`Grounding`,`Context`,`Attention`;the chat viewport must keep a stable bottom composer with explicit send-disabled reasons. Framing is now explicit:P5 MCPs are deterministic fact tools, while P6 becomes the true multi-agent repo onboarding copilot over those tools. The detailed agent roster is Conversation/Memory Agent, Supervisor Agent, Repo Cartographer Agent, Symbol Investigator Agent, Verification Agent, Final Synthesizer Agent, plus optional External Context Scout.
+- **Codex 帮了哪里**:Codex translated the product instinct into a concrete roadmap with design-gate requirements, product interaction changes, UI shell boundaries, backend/API state questions, tests, and Definition of Done.
+- **验证方式**:Design/tracker update only;`git diff --check` on docs/tracker;no production code changed. Haichuan's public thread smoke confirmed that the exact symbol question `wayfinder.graph.app.build_graph` still produces `verified=3`, `unverified=1`, `contradicted=0` inside a new thread. A second UI smoke showed that a typed repo link draft in Threads resets after switching tabs.
+- **问题记录**:The design chooses a product-level `/chat` facade over existing `/threads` rather than deleting thread/run APIs. The latest user smoke narrows the backend gap:thread initial questions with explicit symbols work;the missing layer is active focus inheritance for follow-ups and broad natural-language continuation. It also exposed frontend state/layout gaps:repo/chat drafts are currently tab-local;long assistant outputs can push the composer into unstable page flow;send-disabled states do not clearly explain blockers such as an active running thread. Product narrative must not imply that MCP servers are agents or LLM callers;they are evidence providers used by the agent workspace. The untracked `dashboard/components/workspace-metrics 2.tsx` appears to be a duplicate/alternate metrics component and is left untouched until explicitly confirmed.
+- **下一步**:Haichuan reviews/approves the skeleton boundary, then writes the minimal backend skeleton for active repo context and `/chat` routing before any Codex-assisted implementation.
 
 ### 2026-06-09 — Commit 21 pushed and public-smoked — `Repo conversation threads + memory layer`
 

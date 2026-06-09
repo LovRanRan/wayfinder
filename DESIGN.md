@@ -412,3 +412,52 @@ The memory packet is continuity context, not a new source of code truth. If a
 follow-up asks for new code facts, the API still starts the grounded graph path.
 Memory-derived context is allowed to summarize prior discussion, but verified
 code claims must still come from repo, AST, or sandbox/test evidence.
+
+## 17. Ambient Repo Chat Workspace
+
+Commit 22 adds a product-level chat facade over the Commit 21 thread/run
+substrate. The primary object the user feels is now an active repo context, not
+a one-shot run form.
+
+Runtime endpoints:
+
+- `GET /workspace/context`: returns the active repo context for the current
+  workspace user.
+- `POST /workspace/context`: sets or switches the active context from a repo or
+  thread.
+- `POST /chat`: accepts natural chat, resolves active repo/thread context,
+  decides route/answer mode, and starts a grounded run only when needed.
+
+`ActiveRepoContext` is user-scoped and contains repo URL/name, default thread,
+latest run, summary memory, active focus, selected files/symbols, limitations,
+and status. In v1 it is stored close to the run/thread store and can be derived
+from the selected thread when no explicit context has been written.
+
+The chat router is deterministic first:
+
+- repo URL or `owner/repo` attaches or switches context;
+- no active repo plus a code question returns a clarification;
+- explicit file or symbol updates `active_focus`;
+- evidence/report requests inherit unambiguous active focus;
+- planning and workflow talk stay conversational and do not create code facts;
+- edit/shell/private-resource requests are rejected as unsupported actions.
+
+`/chat` returns an agent trace attachment for the UI. This names the Project 6
+agents that participated or are queued: conversation memory, supervisor, repo
+cartographer or symbol investigator, verification, and final synthesizer. The
+trace may reference Project 5 MCP tools, but those MCP servers remain
+deterministic evidence sources, not agents.
+
+Dashboard changes:
+
+- first viewport is a Codex-like workspace with left repo/thread rail, central
+  chat, and right context/evidence/agent trace rail;
+- the composer is persistent and owns draft state plus answer mode;
+- message attachments expose linked runs, verifier labels, and evidence refs;
+- History is a repo/thread activity timeline, with raw runs as diagnostics;
+- top metrics are `Threads`, `Grounding`, `Context`, and `Attention` instead of
+  `Success`, `Runs`, `Latency`, and `Cost`.
+
+Commit 23 owns the deeper multi-agent implementation: distinct role prompts,
+multi-worker supervisor planning, verifier challenge loops over worker claim
+packets, and final answer provenance tests.

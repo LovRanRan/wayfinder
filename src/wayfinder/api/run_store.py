@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
-from typing import cast
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 from wayfinder.api.auth import (
@@ -20,6 +20,7 @@ from wayfinder.api.auth import (
     verify_password,
 )
 from wayfinder.api.schemas import (
+    ActiveRepoContext,
     ConversationThread,
     ExplainRequest,
     RunError,
@@ -29,8 +30,8 @@ from wayfinder.api.schemas import (
     ThreadStatus,
     WorkspaceRuntimeSettings,
 )
-from wayfinder.graph.state import WayfinderState
-from wayfinder.ingestion.models import RepoHandle
+
+WayfinderState = dict[str, Any]
 
 
 class InMemoryRunStore:
@@ -45,6 +46,7 @@ class InMemoryRunStore:
         self._threads: dict[str, ConversationThread] = {}
         self._thread_order: list[str] = []
         self._thread_messages: dict[str, list[ThreadMessage]] = {}
+        self._active_contexts: dict[str, ActiveRepoContext] = {}
         self._lock = RLock()
 
     def create_user(
@@ -385,6 +387,56 @@ class InMemoryRunStore:
             max_chars=max_chars,
         )
 
+    def active_context_for_user(self, *, user_id: str) -> ActiveRepoContext:
+        with self._lock:
+            existing = self._active_contexts.get(user_id)
+            if existing is not None:
+                return existing
+        latest_thread = next(
+            (thread for thread in self.list_threads(user_id=user_id, limit=1)),
+            None,
+        )
+        if latest_thread is None:
+            return _empty_active_context(user_id=user_id)
+        return _context_from_thread(latest_thread)
+
+    def set_active_context(
+        self,
+        *,
+        user_id: str,
+        thread: ConversationThread,
+        active_focus: str | None = None,
+    ) -> ActiveRepoContext:
+        context = _context_from_thread(thread, active_focus=active_focus)
+        with self._lock:
+            self._active_contexts[user_id] = context
+        return context
+
+    def update_active_focus(
+        self,
+        *,
+        user_id: str,
+        active_focus: str | None,
+        selected_files: list[str] | None = None,
+        selected_symbols: list[str] | None = None,
+    ) -> ActiveRepoContext:
+        context = self.active_context_for_user(user_id=user_id)
+        updated = context.model_copy(
+            update={
+                "active_focus": active_focus,
+                "selected_files": (
+                    selected_files if selected_files is not None else context.selected_files
+                ),
+                "selected_symbols": (
+                    selected_symbols if selected_symbols is not None else context.selected_symbols
+                ),
+                "updated_at": datetime.now(UTC),
+            }
+        )
+        with self._lock:
+            self._active_contexts[user_id] = updated
+        return updated
+
     def _set_thread_running(
         self,
         *,
@@ -520,6 +572,11 @@ class SQLiteRunStore(InMemoryRunStore):
                 );
                 CREATE INDEX IF NOT EXISTS idx_thread_messages_thread_created
                     ON thread_messages(thread_id, created_at ASC);
+                CREATE TABLE IF NOT EXISTS active_repo_contexts (
+                    user_id TEXT PRIMARY KEY REFERENCES users(user_id),
+                    context_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -1003,6 +1060,73 @@ class SQLiteRunStore(InMemoryRunStore):
             max_chars=max_chars,
         )
 
+    def active_context_for_user(self, *, user_id: str) -> ActiveRepoContext:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT context_json FROM active_repo_contexts WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+        if row is not None:
+            return ActiveRepoContext.model_validate_json(str(row["context_json"]))
+
+        latest = next((thread for thread in self.list_threads(user_id=user_id, limit=1)), None)
+        if latest is None:
+            return _empty_active_context(user_id=user_id)
+        return _context_from_thread(latest)
+
+    def set_active_context(
+        self,
+        *,
+        user_id: str,
+        thread: ConversationThread,
+        active_focus: str | None = None,
+    ) -> ActiveRepoContext:
+        context = _context_from_thread(thread, active_focus=active_focus)
+        self._write_active_context(user_id=user_id, context=context)
+        return context
+
+    def update_active_focus(
+        self,
+        *,
+        user_id: str,
+        active_focus: str | None,
+        selected_files: list[str] | None = None,
+        selected_symbols: list[str] | None = None,
+    ) -> ActiveRepoContext:
+        context = self.active_context_for_user(user_id=user_id)
+        updated = context.model_copy(
+            update={
+                "active_focus": active_focus,
+                "selected_files": (
+                    selected_files if selected_files is not None else context.selected_files
+                ),
+                "selected_symbols": (
+                    selected_symbols if selected_symbols is not None else context.selected_symbols
+                ),
+                "updated_at": datetime.now(UTC),
+            }
+        )
+        self._write_active_context(user_id=user_id, context=updated)
+        return updated
+
+    def _write_active_context(self, *, user_id: str, context: ActiveRepoContext) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT OR REPLACE INTO active_repo_contexts (
+                    user_id,
+                    context_json,
+                    updated_at
+                )
+                VALUES (?, ?, ?)
+                """,
+                (
+                    user_id,
+                    context.model_dump_json(),
+                    _datetime_to_text(context.updated_at),
+                ),
+            )
+
     def _set_thread_running(
         self,
         *,
@@ -1115,6 +1239,47 @@ def _message_from_row(row: sqlite3.Row) -> ThreadMessage:
     )
 
 
+def _empty_active_context(*, user_id: str) -> ActiveRepoContext:
+    return ActiveRepoContext(
+        context_id=f"active:{user_id}",
+        user_id=user_id,
+        updated_at=datetime.now(UTC),
+    )
+
+
+def _context_from_thread(
+    thread: ConversationThread,
+    *,
+    active_focus: str | None = None,
+) -> ActiveRepoContext:
+    return ActiveRepoContext(
+        context_id=f"active:{thread.user_id}",
+        user_id=thread.user_id,
+        repo_url=thread.repo_url,
+        repo_name=thread.repo_name,
+        default_thread_id=thread.thread_id,
+        last_run_id=thread.last_run_id,
+        status=_context_status_from_thread(thread.status),
+        summary_memory=thread.summary_memory,
+        active_focus=active_focus,
+        selected_files=[active_focus] if active_focus is not None and "/" in active_focus else [],
+        selected_symbols=(
+            [active_focus] if active_focus is not None and "/" not in active_focus else []
+        ),
+        updated_at=thread.updated_at,
+    )
+
+
+def _context_status_from_thread(
+    status: ThreadStatus,
+) -> Literal["empty", "ready", "running", "failed"]:
+    if status == "running":
+        return "running"
+    if status == "failed":
+        return "failed"
+    return "ready"
+
+
 def _optional_text(value: object) -> str | None:
     if value is None:
         return None
@@ -1163,7 +1328,7 @@ def _run_errors_from_state(state: WayfinderState) -> list[RunError]:
 def _graph_input_to_jsonable(graph_input: WayfinderState) -> dict[str, object]:
     jsonable: dict[str, object] = {}
     for key, value in graph_input.items():
-        if key == "repo_handle" and isinstance(value, RepoHandle):
+        if key == "repo_handle" and _is_repo_handle(value):
             jsonable[key] = value.model_dump(mode="json")
         elif _is_json_scalar(value):
             jsonable[key] = value
@@ -1180,8 +1345,16 @@ def _graph_input_from_jsonable(payload: object) -> WayfinderState:
     restored = dict(payload)
     repo_handle = restored.get("repo_handle")
     if isinstance(repo_handle, dict):
+        from wayfinder.ingestion.models import RepoHandle
+
         restored["repo_handle"] = RepoHandle.model_validate(repo_handle)
     return cast(WayfinderState, restored)
+
+
+def _is_repo_handle(value: object) -> bool:
+    from wayfinder.ingestion.models import RepoHandle
+
+    return isinstance(value, RepoHandle)
 
 
 def _is_json_scalar(value: object) -> bool:

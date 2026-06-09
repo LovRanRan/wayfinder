@@ -3,57 +3,73 @@
 import { useState } from "react";
 import {
   BarChart3,
-  CheckCircle2,
-  CircleDollarSign,
+  GitBranch,
+  MessageSquare,
   ShieldCheck,
-  TimerReset,
+  TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
 
-import { formatCurrency, formatPercent, formatSeconds } from "@/lib/metrics";
-import type { DashboardMetrics } from "@/lib/types";
+import { formatPercent } from "@/lib/metrics";
+import type { DashboardMetrics, DashboardThread } from "@/lib/types";
 
 type DashboardStatsProps = {
   metrics: DashboardMetrics;
+  threads: DashboardThread[];
   onOpenMetrics: () => void;
 };
 
-type MetricTabId = "success" | "runs" | "latency" | "cost";
+type MetricTabId = "threads" | "grounding" | "context" | "attention";
 
-export function DashboardStats({ metrics, onOpenMetrics }: DashboardStatsProps) {
-  const [activeTab, setActiveTab] = useState<MetricTabId>("success");
+export function DashboardStats({ metrics, threads, onOpenMetrics }: DashboardStatsProps) {
+  const [activeTab, setActiveTab] = useState<MetricTabId>("threads");
+  const activeThreads = threads.filter((thread) => thread.status === "running").length;
+  const groundedAnswers = threads.reduce(
+    (total, thread) =>
+      total +
+      thread.messages.filter(
+        (message) =>
+          message.role === "assistant" &&
+          (message.verifiedCount + message.unverifiedCount + message.contradictedCount > 0 ||
+            message.sourceRunId !== null),
+      ).length,
+    0,
+  );
+  const repoCount = new Set(threads.map((thread) => thread.repoUrl)).size;
+  const attentionCount =
+    activeThreads + metrics.failedRuns + (metrics.contradictedClaims > 0 ? 1 : 0);
   const tabs: MetricTab[] = [
     {
-      id: "success",
+      id: "threads",
+      icon: MessageSquare,
+      label: "Threads",
+      eyebrow: "Repo conversations",
+      value: threads.length.toString(),
+      detail: `${activeThreads} running · ${repoCount} repos`,
+    },
+    {
+      id: "grounding",
       icon: ShieldCheck,
-      label: "Success",
-      eyebrow: "Run success rate",
-      value: formatPercent(metrics.successRate),
-      detail: `${metrics.completedRuns} completed / ${metrics.failedRuns} failed`,
+      label: "Grounding",
+      eyebrow: "Evidence-backed answers",
+      value: groundedAnswers.toString(),
+      detail: `${metrics.verifiedClaims} verified · ${metrics.unverifiedClaims} unverified`,
     },
     {
-      id: "runs",
-      icon: CheckCircle2,
-      label: "Runs",
-      eyebrow: "Completed runs",
-      value: metrics.completedRuns.toString(),
-      detail: `${metrics.totalRuns} recent runs tracked`,
+      id: "context",
+      icon: GitBranch,
+      label: "Context",
+      eyebrow: "Active repo scope",
+      value: repoCount.toString(),
+      detail: `${threads.length} threads · ${formatPercent(metrics.verificationRate)} verification rate`,
     },
     {
-      id: "latency",
-      icon: TimerReset,
-      label: "Latency",
-      eyebrow: "Latest completed latency",
-      value: formatSeconds(metrics.latestCompletedLatency),
-      detail: `${metrics.completedLatencySamples} completed samples · P95 ${formatSeconds(metrics.p95Latency)}`,
-    },
-    {
-      id: "cost",
-      icon: CircleDollarSign,
-      label: "Cost",
-      eyebrow: "App-tracked cost",
-      value: formatCurrency(metrics.totalCostUsd),
-      detail: `${metrics.totalTokens} tokens recorded`,
+      id: "attention",
+      icon: TriangleAlert,
+      label: "Attention",
+      eyebrow: "Items needing review",
+      value: attentionCount.toString(),
+      detail: `${metrics.failedRuns} failed runs · ${metrics.contradictedClaims} contradicted claims`,
     },
   ];
   const selected = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];

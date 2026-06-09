@@ -5,14 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import perf_counter
-from typing import cast
-
-from langchain_core.runnables import RunnableConfig
-
-from wayfinder.graph.state import Claim, WayfinderState
+from typing import Any
 
 TraceMetadataValue = str | int | float | bool | None
 TraceMetadata = dict[str, TraceMetadataValue]
+Claim = Mapping[str, Any]
+WayfinderState = Mapping[str, Any]
 
 REQUIRED_TRACE_METADATA_KEYS = (
     "agent_name",
@@ -59,15 +57,12 @@ def start_trace_context(
     )
 
 
-def runnable_config_for_trace(context: TraceContext) -> RunnableConfig:
-    return cast(
-        RunnableConfig,
-        {
-            "configurable": {"thread_id": context.job_id},
-            "metadata": context.metadata,
-            "tags": ["wayfinder", f"phase:{context.phase}"],
-        },
-    )
+def runnable_config_for_trace(context: TraceContext) -> dict[str, Any]:
+    return {
+        "configurable": {"thread_id": context.job_id},
+        "metadata": context.metadata,
+        "tags": ["wayfinder", f"phase:{context.phase}"],
+    }
 
 
 def finish_trace_metadata(
@@ -134,8 +129,12 @@ def _claim_id_from_state(state: WayfinderState) -> str | None:
         "unverified_claims",
         "contradicted_claims",
     ):
-        claims = cast(list[Claim], state.get(key, []))
+        claims = state.get(key, [])
+        if not isinstance(claims, list):
+            continue
         for index, claim in enumerate(claims):
+            if not isinstance(claim, Mapping):
+                continue
             claim_id = _claim_id(claim)
             if claim_id is not None:
                 return claim_id

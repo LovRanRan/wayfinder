@@ -5,15 +5,16 @@ import time
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, cast
 from urllib.parse import urlparse
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, status
-from langgraph.checkpoint.memory import InMemorySaver
 
 from wayfinder.api.auth import AuthenticatedUser, issue_session_token
+from wayfinder.api.chat_routing import decide_chat_route, extract_repo_ref
 from wayfinder.api.observability import (
     finish_trace_metadata,
     runnable_config_for_trace,
@@ -21,8 +22,15 @@ from wayfinder.api.observability import (
 )
 from wayfinder.api.run_store import InMemoryRunStore, SQLiteRunStore
 from wayfinder.api.schemas import (
+    ActiveRepoContext,
+    AgentTraceAttachment,
+    AgentTraceRole,
+    AgentTraceStep,
     AuthRequest,
     AuthResponse,
+    ChatRequest,
+    ChatResponse,
+    ChatRouteDecision,
     ConversationThread,
     ConversationThreadDetail,
     ExplainRequest,
@@ -34,31 +42,16 @@ from wayfinder.api.schemas import (
     ThreadCreateRequest,
     ThreadMessageRequest,
     UserProfile,
+    WorkspaceContextRequest,
     WorkspaceRuntimeSettings,
     WorkspaceSettingsRequest,
     WorkspaceSettingsResponse,
 )
 from wayfinder.api.secret_box import decrypt_secret, encrypt_secret
-from wayfinder.graph import build_graph
-from wayfinder.graph.app import WayfinderGraph
-from wayfinder.graph.runtime import (
-    architecture_scanner_from_env,
-    community_context_provider_from_env,
-    entry_scanner_from_env,
-    env_with_local_dotenv,
-    final_synthesizer_from_env,
-    llm_router_from_env,
-    verifier_approval_decision_from_env,
-    verifier_runner_from_env,
-    verifier_sandbox_policy_from_env,
-)
-from wayfinder.graph.state import WayfinderState
-from wayfinder.ingestion.models import RepoHandle, RepoSizePolicy, RepoSource
-from wayfinder.ingestion.resolver import (
-    assess_repo_size,
-    parse_github_repo_ref,
-    resolve_repo_source,
-)
+
+WayfinderGraph = Any
+WayfinderState = dict[str, Any]
+RepoHandle = Any
 
 app = FastAPI(
     title="wayfinder",
@@ -66,7 +59,8 @@ app = FastAPI(
     description="Verifier-backed codebase onboarding copilot.",
 )
 
-_CHECKPOINTER = InMemorySaver()
+_CHECKPOINTER: Any | None = None
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 _DEFAULT_GITHUB_ALLOWLIST = "langchain-ai/langchain,lovranran/wayfinder"
 _DEFAULT_OPENAI_MODEL = "gpt-5.5"
@@ -77,6 +71,203 @@ _DEFAULT_DEV_USER = AuthenticatedUser(
     workspace_id="local-dev",
     display_name="Local developer",
 )
+
+
+@dataclass(frozen=True)
+class _SandboxPolicy:
+    status: str
+    message: str
+
+
+def build_graph(*args: Any, **kwargs: Any) -> WayfinderGraph:
+    from wayfinder.graph import build_graph as runtime_build_graph
+
+    return runtime_build_graph(*args, **kwargs)
+
+
+def resolve_repo_source(*args: Any, **kwargs: Any) -> Any:
+    from wayfinder.ingestion.resolver import resolve_repo_source as runtime_resolve_repo_source
+
+    return runtime_resolve_repo_source(*args, **kwargs)
+
+
+def parse_github_repo_ref(*args: Any, **kwargs: Any) -> Any:
+    from wayfinder.ingestion.resolver import parse_github_repo_ref as runtime_parse_github_repo_ref
+
+    return runtime_parse_github_repo_ref(*args, **kwargs)
+
+
+def assess_repo_size(*args: Any, **kwargs: Any) -> Any:
+    from wayfinder.ingestion.resolver import assess_repo_size as runtime_assess_repo_size
+
+    return runtime_assess_repo_size(*args, **kwargs)
+
+
+def architecture_scanner_from_env(env: Mapping[str, str] | None = None) -> Any:
+    mode = (env or {}).get("WAYFINDER_ARCHITECTURE_SCANNER", "placeholder").strip().lower()
+    if mode in ("", "placeholder"):
+        return None
+
+    from wayfinder.graph.runtime import architecture_scanner_from_env as factory
+
+    return factory(env)
+
+
+def entry_scanner_from_env(env: Mapping[str, str] | None = None) -> Any:
+    mode = (env or {}).get("WAYFINDER_ENTRY_SCANNER", "placeholder").strip().lower()
+    if mode in ("", "placeholder"):
+        return None
+
+    from wayfinder.graph.runtime import entry_scanner_from_env as factory
+
+    return factory(env)
+
+
+def verifier_runner_from_env(env: Mapping[str, str] | None = None) -> Any:
+    mode = (env or {}).get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower()
+    if mode in ("", "placeholder"):
+        return None
+
+    from wayfinder.graph.runtime import verifier_runner_from_env as factory
+
+    return factory(env)
+
+
+def llm_router_from_env(env: Mapping[str, str] | None = None) -> Any:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_LLM_ROUTING", "off").strip().lower()
+    if mode in ("", "off", "placeholder", "deterministic"):
+        return None
+    if (mode in ("openai", "llm") or mode in _TRUE_ENV_VALUES) and not active_env.get(
+        "OPENAI_API_KEY",
+        "",
+    ).strip():
+        raise ValueError("OPENAI_API_KEY is required for OpenAI LLM mode")
+
+    from wayfinder.graph.runtime import llm_router_from_env as factory
+
+    return factory(env)
+
+
+def final_synthesizer_from_env(env: Mapping[str, str] | None = None) -> Any:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_FINAL_WRITER", "deterministic").strip().lower()
+    if mode in ("", "deterministic", "placeholder", "local"):
+        return None
+    if (mode in ("openai", "llm") or mode in _TRUE_ENV_VALUES) and not active_env.get(
+        "OPENAI_API_KEY",
+        "",
+    ).strip():
+        raise ValueError("OPENAI_API_KEY is required for OpenAI LLM mode")
+
+    from wayfinder.graph.runtime import final_synthesizer_from_env as factory
+
+    return factory(env)
+
+
+def community_context_provider_from_env(env: Mapping[str, str] | None = None) -> Any:
+    mode = (env or {}).get("WAYFINDER_COMMUNITY_CONTEXT", "off").strip().lower()
+    if mode in ("", "off", "placeholder", "none"):
+        return None
+
+    from wayfinder.graph.runtime import community_context_provider_from_env as factory
+
+    return factory(env)
+
+
+def verifier_approval_decision_from_env(
+    env: Mapping[str, str] | None = None,
+) -> dict[str, object] | None:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_VERIFIER_APPROVAL_MODE", "").strip().lower()
+
+    if mode in ("interrupt", "manual", "hitl"):
+        return None
+    if mode in ("skip", "auto_skip"):
+        return {
+            "action": "skip",
+            "reason": "verifier execution skipped by deployment policy",
+        }
+    if mode in ("approve", "auto_approve"):
+        return {"action": "approve"}
+    if mode in ("", "default"):
+        runner_mode = active_env.get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower()
+        if runner_mode == "sandboxed_mcp":
+            return {"action": "approve"}
+        return None
+
+    raise ValueError(f"Unsupported verifier approval mode: {mode}")
+
+
+def verifier_sandbox_policy_from_env(env: Mapping[str, str] | None = None) -> _SandboxPolicy:
+    active_env = env or {}
+    mode = active_env.get("WAYFINDER_VERIFIER_RUNNER", "placeholder").strip().lower()
+
+    if mode in ("", "placeholder"):
+        return _SandboxPolicy(
+            status="disabled",
+            message=(
+                "Executable test verification is disabled; AST/repository evidence can "
+                "still verify code facts."
+            ),
+        )
+    if mode == "mcp":
+        return _SandboxPolicy(
+            status="enabled",
+            message="Local Project 5 test runner is enabled for trusted local development only.",
+        )
+
+    from wayfinder.graph.runtime import verifier_sandbox_policy_from_env as factory
+
+    policy = factory(env)
+    return _SandboxPolicy(status=policy.status, message=policy.message)
+
+
+def env_with_local_dotenv(
+    env: Mapping[str, str] | None = None,
+    *,
+    dotenv_path: Path | None = None,
+) -> dict[str, str]:
+    merged = dict(env or {})
+    path = dotenv_path or (_PROJECT_ROOT / ".env")
+    if not path.exists():
+        return merged
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        parsed = _parse_dotenv_line(raw_line)
+        if parsed is None:
+            continue
+        key, value = parsed
+        merged.setdefault(key, value)
+
+    return merged
+
+
+def _parse_dotenv_line(raw_line: str) -> tuple[str, str] | None:
+    line = raw_line.strip()
+    if not line or line.startswith("#"):
+        return None
+    if line.startswith("export "):
+        line = line[len("export ") :].strip()
+    if "=" not in line:
+        return None
+
+    key, value = line.split("=", 1)
+    key = key.strip()
+    value = value.strip().strip('"').strip("'")
+    if not key:
+        return None
+
+    return key, value
+
+
+def _checkpointer() -> Any:
+    global _CHECKPOINTER
+    if _CHECKPOINTER is None:
+        from langgraph.checkpoint.memory import InMemorySaver
+
+        _CHECKPOINTER = InMemorySaver()
+    return _CHECKPOINTER
 
 
 def _run_store_from_env(env: Mapping[str, str]) -> InMemoryRunStore | SQLiteRunStore:
@@ -275,6 +466,111 @@ def append_thread_message(
     return _thread_detail_for_user(user=user, thread_id=thread.thread_id)
 
 
+@app.get("/workspace/context", response_model=ActiveRepoContext)
+def get_workspace_context(
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ActiveRepoContext:
+    return _RUNS.active_context_for_user(user_id=user.user_id)
+
+
+@app.post("/workspace/context", response_model=ActiveRepoContext)
+def set_workspace_context(
+    request: WorkspaceContextRequest,
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ActiveRepoContext:
+    thread = _thread_from_context_request(user=user, request=request)
+    return _RUNS.set_active_context(user_id=user.user_id, thread=thread)
+
+
+@app.post("/chat", response_model=ChatResponse, status_code=status.HTTP_202_ACCEPTED)
+def chat(
+    request: ChatRequest,
+    background_tasks: BackgroundTasks,
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ChatResponse:
+    content = request.content.strip()
+    current_context = _RUNS.active_context_for_user(user_id=user.user_id)
+    route = decide_chat_route(request, current_context)
+    thread = _resolve_chat_thread(user=user, request=request, route=route)
+
+    if thread is not None and thread.status == "running":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="active repo thread already has a running Wayfinder job",
+        )
+
+    if thread is None:
+        context = current_context
+        return ChatResponse(
+            thread=None,
+            active_context=context,
+            active_run=None,
+            route=route,
+            agent_trace=_agent_trace_for_route(route, active_run=None),
+        )
+
+    context = _RUNS.set_active_context(
+        user_id=user.user_id,
+        thread=thread,
+        active_focus=route.active_focus,
+    )
+    user_message = _RUNS.append_thread_message(
+        user_id=user.user_id,
+        thread_id=thread.thread_id,
+        role="user",
+        content=content,
+        trace_metadata={
+            "chat_route_intent": route.intent,
+            "chat_answer_mode": route.answer_mode,
+            "active_focus": route.active_focus,
+        },
+    )
+
+    active_run = None
+    if route.requires_grounded_run:
+        memory_packet = _RUNS.build_thread_memory_packet(
+            user_id=user.user_id,
+            thread_id=thread.thread_id,
+        )
+        query = _query_with_active_focus(content, route.active_focus)
+        active_run = _queue_thread_run(
+            user=user,
+            thread=thread,
+            user_message_id=user_message.message_id,
+            query=query,
+            background_tasks=background_tasks,
+            phase="chat_grounded",
+            memory_packet=memory_packet,
+        )
+        thread = _RUNS.get_thread_for_user(user_id=user.user_id, thread_id=thread.thread_id)
+        context = _RUNS.set_active_context(
+            user_id=user.user_id,
+            thread=thread,
+            active_focus=route.active_focus,
+        )
+    else:
+        assistant_content = _chat_only_assistant_message(route=route, context=context)
+        _RUNS.append_thread_message(
+            user_id=user.user_id,
+            thread_id=thread.thread_id,
+            role="assistant",
+            content=assistant_content,
+            trace_metadata={
+                "chat_route_intent": route.intent,
+                "chat_answer_mode": route.answer_mode,
+                "active_focus": route.active_focus,
+            },
+        )
+
+    return ChatResponse(
+        thread=_thread_detail_for_user(user=user, thread_id=thread.thread_id),
+        active_context=context,
+        active_run=active_run,
+        route=route,
+        agent_trace=_agent_trace_for_route(route, active_run=active_run),
+    )
+
+
 @app.post("/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(request: AuthRequest) -> AuthResponse:
     try:
@@ -429,6 +725,187 @@ def _thread_detail_for_user(
     )
 
 
+def _thread_from_context_request(
+    *,
+    user: AuthenticatedUser,
+    request: WorkspaceContextRequest,
+) -> ConversationThread:
+    if request.thread_id is not None:
+        try:
+            return _RUNS.get_thread_for_user(user_id=user.user_id, thread_id=request.thread_id)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="thread not found",
+            ) from exc
+
+    if request.repo_url is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="thread_id or repo_url is required",
+        )
+    return _thread_for_repo_or_create(user=user, repo_url=request.repo_url.strip())
+
+
+def _resolve_chat_thread(
+    *,
+    user: AuthenticatedUser,
+    request: ChatRequest,
+    route: ChatRouteDecision,
+) -> ConversationThread | None:
+    repo_ref = extract_repo_ref(request.content) or _optional_stripped(request.repo_url)
+    if repo_ref is not None:
+        return _thread_for_repo_or_create(user=user, repo_url=repo_ref)
+
+    if request.thread_id is not None:
+        try:
+            return _RUNS.get_thread_for_user(user_id=user.user_id, thread_id=request.thread_id)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="thread not found",
+            ) from exc
+
+    context = _RUNS.active_context_for_user(user_id=user.user_id)
+    if context.default_thread_id is not None:
+        try:
+            return _RUNS.get_thread_for_user(
+                user_id=user.user_id,
+                thread_id=context.default_thread_id,
+            )
+        except KeyError:
+            return None
+
+    if route.intent == "clarification":
+        return None
+    if context.repo_url is not None:
+        return _thread_for_repo_or_create(user=user, repo_url=context.repo_url)
+    return None
+
+
+def _thread_for_repo_or_create(*, user: AuthenticatedUser, repo_url: str) -> ConversationThread:
+    normalized_repo_url = repo_url.strip()
+    existing = next(
+        (
+            thread
+            for thread in _RUNS.list_threads(user_id=user.user_id, limit=50)
+            if thread.repo_url == normalized_repo_url
+        ),
+        None,
+    )
+    if existing is not None:
+        return existing
+    return _RUNS.create_thread(user=user, repo_url=normalized_repo_url)
+
+
+def _query_with_active_focus(content: str, active_focus: str | None) -> str:
+    if active_focus is None or active_focus in content:
+        return content
+    return f"{content}\n\nActive focus: {active_focus}"
+
+
+def _chat_only_assistant_message(
+    *,
+    route: ChatRouteDecision,
+    context: ActiveRepoContext,
+) -> str:
+    if route.intent == "clarification":
+        return route.clarification_question or "Which repo should I use for this question?"
+    if route.intent == "context_switch":
+        repo_name = context.repo_name or context.repo_url or "this repo"
+        return f"Active repo context is now {repo_name}. Ask a repo question when you are ready."
+    if route.intent == "unsupported_action":
+        return (
+            "I cannot edit code, run arbitrary shell commands, or access private resources from "
+            "this workspace. I can inspect the active repo with grounded evidence instead."
+        )
+    if context.repo_name is not None:
+        return (
+            f"I am using {context.repo_name} as the active repo. Ask for files, symbols, "
+            "architecture, evidence, or a structured report when you want a grounded run."
+        )
+    return "I can help with planning, but I need a public repo context before making code claims."
+
+
+def _agent_trace_for_route(
+    route: ChatRouteDecision,
+    *,
+    active_run: RunSummary | None,
+) -> AgentTraceAttachment:
+    steps: list[AgentTraceStep] = [
+        AgentTraceStep(
+            agent_name="conversation_memory_agent",
+            task="Resolve active repo context, thread memory, and active focus",
+            status="completed",
+        ),
+        AgentTraceStep(
+            agent_name="supervisor_agent",
+            task=f"Choose route: {route.intent}",
+            status="completed",
+        ),
+    ]
+    if route.requires_grounded_run:
+        steps.extend(
+            [
+                AgentTraceStep(
+                    agent_name=_worker_agent_for_route(route),
+                    task="Collect grounded repo evidence through Project 5 MCP tools",
+                    status="queued",
+                    evidence_refs=[f"run:{active_run.job_id}"] if active_run is not None else [],
+                ),
+                AgentTraceStep(
+                    agent_name="verification_agent",
+                    task="Label high-risk claims as verified, unverified, or contradicted",
+                    status="queued",
+                ),
+                AgentTraceStep(
+                    agent_name="final_synthesizer_agent",
+                    task="Write the user-facing answer from bounded evidence",
+                    status="queued",
+                ),
+            ]
+        )
+    else:
+        steps.append(
+            AgentTraceStep(
+                agent_name="final_synthesizer_agent",
+                task="Write a conversational response without creating new code claims",
+                status="completed",
+            )
+        )
+
+    return AgentTraceAttachment(
+        route=route,
+        steps=steps,
+        tool_refs=_tool_refs_for_route(route),
+        verifier_status="queued" if route.requires_grounded_run else "not_required",
+        final_handoff=(
+            "grounded run queued" if active_run is not None else "chat response completed"
+        ),
+    )
+
+
+def _worker_agent_for_route(route: ChatRouteDecision) -> AgentTraceRole:
+    if route.active_focus is not None or route.intent == "evidence_request":
+        return "symbol_investigator_agent"
+    return "repo_cartographer_agent"
+
+
+def _tool_refs_for_route(route: ChatRouteDecision) -> list[str]:
+    if not route.requires_grounded_run:
+        return []
+    if route.active_focus is not None:
+        return ["mcp-ast-explorer", "mcp-test-runner"]
+    return ["mcp-repo-mapper", "mcp-test-runner"]
+
+
+def _optional_stripped(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
 def _graph_input_from_request(request: ExplainRequest) -> WayfinderState:
     graph_input: dict[str, object] = {
         "repo_url": request.repo_url,
@@ -457,6 +934,8 @@ def _local_repo_handle_from_ref(repo_ref: str) -> RepoHandle | None:
     if not candidate.exists():
         return None
 
+    from wayfinder.ingestion.models import RepoSource
+
     return resolve_repo_source(RepoSource(kind="local", original_ref=repo_ref))
 
 
@@ -469,6 +948,8 @@ def _github_repo_handle_from_ref(repo_ref: str, env: Mapping[str, str]) -> RepoH
                 "WAYFINDER_ENABLE_GITHUB_INGESTION=1 for trusted deploy demos."
             ),
         )
+
+    from wayfinder.ingestion.models import RepoSizePolicy, RepoSource
 
     source = RepoSource(kind="github", original_ref=repo_ref)
     try:

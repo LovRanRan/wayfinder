@@ -12,6 +12,7 @@ import { RunStatusTable } from "@/components/run-status-table";
 import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
 import { WorkspaceMetrics } from "@/components/workspace-metrics";
 import { WorkspaceSettingsPanel } from "@/components/workspace-settings";
+import { Badge } from "@/components/ui/badge";
 import { buildDashboardMetrics, toDashboardRun } from "@/lib/metrics";
 import { upsertThread } from "@/lib/threads";
 import type { ApiRunSummary, DashboardRun, DashboardThread, RunStatus } from "@/lib/types";
@@ -279,7 +280,11 @@ export function AgentWorkbench({
 
   return (
     <section className="grid gap-4">
-      <DashboardStats metrics={metrics} onOpenMetrics={() => changeTab("metrics")} />
+      <DashboardStats
+        metrics={metrics}
+        threads={liveThreads}
+        onOpenMetrics={() => changeTab("metrics")}
+      />
       <WorkspaceTabs activeTab={activeTab} onTabChange={changeTab} />
 
       {activeTab === "threads" ? (
@@ -312,12 +317,20 @@ export function AgentWorkbench({
 
       {activeTab === "history" ? (
         <div className="grid gap-4">
-          <RunStatusTable
-            runs={visibleRuns}
-            source={source}
-            onSelectRun={selectRun}
-            selectedJobId={selectedRun?.jobId ?? null}
-          />
+          <ThreadActivityTimeline threads={liveThreads} onSelectRun={selectRun} />
+          <details className="rounded-lg border border-border bg-card p-4">
+            <summary className="cursor-pointer font-mono text-sm font-semibold text-muted-foreground">
+              Run diagnostics
+            </summary>
+            <div className="mt-4">
+              <RunStatusTable
+                runs={visibleRuns}
+                source={source}
+                onSelectRun={selectRun}
+                selectedJobId={selectedRun?.jobId ?? null}
+              />
+            </div>
+          </details>
         </div>
       ) : null}
 
@@ -357,4 +370,91 @@ function workspaceTabFromParam(value: string | null): WorkspaceTab | null {
     return value;
   }
   return null;
+}
+
+function ThreadActivityTimeline({
+  threads,
+  onSelectRun,
+}: {
+  threads: DashboardThread[];
+  onSelectRun: (run: DashboardRun | null) => void;
+}) {
+  const events = threads
+    .flatMap((thread) => [
+      {
+        id: `${thread.threadId}:created`,
+        createdAt: thread.createdAt,
+        repoName: thread.repoName,
+        title: "Repo context attached",
+        detail: thread.repoUrl,
+        status: thread.status,
+        run: null as DashboardRun | null,
+      },
+      ...thread.messages.map((message) => ({
+        id: message.messageId,
+        createdAt: message.createdAt,
+        repoName: thread.repoName,
+        title: `${message.role} message`,
+        detail: message.content,
+        status: thread.status,
+        run: message.sourceRunId
+          ? (thread.runs.find((run) => run.jobId === message.sourceRunId) ?? null)
+          : null,
+      })),
+    ])
+    .sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt));
+
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <header className="border-b border-border bg-muted/60 px-4 py-3">
+        <div className="font-mono text-sm font-semibold">Repo activity timeline</div>
+      </header>
+      <div className="grid gap-3 p-4">
+        {events.length === 0 ? (
+          <div className="rounded-md border border-border bg-background p-3 font-mono text-sm text-muted-foreground">
+            No repo conversation activity yet.
+          </div>
+        ) : (
+          events.map((event) => (
+            <article key={event.id} className="rounded-md border border-border bg-background p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate font-mono text-sm font-semibold">{event.title}</div>
+                  <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                    {event.repoName} · {formatDate(event.createdAt)}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">{event.status}</Badge>
+                  {event.run !== null ? (
+                    <button type="button" onClick={() => onSelectRun(event.run)}>
+                      <Badge variant={event.run.status === "failed" ? "danger" : "outline"}>
+                        run {event.run.status}
+                      </Badge>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <p className="mt-2 line-clamp-3 font-mono text-xs leading-5 text-muted-foreground">
+                {event.detail}
+              </p>
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function formatDate(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "unknown time";
+  }
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

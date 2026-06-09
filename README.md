@@ -135,6 +135,31 @@ test path.
 
 ## API
 
+### `POST /chat`
+
+Primary product facade for the ambient repo workspace. It accepts natural chat,
+optional `thread_id`, optional `repo_url`, and an `answer_mode` of `auto`,
+`conversation`, `report`, or `evidence`.
+
+The server resolves the active repo context, creates or selects the default repo
+thread, records the user message, routes the turn, and starts a grounded run
+only when the message asks for new repo facts.
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Open https://github.com/pallets/click and help me understand this repo"}'
+```
+
+### `GET /workspace/context`
+
+Returns the current user's active repo context: repo, default thread, active
+focus, latest run, summary memory, selected files/symbols, and limitations.
+
+### `POST /workspace/context`
+
+Sets or switches active repo context from a `thread_id` or `repo_url`.
+
 ### `POST /threads`
 
 Creates a repo-scoped conversation thread. If `initial_query` is provided, the
@@ -216,6 +241,7 @@ The dashboard reads `GET /threads?limit=20` and `GET /runs?limit=10` from
 `WAYFINDER_API_BASE_URL`.
 The browser-facing launcher uses dashboard proxy routes:
 
+- `POST /api/wayfinder/chat`
 - `POST /api/wayfinder/threads`
 - `GET /api/wayfinder/threads/{thread_id}`
 - `POST /api/wayfinder/threads/{thread_id}/messages`
@@ -229,11 +255,13 @@ public API URL shown in browser links.
 
 Panels:
 
-- repo conversation thread list, message timeline, evidence chips, and follow-up composer;
-- recent runs table with trace links;
-- legacy run launcher with submit, polling, refresh, and refine actions;
-- run briefing panel with selected job status, reader MCP state, verifier policy, and recent answer links;
-- dedicated answer tab for grounded evidence cards and limitations;
+- Codex-like repo workspace with left repo/thread rail, central bounded chat,
+  stable bottom composer, and right context/evidence/agent-trace rail;
+- active repo context indicator and natural chat route through `/chat`;
+- assistant-message attachments for linked runs, evidence chips, and verifier labels;
+- repo/thread activity timeline for History, with raw run diagnostics folded into an expandable section;
+- thread-native metrics: `Threads`, `Grounding`, `Context`, and `Attention`;
+- legacy run launcher and answer inspector remain reachable for diagnostics;
 - per-agent P50/P95 latency;
 - token usage and cost overview;
 - routing decision flow;

@@ -8,6 +8,23 @@ export type TraceMetadataValue = string | number | boolean | null;
 export type WorkspaceLLMRouting = "off" | "openai";
 export type WorkspaceFinalWriter = "deterministic" | "openai";
 export type WorkspaceSandboxStatus = "disabled" | "unavailable" | "enabled";
+export type ChatAnswerMode = "auto" | "conversation" | "report" | "evidence" | "clarify";
+export type ChatIntent =
+  | "chat_only"
+  | "repo_question"
+  | "context_switch"
+  | "structured_report"
+  | "evidence_request"
+  | "clarification"
+  | "unsupported_action";
+export type AgentTraceRole =
+  | "conversation_memory_agent"
+  | "supervisor_agent"
+  | "repo_cartographer_agent"
+  | "symbol_investigator_agent"
+  | "verification_agent"
+  | "final_synthesizer_agent"
+  | "external_context_scout";
 
 export type DashboardUser = {
   userId: string;
@@ -116,6 +133,56 @@ export type ApiConversationThreadDetail = {
   active_run: ApiRunSummary | null;
 };
 
+export type ApiActiveRepoContext = {
+  context_id: string;
+  user_id: string;
+  repo_url: string | null;
+  repo_name: string | null;
+  default_thread_id: string | null;
+  last_run_id: string | null;
+  status: "empty" | "ready" | "running" | "failed";
+  summary_memory: string | null;
+  active_focus: string | null;
+  selected_files: string[];
+  selected_symbols: string[];
+  limitations: string[];
+  updated_at: string;
+};
+
+export type ApiChatRouteDecision = {
+  intent: ChatIntent;
+  answer_mode: ChatAnswerMode;
+  requires_grounded_run: boolean;
+  requires_context_switch: boolean;
+  clarification_question: string | null;
+  active_focus: string | null;
+  reason: string;
+};
+
+export type ApiAgentTraceStep = {
+  agent_name: AgentTraceRole;
+  task: string;
+  status: "planned" | "queued" | "completed" | "skipped";
+  evidence_refs: string[];
+  limitations: string[];
+};
+
+export type ApiAgentTraceAttachment = {
+  route: ApiChatRouteDecision;
+  steps: ApiAgentTraceStep[];
+  tool_refs: string[];
+  verifier_status: string | null;
+  final_handoff: string | null;
+};
+
+export type ApiChatResponse = {
+  thread: ApiConversationThreadDetail | null;
+  active_context: ApiActiveRepoContext;
+  active_run: ApiRunSummary | null;
+  route: ApiChatRouteDecision;
+  agent_trace: ApiAgentTraceAttachment;
+};
+
 export type DashboardRun = {
   jobId: string;
   userId: string;
@@ -174,6 +241,56 @@ export type DashboardThread = {
   messages: DashboardThreadMessage[];
   runs: DashboardRun[];
   activeRun: DashboardRun | null;
+};
+
+export type ActiveRepoContext = {
+  contextId: string;
+  userId: string;
+  repoUrl: string | null;
+  repoName: string | null;
+  defaultThreadId: string | null;
+  lastRunId: string | null;
+  status: "empty" | "ready" | "running" | "failed";
+  summaryMemory: string | null;
+  activeFocus: string | null;
+  selectedFiles: string[];
+  selectedSymbols: string[];
+  limitations: string[];
+  updatedAt: string;
+};
+
+export type ChatRouteDecision = {
+  intent: ChatIntent;
+  answerMode: ChatAnswerMode;
+  requiresGroundedRun: boolean;
+  requiresContextSwitch: boolean;
+  clarificationQuestion: string | null;
+  activeFocus: string | null;
+  reason: string;
+};
+
+export type AgentTraceStep = {
+  agentName: AgentTraceRole;
+  task: string;
+  status: "planned" | "queued" | "completed" | "skipped";
+  evidenceRefs: string[];
+  limitations: string[];
+};
+
+export type AgentTraceAttachment = {
+  route: ChatRouteDecision;
+  steps: AgentTraceStep[];
+  toolRefs: string[];
+  verifierStatus: string | null;
+  finalHandoff: string | null;
+};
+
+export type ChatResponse = {
+  thread: DashboardThread | null;
+  activeContext: ActiveRepoContext;
+  activeRun: DashboardRun | null;
+  route: ChatRouteDecision;
+  agentTrace: AgentTraceAttachment;
 };
 
 export type DashboardMetrics = {
