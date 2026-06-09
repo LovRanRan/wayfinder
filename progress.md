@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field                  | Value                                                                                                                                                                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current Commit**     | [x] **Commit 22** — Ambient repo chat workspace + Codex-like shell redesign                                                                                                                                                 |
-| **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** · ship **7 / 8 core artifacts done**                                                                                                                              |
-| **Blocker**            | None for Commit 22 backend/product code. Dashboard validation is skipped as local dependency-install debt:Node cannot resolve `@next/env` from the current `node_modules`;rerun after `npm ci`.                              |
-| **Last Activity**      | 2026-06-09 · Closed Commit 22 validation follow-up:full backend gates pass, mypy type issues fixed, dashboard build failure traced to local `node_modules` / `@next/env` resolution.                                      |
+| **Current Commit**     | [x] **Commit 22.5** — Chat send feedback hotfix                                                                                                                                                                            |
+| **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** + **22.5 hotfix done** · ship **7 / 8 core artifacts done**                                                                                                      |
+| **Blocker**            | None for Commit 22.5. The first follow-up UX backlog remains:bounded scrolling, explicit new/delete/archive thread actions, and tighter empty-workspace layout.                                                            |
+| **Last Activity**      | 2026-06-09 · Fixed the empty-workspace chat send blocker:Send now shows pending user feedback, visible status/error text, URL-based repo attach still works while another thread is running, and dashboard lint/type/build pass after `npm ci`. |
 | **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
-| **Today's North Star** | Redesign Wayfinder so repo context is ambient in every chat turn:the user talks naturally, and Wayfinder decides when to answer conversationally, when to run grounded repo analysis, and when to show structured evidence. |
-| **Next Action**        | Start Commit 23 true multi-agent implementation deepening:role prompts/contracts, multi-worker routing, verifier challenge loop, and final provenance.                                                                      |
+| **Today's North Star** | Keep Commit 22 testable on the live website:chat send must never silently fail, and repo attach should create visible workspace state immediately.                                                                           |
+| **Next Action**        | Push Commit 22.5, let Railway redeploy, then continue live UI testing before deciding whether bounded scrolling/thread management stays in 22.5 or becomes a separate polish commit.                                      |
 
 ---
 
@@ -533,6 +533,15 @@ Guided design mode:
     - [x] The user can see that a grounded answer came from multiple Project 6 agents, not from the three Project 5 MCP servers being mislabeled as agents ✅ 2026-06-09
     - [x] Active repo context, message history, and evidence links survive refresh and are visibly scoped to the current workspace/user ✅ 2026-06-09
     - [x] README/DESIGN/progress explain the new product as a multi-agent repo onboarding copilot with MCP-grounded verification while preserving the grounded verification differentiator ✅ 2026-06-09
+
+- [x] **Commit 22.5 — Chat send feedback hotfix** ✅ 2026-06-09
+  - [x] Fix empty-workspace send UX so clicking `Send` immediately shows a pending user message instead of appearing inert ✅ 2026-06-09
+  - [x] Add visible status text for in-flight and accepted chat sends, plus inline error text for failed `/chat` requests ✅ 2026-06-09
+  - [x] Keep GitHub URL / `owner/repo` attach messages sendable even when the selected thread has an active run;the API can route them to a new repo context ✅ 2026-06-09
+  - [x] Add `Cmd/Ctrl+Enter` submit for the stable composer ✅ 2026-06-09
+  - [x] Verify with local browser smoke against the Railway API:temporary empty workspace sent `Open https://github.com/pallets/click...`, created a `pallets/click` thread, updated active context, and rendered agent trace ✅ 2026-06-09
+  - [x] Record remaining UX backlog from live testing:bounded scroll containers, smaller empty state, explicit new thread action, and delete/archive thread management ✅ 2026-06-09
+
   - [ ] Commit 23 follow-up candidate — True multi-agent implementation deepening:
     - [ ] Split role prompts/contracts for Conversation/Memory, Supervisor, Repo Cartographer, Symbol Investigator, Verification, and Final Synthesizer agents.
     - [ ] Add supervisor plans that can call more than one worker agent for one user question.
@@ -556,6 +565,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-09 — Commit 22.5 hotfix — `Chat send feedback unblock`
+
+- **做了什么**:Fixed the deployed-site blocker surfaced during live Commit 22 testing:an empty workspace could type a GitHub repo prompt, but clicking `Send` appeared to do nothing. The composer now shows an immediate pending user message, a visible sending/accepted status line, and inline errors if `/chat` fails. URL/`owner/repo` attach messages remain sendable even when the currently selected thread is running, so users can switch repo context instead of being trapped by the old thread status.
+- **自己设计了什么**:Treat "silent send" as a product correctness bug, not a cosmetic issue. The user must get local confirmation before waiting for backend grounding, because repo clone/LLM/runtime failures can happen after the message has already been accepted into thread history.
+- **Codex 帮了哪里**:Codex made the scoped dashboard fix in `repo-conversation-workspace.tsx`, refreshed local dashboard dependencies with `npm ci`, cleared ignored `.next` cache pollution, and used a local browser smoke against the Railway API.
+- **验证方式**:`npm run typecheck`;`npm run lint`;`npm run build`;`git diff --check`;local browser smoke on `http://localhost:3030` with Railway API created a temporary empty workspace, sent `Open https://github.com/pallets/click and explain the repo architecture`, saw immediate pending/sending UI, then observed active repo `pallets/click`, one repo thread, visible user/system messages, and agent trace. The run itself failed in the temporary workspace because no OpenAI key was configured, which is expected and separate from the send UI bug.
+- **问题记录**:Live testing also exposed the next UX backlog:the workspace is too tall and needs bounded internal scroll areas;thread management needs explicit create/delete/archive actions;the empty-workspace layout should be smaller and less stretched.
+- **下一步**:Commit/push Commit 22.5 to trigger Railway redeploy, then retest the live dashboard send path before continuing to either the rest of 22.5 UX polish or Commit 23.
 
 ### 2026-06-09 — Commit 22 validation closeout — `Backend gates green; dashboard dependency debt recorded`
 

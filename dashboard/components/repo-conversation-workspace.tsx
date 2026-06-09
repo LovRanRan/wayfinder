@@ -63,6 +63,8 @@ export function RepoConversationWorkspace({
     selectedThread?.activeRun ?? null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const activeRun = selectedThread?.activeRun ?? selectedAttachmentRun;
@@ -73,6 +75,8 @@ export function RepoConversationWorkspace({
     isSending,
   });
   const canSend = sendBlocker === null;
+  const hasVisibleMessages =
+    (selectedThread?.messages.length ?? 0) > 0 || pendingUserMessage !== null;
 
   useEffect(() => {
     if (selectedThread !== null) {
@@ -130,12 +134,15 @@ export function RepoConversationWorkspace({
       return;
     }
 
+    const nextContent = chatDraft.trim();
     setIsSending(true);
     setError(null);
+    setStatusMessage("Sending message to Wayfinder...");
+    setPendingUserMessage(nextContent);
 
     try {
       const response = await postChat({
-        content: chatDraft.trim(),
+        content: nextContent,
         thread_id: selectedThread?.threadId ?? null,
         answer_mode: answerMode,
       });
@@ -149,10 +156,13 @@ export function RepoConversationWorkspace({
         setSelectedAttachmentRun(response.activeRun);
       }
       setChatDraft("");
+      setStatusMessage(statusMessageFromChatResponse(response));
     } catch (sendError) {
       setError(errorMessage(sendError));
+      setStatusMessage(null);
     } finally {
       setIsSending(false);
+      setPendingUserMessage(null);
     }
   }
 
@@ -289,19 +299,22 @@ export function RepoConversationWorkspace({
 
         <div className="min-h-0 overflow-y-auto px-4 py-4">
           <div className="mx-auto grid max-w-4xl gap-3">
-            {selectedThread === null || selectedThread.messages.length === 0 ? (
+            {!hasVisibleMessages ? (
               <div className="rounded-lg border border-dashed border-border bg-background p-6 font-mono text-sm leading-6 text-muted-foreground">
                 Paste a repo URL, say `Use owner/repo`, or ask a repo question once a repo is active.
               </div>
             ) : (
-              selectedThread.messages.map((message) => (
-                <ThreadMessageRow
-                  key={message.messageId}
-                  message={message}
-                  linkedRun={runFromMessage(selectedThread.runs, message)}
-                  onSelectRun={setSelectedAttachmentRun}
-                />
-              ))
+              <>
+                {selectedThread?.messages.map((message) => (
+                  <ThreadMessageRow
+                    key={message.messageId}
+                    message={message}
+                    linkedRun={runFromMessage(selectedThread.runs, message)}
+                    onSelectRun={setSelectedAttachmentRun}
+                  />
+                ))}
+                {pendingUserMessage !== null ? <PendingMessageRow content={pendingUserMessage} /> : null}
+              </>
             )}
           </div>
         </div>
@@ -313,11 +326,27 @@ export function RepoConversationWorkspace({
               <span>{error}</span>
             </div>
           ) : null}
+          {statusMessage !== null && error === null ? (
+            <div className="mb-3 flex gap-2 rounded-md border border-border bg-background p-3 text-sm leading-6 text-muted-foreground">
+              {isSending ? (
+                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
+              ) : (
+                <Bot className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              )}
+              <span>{statusMessage}</span>
+            </div>
+          ) : null}
           <form className="mx-auto grid max-w-4xl gap-2" onSubmit={sendChat}>
             <textarea
               className="min-h-24 resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-sm leading-6 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
               value={chatDraft}
               onChange={(event) => setChatDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
               placeholder={
                 activeContext?.repoUrl
                   ? "Ask naturally. Wayfinder will reuse the active repo context."
@@ -351,7 +380,7 @@ export function RepoConversationWorkspace({
                   ) : (
                     <Send className="mr-2 h-4 w-4" aria-hidden="true" />
                   )}
-                  Send
+                  {isSending ? "Sending" : "Send"}
                 </Button>
               </div>
             </div>
@@ -412,6 +441,21 @@ function ThreadMessageRow({
           ))}
         </div>
       ) : null}
+    </article>
+  );
+}
+
+function PendingMessageRow({ content }: { content: string }) {
+  return (
+    <article className="ml-auto max-w-[86%] rounded-lg border border-primary/40 bg-primary/10 p-3 opacity-80">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <User className="h-4 w-4 text-primary" aria-hidden="true" />
+        <span className="font-mono text-xs uppercase text-muted-foreground">user</span>
+        <Badge variant="warning">sending</Badge>
+      </div>
+      <div className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-foreground">
+        {content}
+      </div>
     </article>
   );
 }
@@ -578,6 +622,19 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Wayfinder chat request failed.";
 }
 
+function statusMessageFromChatResponse(response: ChatResponse): string {
+  if (response.activeRun !== null) {
+    return "Grounded repo run queued. The thread will refresh as evidence arrives.";
+  }
+  if (response.route.clarificationQuestion !== null) {
+    return response.route.clarificationQuestion;
+  }
+  if (response.thread !== null) {
+    return "Message sent. Active repo context is ready.";
+  }
+  return response.route.reason;
+}
+
 function threadFromId(threads: DashboardThread[], threadId: string | null): DashboardThread | null {
   if (threadId === null) {
     return null;
@@ -631,10 +688,17 @@ function sendDisabledReason({
   if (draft.trim().length === 0) {
     return "message is empty";
   }
-  if (selectedThread?.status === "running") {
+  if (selectedThread?.status === "running" && !containsRepoReference(draft)) {
     return "run in progress";
   }
   return null;
+}
+
+function containsRepoReference(content: string): boolean {
+  return (
+    /https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?/.test(content) ||
+    /\b[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\b/.test(content)
+  );
 }
 
 function threadStatusVariant(
