@@ -10,3 +10,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const { threadId } = await params;
   return proxyWayfinderJson(`/threads/${encodeURIComponent(threadId)}`);
 }
+
+export async function DELETE(_request: Request, { params }: RouteParams) {
+  const { threadId } = await params;
+  return proxyWayfinderJson(`/threads/${encodeURIComponent(threadId)}`, {
+    method: "DELETE",
+  });
+}

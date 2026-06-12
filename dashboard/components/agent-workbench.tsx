@@ -116,6 +116,26 @@ export function AgentWorkbench({
     [updateUrl],
   );
 
+  const startNewThread = useCallback(() => {
+    setSelectedRun(null);
+    updateUrl({ job: null, thread: null, tab: "threads" });
+    setActiveTab("threads");
+  }, [updateUrl]);
+
+  const archiveThread = useCallback(
+    (threadId: string) => {
+      setLiveThreads((currentThreads) =>
+        currentThreads.filter((thread) => thread.threadId !== threadId),
+      );
+      if (selectedThreadId === threadId) {
+        setSelectedRun(null);
+        updateUrl({ job: null, thread: null, tab: "threads" });
+      }
+      setActiveTab("threads");
+    },
+    [selectedThreadId, updateUrl],
+  );
+
   useEffect(() => {
     setLiveRuns(runs);
   }, [runs]);
@@ -292,7 +312,9 @@ export function AgentWorkbench({
           threads={liveThreads}
           selectedThreadId={selectedThreadId}
           source={source}
+          onNewThread={startNewThread}
           onThreadChange={selectThread}
+          onThreadArchived={archiveThread}
           onRunChange={syncRun}
         />
       ) : null}

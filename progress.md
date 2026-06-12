@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field                  | Value                                                                                                                                                                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current Commit**     | [x] **Commit 22.5** — Chat send feedback hotfix                                                                                                                                                                            |
-| **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** + **22.5 hotfix done** · ship **7 / 8 core artifacts done**                                                                                                      |
-| **Blocker**            | None for Commit 22.5. The first follow-up UX backlog remains:bounded scrolling, explicit new/delete/archive thread actions, and tighter empty-workspace layout.                                                            |
-| **Last Activity**      | 2026-06-09 · Fixed the empty-workspace chat send blocker:Send now shows pending user feedback, visible status/error text, URL-based repo attach still works while another thread is running, and dashboard lint/type/build pass after `npm ci`. |
+| **Current Commit**     | [x] **Commit 22.6** — Workspace scroll + thread lifecycle polish                                                                                                                                                           |
+| **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                |
+| **Blocker**            | None for Commit 22.6 product code. Local Python pytest/mypy full gates are slow on import/cache I/O;use recorded smoke/static gates and rerun full backend gates in a clean terminal if needed.                            |
+| **Last Activity**      | 2026-06-12 · Added bounded workspace scrolling, explicit New context reset, soft-archive thread lifecycle, and dashboard New/Archive controls;frontend type/lint/build and store-level archive/clear smoke pass.             |
 | **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
-| **Today's North Star** | Keep Commit 22 testable on the live website:chat send must never silently fail, and repo attach should create visible workspace state immediately.                                                                           |
-| **Next Action**        | Push Commit 22.5, let Railway redeploy, then continue live UI testing before deciding whether bounded scrolling/thread management stays in 22.5 or becomes a separate polish commit.                                      |
+| **Today's North Star** | Keep the Commit 22 workspace testable on the live website:the page stays bounded, context can be reset intentionally, and stale threads can be archived without losing audit history.                                      |
+| **Next Action**        | Push Commit 22.6, let Railway redeploy, then live-smoke New / Archive / long transcript scrolling before starting Commit 23 true multi-agent implementation.                                                               |
 
 ---
 
@@ -542,6 +542,14 @@ Guided design mode:
   - [x] Verify with local browser smoke against the Railway API:temporary empty workspace sent `Open https://github.com/pallets/click...`, created a `pallets/click` thread, updated active context, and rendered agent trace ✅ 2026-06-09
   - [x] Record remaining UX backlog from live testing:bounded scroll containers, smaller empty state, explicit new thread action, and delete/archive thread management ✅ 2026-06-09
 
+- [x] **Commit 22.6 — Workspace scroll + thread lifecycle polish** ✅ 2026-06-12
+  - [x] Bound the Threads workspace height so the main page no longer stretches indefinitely;the transcript, thread list, and right rail scroll internally ✅ 2026-06-12
+  - [x] Add a `New` action that clears active repo context through `DELETE /workspace/context` instead of only hiding UI state ✅ 2026-06-12
+  - [x] Add soft-archive thread lifecycle through `DELETE /threads/{thread_id}`;archived threads are hidden from normal lists but remain retrievable for audit/history ✅ 2026-06-12
+  - [x] Clear active context when archiving the currently selected thread, and reject follow-up/chat/context selection against archived threads ✅ 2026-06-12
+  - [x] Add dashboard thread-list archive controls and parent-state removal so archived threads disappear immediately from the sidebar ✅ 2026-06-12
+  - [x] Add tests/smoke coverage for context clearing, thread archive hiding, archived-thread rejection, and SQLite/InMemory archive/clear behavior ✅ 2026-06-12
+
   - [ ] Commit 23 follow-up candidate — True multi-agent implementation deepening:
     - [ ] Split role prompts/contracts for Conversation/Memory, Supervisor, Repo Cartographer, Symbol Investigator, Verification, and Final Synthesizer agents.
     - [ ] Add supervisor plans that can call more than one worker agent for one user question.
@@ -565,6 +573,15 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-12 — Commit 22.6 polish — `Bounded workspace and thread lifecycle`
+
+- **做了什么**:Finished the UX polish that live testing exposed after Commit 22.5. The Threads workspace now has bounded height with internal scroll, the left rail has an explicit `New` action that clears active repo context through the API, and repo threads can be archived through a soft-delete endpoint. Archived threads are hidden from normal lists but remain retrievable for audit history.
+- **自己设计了什么**:Thread "delete" should be soft archive, not hard delete, because Wayfinder threads are evidence/audit containers. `New` must clear backend active context, not just local React state, otherwise the UI can look empty while `/chat` still inherits the old repo.
+- **Codex 帮了哪里**:Codex implemented the scoped API/store/dashboard changes, added API tests for archive/context behavior, added a Next proxy route for workspace context clearing, and wired sidebar New/Archive controls.
+- **验证方式**:`python3 -m py_compile src/wayfinder/api/run_store.py src/wayfinder/api/main.py tests/test_api.py`;store-level smoke for InMemory + SQLite archive/clear behavior passed;changed dashboard files TypeScript transpile smoke passed;dashboard `npm run typecheck`, `npm run lint`, and `npm run build` passed;`.venv/bin/ruff check src/wayfinder/api/main.py src/wayfinder/api/run_store.py tests/test_api.py` passed;`git diff --check` passed.
+- **问题记录**:Full `pytest tests/test_api.py -q` is currently blocked by local Python import/FS slowness around FastAPI/TestClient/httpx/rich imports before any tests run. `.venv/bin/mypy` first hit a cache sqlite `disk I/O error`;`--no-incremental` then ran without output for over 90s and was stopped. This should be rerun in a clean terminal/CI before treating backend full gates as final.
+- **下一步**:Commit/push Commit 22.6, wait for Railway redeploy, live-smoke New / Archive / long transcript scrolling, then start Commit 23 true multi-agent implementation deepening.
 
 ### 2026-06-09 — Commit 22.5 hotfix — `Chat send feedback unblock`
 

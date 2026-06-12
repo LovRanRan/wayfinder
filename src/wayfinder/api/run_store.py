@@ -302,6 +302,7 @@ class InMemoryRunStore:
                 self._threads[thread_id]
                 for thread_id in self._thread_order
                 if self._threads[thread_id].user_id == user_id
+                and self._threads[thread_id].status != "archived"
             ]
         return sorted(threads, key=lambda thread: thread.updated_at, reverse=True)[:limit]
 
@@ -327,6 +328,23 @@ class InMemoryRunStore:
                 and run.trace_metadata.get("conversation_thread_id") == thread_id
             ]
         return sorted(runs, key=lambda run: run.created_at)
+
+    def archive_thread(self, *, user_id: str, thread_id: str) -> ActiveRepoContext:
+        thread = self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        if thread.status == "running":
+            raise ValueError("thread is running")
+
+        now = datetime.now(UTC)
+        with self._lock:
+            self._threads[thread_id] = thread.model_copy(
+                update={"status": "archived", "updated_at": now}
+            )
+            context = self._active_contexts.get(user_id)
+            if context is not None and context.default_thread_id == thread_id:
+                cleared = _empty_active_context(user_id=user_id)
+                self._active_contexts[user_id] = cleared
+                return cleared
+        return self.active_context_for_user(user_id=user_id)
 
     def append_thread_message(
         self,
@@ -408,6 +426,12 @@ class InMemoryRunStore:
         active_focus: str | None = None,
     ) -> ActiveRepoContext:
         context = _context_from_thread(thread, active_focus=active_focus)
+        with self._lock:
+            self._active_contexts[user_id] = context
+        return context
+
+    def clear_active_context(self, *, user_id: str) -> ActiveRepoContext:
+        context = _empty_active_context(user_id=user_id)
         with self._lock:
             self._active_contexts[user_id] = context
         return context
@@ -908,7 +932,7 @@ class SQLiteRunStore(InMemoryRunStore):
                 """
                 SELECT *
                 FROM conversation_threads
-                WHERE user_id = ?
+                WHERE user_id = ? AND status != 'archived'
                 ORDER BY updated_at DESC
                 LIMIT ?
                 """,
@@ -961,6 +985,47 @@ class SQLiteRunStore(InMemoryRunStore):
             for run in runs
             if run.trace_metadata.get("conversation_thread_id") == thread_id
         ]
+
+    def archive_thread(self, *, user_id: str, thread_id: str) -> ActiveRepoContext:
+        thread = self.get_thread_for_user(user_id=user_id, thread_id=thread_id)
+        if thread.status == "running":
+            raise ValueError("thread is running")
+
+        now = datetime.now(UTC)
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE conversation_threads
+                SET status = ?, updated_at = ?
+                WHERE thread_id = ?
+                """,
+                ("archived", _datetime_to_text(now), thread_id),
+            )
+            row = self._connection.execute(
+                "SELECT context_json FROM active_repo_contexts WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+            if row is not None:
+                context = ActiveRepoContext.model_validate_json(str(row["context_json"]))
+                if context.default_thread_id == thread_id:
+                    cleared = _empty_active_context(user_id=user_id)
+                    self._connection.execute(
+                        """
+                        INSERT OR REPLACE INTO active_repo_contexts (
+                            user_id,
+                            context_json,
+                            updated_at
+                        )
+                        VALUES (?, ?, ?)
+                        """,
+                        (
+                            user_id,
+                            cleared.model_dump_json(),
+                            _datetime_to_text(cleared.updated_at),
+                        ),
+                    )
+                    return cleared
+        return self.active_context_for_user(user_id=user_id)
 
     def append_thread_message(
         self,
@@ -1082,6 +1147,11 @@ class SQLiteRunStore(InMemoryRunStore):
         active_focus: str | None = None,
     ) -> ActiveRepoContext:
         context = _context_from_thread(thread, active_focus=active_focus)
+        self._write_active_context(user_id=user_id, context=context)
+        return context
+
+    def clear_active_context(self, *, user_id: str) -> ActiveRepoContext:
+        context = _empty_active_context(user_id=user_id)
         self._write_active_context(user_id=user_id, context=context)
         return context
 

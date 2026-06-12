@@ -388,6 +388,61 @@ def test_threads_are_scoped_to_authenticated_owner(monkeypatch: pytest.MonkeyPat
     )
 
 
+def test_archiving_thread_hides_it_and_clears_active_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    client = TestClient(app)
+
+    thread_response = client.post(
+        "/threads",
+        json={"repo_url": "local", "title": "Local repo"},
+    )
+    thread_id = thread_response.json()["thread"]["thread_id"]
+    context_response = client.post("/workspace/context", json={"thread_id": thread_id})
+    assert context_response.json()["default_thread_id"] == thread_id
+
+    archive_response = client.delete(f"/threads/{thread_id}")
+
+    assert archive_response.status_code == 200
+    assert archive_response.json()["status"] == "empty"
+    assert archive_response.json()["default_thread_id"] is None
+    assert client.get("/threads").json() == []
+    archived_detail = client.get(f"/threads/{thread_id}").json()
+    assert archived_detail["thread"]["status"] == "archived"
+    assert (
+        client.post(
+            f"/threads/{thread_id}/messages",
+            json={"content": "Can I still use this?"},
+        ).status_code
+        == 409
+    )
+    assert client.post("/workspace/context", json={"thread_id": thread_id}).status_code == 409
+
+
+def test_clearing_workspace_context_keeps_thread_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+    client = TestClient(app)
+
+    thread_response = client.post(
+        "/threads",
+        json={"repo_url": "local", "title": "Local repo"},
+    )
+    thread_id = thread_response.json()["thread"]["thread_id"]
+    client.post("/workspace/context", json={"thread_id": thread_id})
+
+    clear_response = client.delete("/workspace/context")
+
+    assert clear_response.status_code == 200
+    assert clear_response.json()["status"] == "empty"
+    assert clear_response.json()["repo_url"] is None
+    threads = client.get("/threads").json()
+    assert len(threads) == 1
+    assert threads[0]["thread"]["thread_id"] == thread_id
+
+
 def test_sqlite_thread_history_persists_messages_and_linked_run(tmp_path: Path) -> None:
     db_path = tmp_path / "runs.sqlite"
     user = AuthenticatedUser(

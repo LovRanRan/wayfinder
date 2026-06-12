@@ -419,6 +419,25 @@ def get_thread(
     return _thread_detail_for_user(user=user, thread_id=thread_id)
 
 
+@app.delete("/threads/{thread_id}", response_model=ActiveRepoContext)
+def archive_thread(
+    thread_id: str,
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ActiveRepoContext:
+    try:
+        return _RUNS.archive_thread(user_id=user.user_id, thread_id=thread_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="thread not found",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="thread has a running Wayfinder job",
+        ) from exc
+
+
 @app.post(
     "/threads/{thread_id}/messages",
     response_model=ConversationThreadDetail,
@@ -441,6 +460,11 @@ def append_thread_message(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="thread already has a running Wayfinder job",
+        )
+    if thread.status == "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="thread is archived",
         )
 
     content = request.content.strip()
@@ -482,6 +506,13 @@ def set_workspace_context(
     return _RUNS.set_active_context(user_id=user.user_id, thread=thread)
 
 
+@app.delete("/workspace/context", response_model=ActiveRepoContext)
+def clear_workspace_context(
+    user: Annotated[AuthenticatedUser, Depends(_current_user)],
+) -> ActiveRepoContext:
+    return _RUNS.clear_active_context(user_id=user.user_id)
+
+
 @app.post("/chat", response_model=ChatResponse, status_code=status.HTTP_202_ACCEPTED)
 def chat(
     request: ChatRequest,
@@ -497,6 +528,11 @@ def chat(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="active repo thread already has a running Wayfinder job",
+        )
+    if thread is not None and thread.status == "archived":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="thread is archived",
         )
 
     if thread is None:
@@ -732,12 +768,18 @@ def _thread_from_context_request(
 ) -> ConversationThread:
     if request.thread_id is not None:
         try:
-            return _RUNS.get_thread_for_user(user_id=user.user_id, thread_id=request.thread_id)
+            thread = _RUNS.get_thread_for_user(user_id=user.user_id, thread_id=request.thread_id)
         except KeyError as exc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="thread not found",
             ) from exc
+        if thread.status == "archived":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="thread is archived",
+            )
+        return thread
 
     if request.repo_url is None:
         raise HTTPException(

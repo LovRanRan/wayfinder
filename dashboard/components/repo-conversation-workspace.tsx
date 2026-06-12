@@ -3,11 +3,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Archive,
   Bot,
   BrainCircuit,
   GitBranch,
   Loader2,
   PanelRight,
+  Plus,
   RefreshCw,
   Send,
   User,
@@ -16,11 +18,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RunActivity } from "@/components/run-activity";
-import { toChatResponse } from "@/lib/chat";
+import { toActiveRepoContext, toChatResponse } from "@/lib/chat";
 import { toDashboardThread, upsertThread } from "@/lib/threads";
 import type {
   ActiveRepoContext,
   AgentTraceAttachment,
+  ApiActiveRepoContext,
   ApiChatResponse,
   ApiConversationThreadDetail,
   ChatAnswerMode,
@@ -38,7 +41,9 @@ type RepoConversationWorkspaceProps = {
   threads: DashboardThread[];
   selectedThreadId: string | null;
   source: "api" | "demo";
+  onNewThread: () => void;
   onThreadChange: (thread: DashboardThread) => void;
+  onThreadArchived: (threadId: string) => void;
   onRunChange: (run: DashboardRun | null) => void;
 };
 
@@ -46,12 +51,18 @@ export function RepoConversationWorkspace({
   threads,
   selectedThreadId,
   source,
+  onNewThread,
   onThreadChange,
+  onThreadArchived,
   onRunChange,
 }: RepoConversationWorkspaceProps) {
+  const [isNewThreadMode, setIsNewThreadMode] = useState(false);
   const selectedThread = useMemo(
-    () => threadFromId(threads, selectedThreadId) ?? threads[0] ?? null,
-    [selectedThreadId, threads],
+    () =>
+      selectedThreadId === null && isNewThreadMode
+        ? null
+        : threadFromId(threads, selectedThreadId) ?? threads[0] ?? null,
+    [isNewThreadMode, selectedThreadId, threads],
   );
   const [chatDraft, setChatDraft] = useState("");
   const [answerMode, setAnswerMode] = useState<ChatAnswerMode>("auto");
@@ -67,6 +78,8 @@ export function RepoConversationWorkspace({
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isClearingContext, setIsClearingContext] = useState(false);
+  const [archivingThreadId, setArchivingThreadId] = useState<string | null>(null);
   const activeRun = selectedThread?.activeRun ?? selectedAttachmentRun;
   const activeRunStatus = activeRun?.status ?? null;
   const sendBlocker = sendDisabledReason({
@@ -84,6 +97,12 @@ export function RepoConversationWorkspace({
       setSelectedAttachmentRun(selectedThread.activeRun);
     }
   }, [selectedThread]);
+
+  useEffect(() => {
+    if (selectedThreadId !== null) {
+      setIsNewThreadMode(false);
+    }
+  }, [selectedThreadId]);
 
   useEffect(() => {
     if (
@@ -149,6 +168,7 @@ export function RepoConversationWorkspace({
       setActiveContext(response.activeContext);
       setAgentTrace(response.agentTrace);
       if (response.thread !== null) {
+        setIsNewThreadMode(false);
         onThreadChange(response.thread);
       }
       if (response.activeRun !== null) {
@@ -187,8 +207,49 @@ export function RepoConversationWorkspace({
     }
   }
 
+  async function startNewThread() {
+    setIsClearingContext(true);
+    setError(null);
+    try {
+      const context = await clearWorkspaceContext();
+      setActiveContext(context);
+      setAgentTrace(null);
+      setSelectedAttachmentRun(null);
+      setChatDraft("");
+      setStatusMessage("Ready for a new repo context.");
+      setIsNewThreadMode(true);
+      onNewThread();
+      onRunChange(null);
+    } catch (clearError) {
+      setError(errorMessage(clearError));
+    } finally {
+      setIsClearingContext(false);
+    }
+  }
+
+  async function archiveThread(thread: DashboardThread) {
+    setArchivingThreadId(thread.threadId);
+    setError(null);
+    try {
+      const context = await deleteThread(thread.threadId);
+      if (selectedThread?.threadId === thread.threadId) {
+        setActiveContext(context);
+        setAgentTrace(null);
+        setSelectedAttachmentRun(null);
+        setIsNewThreadMode(true);
+        onRunChange(null);
+      }
+      onThreadArchived(thread.threadId);
+      setStatusMessage(`Archived ${thread.repoName}.`);
+    } catch (archiveError) {
+      setError(errorMessage(archiveError));
+    } finally {
+      setArchivingThreadId(null);
+    }
+  }
+
   return (
-    <section className="grid min-h-[calc(100vh-190px)] gap-4 xl:grid-cols-[290px_minmax(0,1fr)_320px]">
+    <section className="grid h-[calc(100vh-310px)] min-h-[560px] max-h-[760px] gap-4 xl:grid-cols-[290px_minmax(0,1fr)_320px]">
       <aside className="grid min-h-0 grid-rows-[auto_1fr] gap-4">
         <section className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 font-mono text-sm font-semibold">
@@ -214,9 +275,24 @@ export function RepoConversationWorkspace({
         </section>
 
         <section className="min-h-0 overflow-hidden rounded-lg border border-border bg-card">
-          <header className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-3">
+          <header className="flex items-center justify-between gap-3 border-b border-border bg-muted/60 px-4 py-3">
             <div className="font-mono text-sm font-semibold">Repo threads</div>
-            <Badge variant="outline">{threads.length}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{threads.length}</Badge>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isClearingContext}
+                onClick={() => void startNewThread()}
+              >
+                {isClearingContext ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                )}
+                New
+              </Button>
+            </div>
           </header>
           <div className="max-h-full overflow-y-auto p-2">
             {threads.length === 0 ? (
@@ -225,32 +301,51 @@ export function RepoConversationWorkspace({
               </div>
             ) : (
               threads.map((thread) => (
-                <button
+                <div
                   key={thread.threadId}
-                  type="button"
                   className={
                     thread.threadId === selectedThread?.threadId
-                      ? "w-full rounded-md border border-primary bg-primary/10 p-3 text-left"
-                      : "w-full rounded-md border border-transparent p-3 text-left hover:border-border hover:bg-muted/50"
+                      ? "flex w-full items-start gap-2 rounded-md border border-primary bg-primary/10 p-3"
+                      : "flex w-full items-start gap-2 rounded-md border border-transparent p-3 hover:border-border hover:bg-muted/50"
                   }
-                  onClick={() => {
-                    onThreadChange(thread);
-                    setActiveContext(contextFromThread(thread));
-                  }}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 truncate font-mono text-sm font-medium">
-                      {thread.title}
-                    </span>
-                    <Badge variant={threadStatusVariant(thread.status)}>{thread.status}</Badge>
-                  </div>
-                  <div className="mt-2 truncate font-mono text-xs text-muted-foreground">
-                    {thread.repoName}
-                  </div>
-                  <div className="mt-1 font-mono text-[11px] text-muted-foreground">
-                    {thread.messages.length} messages · {formatDate(thread.updatedAt)}
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => {
+                      onThreadChange(thread);
+                      setActiveContext(contextFromThread(thread));
+                      setIsNewThreadMode(false);
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate font-mono text-sm font-medium">
+                        {thread.title}
+                      </span>
+                      <Badge variant={threadStatusVariant(thread.status)}>{thread.status}</Badge>
+                    </div>
+                    <div className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                      {thread.repoName}
+                    </div>
+                    <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                      {thread.messages.length} messages · {formatDate(thread.updatedAt)}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    title={`Archive ${thread.title}`}
+                    aria-label={`Archive ${thread.title}`}
+                    disabled={archivingThreadId === thread.threadId || thread.status === "running"}
+                    onClick={() => void archiveThread(thread)}
+                  >
+                    {archivingThreadId === thread.threadId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Archive className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
               ))
             )}
           </div>
@@ -608,6 +703,34 @@ async function postThread(
   }
 
   return toDashboardThread(payload as ApiConversationThreadDetail);
+}
+
+async function clearWorkspaceContext(): Promise<ActiveRepoContext> {
+  const response = await fetch("/api/wayfinder/workspace/context", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(detailFromPayload(payload) ?? response.statusText);
+  }
+
+  return toActiveRepoContext(payload as ApiActiveRepoContext);
+}
+
+async function deleteThread(threadId: string): Promise<ActiveRepoContext> {
+  const response = await fetch(`/api/wayfinder/threads/${encodeURIComponent(threadId)}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(detailFromPayload(payload) ?? response.statusText);
+  }
+
+  return toActiveRepoContext(payload as ApiActiveRepoContext);
 }
 
 function detailFromPayload(payload: unknown): string | null {
