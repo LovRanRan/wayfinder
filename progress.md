@@ -559,8 +559,9 @@ Guided design mode:
   - [x] Tests for distinct prompts, packet assembly, provenance grouping, and challenge behavior (`tests/test_agent_roles.py`, `tests/test_claim_packets.py`, `tests/test_verifier_challenge.py`) — 24 logic tests green in a sandbox stub; full local gate (255+24 + ruff + mypy) to be rerun by Haichuan ✅ logic 2026-06-13
   - `docs/design_notes/019_true_multi_agent_contracts.md` written ✅ 2026-06-13
 
-  Slice 2 — graph wiring (deferred; touches `state.py`/`nodes.py`/`app.py`, must be done with gates running):
-  - [ ] Supervisor plan that fans out to more than one worker agent for one query and merges their packets.
+  Slice 2 — graph wiring (in progress; touches `state.py`/`nodes.py`/`app.py`, must be done with gates running):
+  - [x] Pure multi-worker planning policy (`src/wayfinder/graph/planning.py`: `plan_workers_for_intent` — mixed fans out to both grounding workers — `is_multi_worker_plan`, `plan_as_graph_nodes`) + tests; additive, no graph change, 29 logic tests green in sandbox ✅ 2026-06-13
+  - [ ] Wire the plan into the compiled graph so the supervisor fans out to >1 worker for one query and merges their packets (will require updating exact-match assertions in `test_graph_contract.py`; do under gate loop).
   - [ ] Thread `ClaimPacket`s through `WayfinderState` into the verifier and final synthesizer nodes.
   - [ ] Surface the provenance trace through the API/dashboard.
   - [ ] Integration tests proving multi-worker routing and end-to-end provenance through the compiled graph.
