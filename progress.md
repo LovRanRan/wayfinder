@@ -567,6 +567,13 @@ Guided design mode:
   - [x] Dashboard renders `claim_provenance` (2026-06-13): `lib/types.ts` adds `ApiClaimProvenanceRow`/`ClaimProvenanceRow` + the field on `ApiRunSummary`/`DashboardRun`; `lib/metrics.ts` `toDashboardRun` maps it; all 10 `mock-data.ts` `DashboardRun` literals updated; `current-run-console.tsx` shows a "Claim provenance" block under the verified/unverified/contradicted pills. Frontend gate (`npm run lint`/`typecheck`/`build`) to be run by Haichuan (run `npm ci` first if `@next/env` is missing).
   - [ ] (optional) Migrate the live claim flow to `ClaimPacket`/`challenge_claim` end-to-end (larger refactor; serialization + verifier reconciliation).
 
+- [/] **Commit 24 — Entry-point consolidation (Threads as the single surface)**
+  - [x] Retire the **Run** tab: removed from `WorkspaceTab` union + `WorkspaceTabs` list (6→5 tabs, dropped `Play` icon); deleted the `activeTab === "run"` block and `RunLauncher`/`RunBriefingPanel` imports in `agent-workbench.tsx`; cleaned the `?tab=run` URL-sync branch and `workspaceTabFromParam`. Threads now owns all input (attach repo + ask + report/evidence-mode grounded runs). ✅ 2026-06-13
+  - [x] Testing-time UI fixes folded in: contradiction-card "error" mislabel; no-active-repo send blocked with "open a repo first" (was silently wiping input); ChatGPT-style viewport-locked workspace (pinned composer, internal scroll, page no longer grows) across `page.tsx` + `agent-workbench.tsx` + `repo-conversation-workspace.tsx`. ✅ 2026-06-13
+  - [ ] Frontend gate (`npm run lint`/`typecheck`/`build`) + commit/push + redeploy + confirm Run tab gone and other tabs work — owed by Haichuan.
+  - [ ] Follow-up: fold Answer's rich provenance/evidence view into the in-thread grounded-report attachment, then drop the Answer tab too (needs in-thread attachment to match the Answer console first).
+  - [ ] Optional cleanup: `git rm` orphaned `dashboard/components/run-launcher.tsx` + `run-briefing-panel.tsx`.
+
 ### Ship
 
 - [ ] 全部 acceptance criteria `[x]`
