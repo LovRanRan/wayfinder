@@ -562,9 +562,9 @@ Guided design mode:
   Slice 2 — graph wiring (in progress; touches `state.py`/`nodes.py`/`app.py`, must be done with gates running):
   - [x] Pure multi-worker planning policy (`src/wayfinder/graph/planning.py`: `plan_workers_for_intent` — mixed fans out to both grounding workers — `is_multi_worker_plan`, `plan_as_graph_nodes`) + tests; additive, no graph change, 29 logic tests green in sandbox ✅ 2026-06-13
   - [/] Wire the plan into the compiled graph (2026-06-13, awaiting Haichuan gate run): `state.py` adds `pending_workers` + a `merge_summaries` reducer on `partial_summaries`; supervisor emits `pending_workers` from the plan; `app.py` `architect_mapper` edge becomes conditional (`route_after_architect`) so mixed fans out architect→entry→verifier→final while single-intent paths are byte-identical. Updated `test_mixed_or_missing_query` + added `test_architectural_intent_runs_single_worker_only` / `test_mixed_intent_fans_out_to_architect_and_entry`. py_compile clean; full gate to be run by Haichuan.
-  - [ ] Thread `ClaimPacket`s through `WayfinderState` into the verifier and final synthesizer nodes.
-  - [ ] Surface the provenance trace through the API/dashboard.
-  - [ ] Integration tests proving multi-worker routing and end-to-end provenance through the compiled graph.
+  - [x] Provenance trace threaded into the final synthesizer (`src/wayfinder/graph/provenance.py`: `agent_trace_from_state` / `agent_trace_from_claims`; `state.py` gains a serializable `agent_trace: list[dict]`; final_writer attaches it). Built from the live `Claim` flow (not dataclass packets) to stay checkpointer-serializable; does not touch `final_output`. 6 provenance unit tests green in sandbox ✅ 2026-06-13
+  - [ ] Surface the `agent_trace` through the API `/status` response and the dashboard.
+  - [ ] (optional) Migrate the live claim flow to `ClaimPacket`/`challenge_claim` end-to-end (larger refactor; serialization + verifier reconciliation).
 
 ### Ship
 
