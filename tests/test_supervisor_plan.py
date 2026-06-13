@@ -5,6 +5,7 @@ from wayfinder.graph.planning import (
     plan_as_graph_nodes,
     plan_workers_for_intent,
 )
+from wayfinder.graph.state import Intent
 
 
 def test_architectural_intent_plans_single_cartographer() -> None:
@@ -14,8 +15,9 @@ def test_architectural_intent_plans_single_cartographer() -> None:
 
 
 def test_behavioral_intents_plan_single_investigator() -> None:
-    for intent in ("runtime", "behavioral", "debug"):
-        plan = plan_workers_for_intent(intent)  # type: ignore[arg-type]
+    intents: tuple[Intent, ...] = ("runtime", "behavioral", "debug")
+    for intent in intents:
+        plan = plan_workers_for_intent(intent)
         assert plan == ("symbol_investigator",)
         assert is_multi_worker_plan(plan) is False
 
