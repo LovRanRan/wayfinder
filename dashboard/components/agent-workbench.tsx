@@ -375,67 +375,99 @@ function ThreadActivityTimeline({
   threads: DashboardThread[];
   onSelectRun: (run: DashboardRun | null) => void;
 }) {
-  const events = threads
-    .flatMap((thread) => [
-      {
-        id: `${thread.threadId}:created`,
-        createdAt: thread.createdAt,
-        repoName: thread.repoName,
-        title: "Repo context attached",
-        detail: thread.repoUrl,
-        status: thread.status,
-        run: null as DashboardRun | null,
-      },
-      ...thread.messages.map((message) => ({
-        id: message.messageId,
-        createdAt: message.createdAt,
-        repoName: thread.repoName,
-        title: `${message.role} message`,
-        detail: message.content,
-        status: thread.status,
-        run: message.sourceRunId
-          ? (thread.runs.find((run) => run.jobId === message.sourceRunId) ?? null)
-          : null,
-      })),
-    ])
-    .sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt));
+  const ordered = [...threads].sort((a, b) => timestamp(b.updatedAt) - timestamp(a.updatedAt));
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <header className="border-b border-border bg-muted/60 px-4 py-3">
+      <header className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-3">
         <div className="font-mono text-sm font-semibold">Repo activity timeline</div>
+        <span className="font-mono text-xs text-muted-foreground">
+          {threads.length} thread{threads.length === 1 ? "" : "s"}
+        </span>
       </header>
-      <div className="grid gap-3 p-4">
-        {events.length === 0 ? (
+      <div className="grid gap-2 p-4">
+        {ordered.length === 0 ? (
           <div className="rounded-md border border-border bg-background p-3 font-mono text-sm text-muted-foreground">
             No repo conversation activity yet.
           </div>
         ) : (
-          events.map((event) => (
-            <article key={event.id} className="rounded-md border border-border bg-background p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate font-mono text-sm font-semibold">{event.title}</div>
-                  <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                    {event.repoName} · {formatDate(event.createdAt)}
+          ordered.map((thread) => {
+            const latestRun =
+              thread.activeRun ?? thread.runs[thread.runs.length - 1] ?? null;
+            const events = [
+              ...thread.messages.map((message) => ({
+                id: message.messageId,
+                createdAt: message.createdAt,
+                title: `${message.role} message`,
+                detail: message.content,
+                run: message.sourceRunId
+                  ? (thread.runs.find((run) => run.jobId === message.sourceRunId) ?? null)
+                  : null,
+              })),
+              {
+                id: `${thread.threadId}:created`,
+                createdAt: thread.createdAt,
+                title: "Repo context attached",
+                detail: thread.repoUrl,
+                run: null as DashboardRun | null,
+              },
+            ].sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt));
+
+            return (
+              <details
+                key={thread.threadId}
+                className="rounded-md border border-border bg-background"
+              >
+                <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-3 py-3">
+                  <div className="min-w-0">
+                    <span className="font-mono text-sm font-semibold">{thread.repoName}</span>
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">
+                      {thread.messages.length} msg · {formatDate(thread.updatedAt)}
+                    </span>
                   </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{thread.status}</Badge>
+                    {latestRun !== null ? (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        <span className="text-success">{latestRun.verifiedCount}✓</span>{" "}
+                        <span className="text-warning">{latestRun.unverifiedCount}⚠</span>{" "}
+                        <span className="text-danger">{latestRun.contradictedCount}✗</span>
+                      </span>
+                    ) : null}
+                  </div>
+                </summary>
+                <div className="grid gap-2 border-t border-border px-3 py-2">
+                  {events.map((event) => (
+                    <div
+                      key={event.id}
+                      className="rounded-md border border-border bg-card/50 p-2"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-mono text-xs font-semibold">{event.title}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[11px] text-muted-foreground">
+                            {formatDate(event.createdAt)}
+                          </span>
+                          {event.run !== null ? (
+                            <button type="button" onClick={() => onSelectRun(event.run)}>
+                              <Badge
+                                variant={event.run.status === "failed" ? "danger" : "outline"}
+                              >
+                                view report
+                              </Badge>
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-5 text-muted-foreground">
+                        {event.detail}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">{event.status}</Badge>
-                  {event.run !== null ? (
-                    <button type="button" onClick={() => onSelectRun(event.run)}>
-                      <Badge variant={event.run.status === "failed" ? "danger" : "outline"}>
-                        run {event.run.status}
-                      </Badge>
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              <p className="mt-2 line-clamp-3 font-mono text-xs leading-5 text-muted-foreground">
-                {event.detail}
-              </p>
-            </article>
-          ))
+              </details>
+            );
+          })
         )}
       </div>
     </section>
