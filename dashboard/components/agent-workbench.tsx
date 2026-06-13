@@ -114,8 +114,12 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
 
   const archiveThread = useCallback(
     (threadId: string) => {
+      // Mark archived (don't drop it) so it stays available to History; the
+      // active thread rail hides it via the status filter.
       setLiveThreads((currentThreads) =>
-        currentThreads.filter((thread) => thread.threadId !== threadId),
+        currentThreads.map((thread) =>
+          thread.threadId === threadId ? { ...thread, status: "archived" } : thread,
+        ),
       );
       if (selectedThreadId === threadId) {
         setSelectedRun(null);

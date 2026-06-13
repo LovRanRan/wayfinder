@@ -60,19 +60,49 @@ export function RepoConversationWorkspace({
   onRunChange,
 }: RepoConversationWorkspaceProps) {
   const [isNewThreadMode, setIsNewThreadMode] = useState(false);
+  // A thread opened from History that is not in the active prop list (e.g.
+  // archived) is fetched on demand so it can still be displayed read-only.
+  const [loadedThread, setLoadedThread] = useState<DashboardThread | null>(null);
   // Archived threads stay loadable (so History can open them read-only) but are
   // hidden from the active thread rail / default selection.
   const activeThreads = useMemo(
     () => threads.filter((thread) => thread.status !== "archived"),
     [threads],
   );
-  const selectedThread = useMemo(
-    () =>
-      selectedThreadId === null && isNewThreadMode
-        ? null
-        : threadFromId(threads, selectedThreadId) ?? activeThreads[0] ?? null,
-    [isNewThreadMode, selectedThreadId, threads, activeThreads],
-  );
+  const selectedThread = useMemo(() => {
+    if (selectedThreadId === null && isNewThreadMode) {
+      return null;
+    }
+    return (
+      threadFromId(threads, selectedThreadId) ??
+      (loadedThread?.threadId === selectedThreadId ? loadedThread : null) ??
+      activeThreads[0] ??
+      null
+    );
+  }, [isNewThreadMode, selectedThreadId, threads, activeThreads, loadedThread]);
+
+  useEffect(() => {
+    if (selectedThreadId === null) {
+      return;
+    }
+    if (threadFromId(threads, selectedThreadId) !== null) {
+      return;
+    }
+    if (loadedThread?.threadId === selectedThreadId) {
+      return;
+    }
+    let cancelled = false;
+    void fetchThreadDetail(selectedThreadId)
+      .then((thread) => {
+        if (!cancelled) {
+          setLoadedThread(thread);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedThreadId, threads, loadedThread]);
   const [chatDraft, setChatDraft] = useState("");
   const [answerMode, setAnswerMode] = useState<ChatAnswerMode>("auto");
   const [activeContext, setActiveContext] = useState<ActiveRepoContext | null>(() =>
