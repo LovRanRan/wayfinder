@@ -571,7 +571,7 @@ Guided design mode:
   - [x] Retire the **Run** tab: removed from `WorkspaceTab` union + `WorkspaceTabs` list (6→5 tabs, dropped `Play` icon); deleted the `activeTab === "run"` block and `RunLauncher`/`RunBriefingPanel` imports in `agent-workbench.tsx`; cleaned the `?tab=run` URL-sync branch and `workspaceTabFromParam`. Threads now owns all input (attach repo + ask + report/evidence-mode grounded runs). ✅ 2026-06-13
   - [x] Testing-time UI fixes folded in: contradiction-card "error" mislabel; no-active-repo send blocked with "open a repo first" (was silently wiping input); ChatGPT-style viewport-locked workspace (pinned composer, internal scroll, page no longer grows) across `page.tsx` + `agent-workbench.tsx` + `repo-conversation-workspace.tsx`. ✅ 2026-06-13
   - [ ] Frontend gate (`npm run lint`/`typecheck`/`build`) + commit/push + redeploy + confirm Run tab gone and other tabs work — owed by Haichuan.
-  - [ ] Follow-up: fold Answer's rich provenance/evidence view into the in-thread grounded-report attachment, then drop the Answer tab too (needs in-thread attachment to match the Answer console first).
+  - [/] Follow-up: fold Answer into Threads (design note `020`). Step 1 done 2026-06-13 — added an `embedded` mode to `CurrentRunConsole` (drops fixed height + internal scroll, `publicApiBaseUrl` optional, API-docs button guarded) and rendered it reused inside the Threads transcript as a collapsible "Grounded report" for `activeRun` (full pills + evidence cards + provenance, zero duplicated logic). Answer tab intentionally KEPT until Haichuan visually confirms the in-thread report. Step 2 (remove Answer tab + redirect default-tab/`selectRun` to `threads`) pending that confirmation. Frontend gate + visual check owed.
   - [ ] Optional cleanup: `git rm` orphaned `dashboard/components/run-launcher.tsx` + `run-briefing-panel.tsx`.
 
 ### Ship
@@ -590,6 +590,13 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-13 — Commit 24 follow-up step 1 — `Fold Answer report into Threads`
+
+- **做了什么**:Surfaced the rich grounded report inside Threads by reusing `CurrentRunConsole` in a new `embedded` mode (no fixed height / no internal scroll / optional `publicApiBaseUrl` / guarded API-docs button). `repo-conversation-workspace.tsx` now renders it as a collapsible "Grounded report" `<details>` for `activeRun` in the transcript — full verified/unverified/contradicted pills, evidence cards, and the claim-provenance panel, with zero duplicated rendering logic. Design note `020` written.
+- **自己设计了什么 / 顺序**:Deliberately KEPT the Answer tab this step. Removing it (step 2: drop from the tab union/list + agent-workbench block + redirect default-tab/`selectRun` to `threads`) only happens after Haichuan visually confirms the in-thread report matches the Answer console — verify-before-delete so we never leave the product without a good run view.
+- **验证方式**:Frontend-only; needs `cd dashboard && npm run lint && npm run typecheck && npm run build` + a visual check by Haichuan (Cowork can't run the npm gate or see the UI).
+- **下一步**:Run the gate, visually confirm the in-thread "Grounded report" is as rich as the Answer tab, then do step 2 (retire the Answer tab).
 
 ### 2026-06-13 — Commit 24 — `Consolidate entry points: retire Run tab`
 

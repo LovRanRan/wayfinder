@@ -17,6 +17,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CurrentRunConsole } from "@/components/current-run-console";
 import { RunActivity } from "@/components/run-activity";
 import { toActiveRepoContext, toChatResponse } from "@/lib/chat";
 import { toDashboardThread, upsertThread } from "@/lib/threads";
@@ -412,6 +413,17 @@ export function RepoConversationWorkspace({
                 {pendingUserMessage !== null ? <PendingMessageRow content={pendingUserMessage} /> : null}
               </>
             )}
+
+            {activeRun !== null ? (
+              <details className="rounded-lg border border-border bg-background">
+                <summary className="cursor-pointer px-4 py-3 font-mono text-sm font-semibold text-muted-foreground">
+                  Grounded report
+                </summary>
+                <div className="border-t border-border p-2">
+                  <CurrentRunConsole run={activeRun} source={source} embedded />
+                </div>
+              </details>
+            ) : null}
           </div>
         </div>
 

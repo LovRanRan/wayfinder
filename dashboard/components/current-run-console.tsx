@@ -23,13 +23,19 @@ import type { DashboardRun } from "@/lib/types";
 
 type CurrentRunConsoleProps = {
   run: DashboardRun | null;
-  publicApiBaseUrl: string;
+  publicApiBaseUrl?: string;
   source: "api" | "demo";
+  embedded?: boolean;
 };
 
 const activeStatuses: DashboardRun["status"][] = ["queued", "running"];
 
-export function CurrentRunConsole({ run, publicApiBaseUrl, source }: CurrentRunConsoleProps) {
+export function CurrentRunConsole({
+  run,
+  publicApiBaseUrl,
+  source,
+  embedded = false,
+}: CurrentRunConsoleProps) {
   if (!run) {
     return (
       <section className="rounded-lg border border-border bg-card p-4">
@@ -47,7 +53,13 @@ export function CurrentRunConsole({ run, publicApiBaseUrl, source }: CurrentRunC
   const outputBlocks = hasPendingOutput ? [] : outputBlocksFromText(output);
 
   return (
-    <section className="grid min-h-[620px] grid-rows-[auto_1fr] overflow-hidden rounded-lg border border-border bg-card">
+    <section
+      className={
+        embedded
+          ? "grid grid-rows-[auto_auto] rounded-lg border border-border bg-card"
+          : "grid min-h-[620px] grid-rows-[auto_1fr] overflow-hidden rounded-lg border border-border bg-card"
+      }
+    >
       <header className="border-b border-border bg-muted/60 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 space-y-1">
@@ -67,12 +79,14 @@ export function CurrentRunConsole({ run, publicApiBaseUrl, source }: CurrentRunC
                 </a>
               </Button>
             ) : null}
-            <Button variant="outline" asChild>
-              <a href={`${publicApiBaseUrl}/docs`} target="_blank" rel="noreferrer">
-                <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
-                API
-              </a>
-            </Button>
+            {publicApiBaseUrl ? (
+              <Button variant="outline" asChild>
+                <a href={`${publicApiBaseUrl}/docs`} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                  API
+                </a>
+              </Button>
+            ) : null}
           </div>
         </div>
         <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4">
@@ -86,7 +100,7 @@ export function CurrentRunConsole({ run, publicApiBaseUrl, source }: CurrentRunC
         </div>
       </header>
 
-      <div className="overflow-y-auto p-4">
+      <div className={embedded ? "p-4" : "overflow-y-auto p-4"}>
         <div className="rounded-md border border-border bg-background/80">
           <div className="border-b border-border px-4 py-3 font-mono text-xs text-muted-foreground">
             <span className="text-primary">$</span> wayfinder explain --repo {run.repoUrl}
