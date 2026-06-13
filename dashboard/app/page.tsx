@@ -40,9 +40,9 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-4 text-foreground md:px-6">
-      <div className="mx-auto flex max-w-[1500px] flex-col gap-4">
-        <header className="grid gap-4 rounded-lg border border-border bg-card px-4 py-4 xl:grid-cols-[1fr_360px]">
+    <main className="flex h-screen flex-col overflow-hidden bg-background px-4 py-4 text-foreground md:px-6">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1500px] flex-1 flex-col gap-4">
+        <header className="grid shrink-0 gap-4 rounded-lg border border-border bg-card px-4 py-4 xl:grid-cols-[1fr_360px]">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Badge variant="success">Wayfinder workspace</Badge>

@@ -299,66 +299,78 @@ export function AgentWorkbench({
   const metrics = useMemo(() => buildDashboardMetrics(liveRuns), [liveRuns]);
 
   return (
-    <section className="grid gap-4">
-      <DashboardStats
-        metrics={metrics}
-        threads={liveThreads}
-        onOpenMetrics={() => changeTab("metrics")}
-      />
-      <WorkspaceTabs activeTab={activeTab} onTabChange={changeTab} />
+    <section className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="shrink-0">
+        <DashboardStats
+          metrics={metrics}
+          threads={liveThreads}
+          onOpenMetrics={() => changeTab("metrics")}
+        />
+      </div>
+      <div className="shrink-0">
+        <WorkspaceTabs activeTab={activeTab} onTabChange={changeTab} />
+      </div>
 
       {activeTab === "threads" ? (
-        <RepoConversationWorkspace
-          threads={liveThreads}
-          selectedThreadId={selectedThreadId}
-          source={source}
-          onNewThread={startNewThread}
-          onThreadChange={selectThread}
-          onThreadArchived={archiveThread}
-          onRunChange={syncRun}
-        />
-      ) : null}
-
-      {activeTab === "run" ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(360px,0.74fr)_minmax(0,1.26fr)]">
-          <div className="grid gap-4 self-start">
-            <RunLauncher initialRun={selectedRun} onRunChange={selectRun} />
-          </div>
-          <RunBriefingPanel
-            runs={visibleRuns}
-            selectedRun={selectedRun}
+        <div className="min-h-0 flex-1">
+          <RepoConversationWorkspace
+            threads={liveThreads}
+            selectedThreadId={selectedThreadId}
             source={source}
-            onOpenAnswer={selectRun}
+            onNewThread={startNewThread}
+            onThreadChange={selectThread}
+            onThreadArchived={archiveThread}
+            onRunChange={syncRun}
           />
         </div>
-      ) : null}
-
-      {activeTab === "answer" ? (
-        <CurrentRunConsole run={selectedRun} publicApiBaseUrl={publicApiBaseUrl} source={source} />
-      ) : null}
-
-      {activeTab === "history" ? (
-        <div className="grid gap-4">
-          <ThreadActivityTimeline threads={liveThreads} onSelectRun={selectRun} />
-          <details className="rounded-lg border border-border bg-card p-4">
-            <summary className="cursor-pointer font-mono text-sm font-semibold text-muted-foreground">
-              Run diagnostics
-            </summary>
-            <div className="mt-4">
-              <RunStatusTable
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {activeTab === "run" ? (
+            <div className="grid gap-4 xl:grid-cols-[minmax(360px,0.74fr)_minmax(0,1.26fr)]">
+              <div className="grid gap-4 self-start">
+                <RunLauncher initialRun={selectedRun} onRunChange={selectRun} />
+              </div>
+              <RunBriefingPanel
                 runs={visibleRuns}
+                selectedRun={selectedRun}
                 source={source}
-                onSelectRun={selectRun}
-                selectedJobId={selectedRun?.jobId ?? null}
+                onOpenAnswer={selectRun}
               />
             </div>
-          </details>
+          ) : null}
+
+          {activeTab === "answer" ? (
+            <CurrentRunConsole
+              run={selectedRun}
+              publicApiBaseUrl={publicApiBaseUrl}
+              source={source}
+            />
+          ) : null}
+
+          {activeTab === "history" ? (
+            <div className="grid gap-4">
+              <ThreadActivityTimeline threads={liveThreads} onSelectRun={selectRun} />
+              <details className="rounded-lg border border-border bg-card p-4">
+                <summary className="cursor-pointer font-mono text-sm font-semibold text-muted-foreground">
+                  Run diagnostics
+                </summary>
+                <div className="mt-4">
+                  <RunStatusTable
+                    runs={visibleRuns}
+                    source={source}
+                    onSelectRun={selectRun}
+                    selectedJobId={selectedRun?.jobId ?? null}
+                  />
+                </div>
+              </details>
+            </div>
+          ) : null}
+
+          {activeTab === "metrics" ? <WorkspaceMetrics runs={liveRuns} /> : null}
+
+          {activeTab === "settings" ? <WorkspaceSettingsPanel /> : null}
         </div>
-      ) : null}
-
-      {activeTab === "metrics" ? <WorkspaceMetrics runs={liveRuns} /> : null}
-
-      {activeTab === "settings" ? <WorkspaceSettingsPanel /> : null}
+      )}
     </section>
   );
 }
