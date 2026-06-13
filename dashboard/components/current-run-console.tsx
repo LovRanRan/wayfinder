@@ -207,12 +207,8 @@ function outputBlockFromParagraph(paragraph: string): OutputBlock {
     return block("verification", explicitTitle ?? "Verification summary", body, "warning", ListChecks);
   }
 
-  if (
-    searchable.includes("error") ||
-    searchable.includes("contradicted") ||
-    searchable.includes("contradiction")
-  ) {
-    return block("contradiction", explicitTitle ?? "Contradiction or error", body, "danger", AlertTriangle);
+  if (searchable.includes("contradicted") || searchable.includes("contradiction")) {
+    return block("contradiction", explicitTitle ?? "Contradiction", body, "danger", AlertTriangle);
   }
 
   if (
