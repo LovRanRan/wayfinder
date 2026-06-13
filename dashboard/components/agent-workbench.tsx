@@ -6,8 +6,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CurrentRunConsole } from "@/components/current-run-console";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { RepoConversationWorkspace } from "@/components/repo-conversation-workspace";
-import { RunBriefingPanel } from "@/components/run-briefing-panel";
-import { RunLauncher } from "@/components/run-launcher";
 import { RunStatusTable } from "@/components/run-status-table";
 import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
 import { WorkspaceMetrics } from "@/components/workspace-metrics";
@@ -73,8 +71,6 @@ export function AgentWorkbench({
       }
       if (updates.tab !== undefined) {
         if (updates.tab === null) {
-          params.delete("tab");
-        } else if (updates.tab === "run" && !params.has("job")) {
           params.delete("tab");
         } else {
           params.set("tab", updates.tab);
@@ -325,20 +321,6 @@ export function AgentWorkbench({
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {activeTab === "run" ? (
-            <div className="grid gap-4 xl:grid-cols-[minmax(360px,0.74fr)_minmax(0,1.26fr)]">
-              <div className="grid gap-4 self-start">
-                <RunLauncher initialRun={selectedRun} onRunChange={selectRun} />
-              </div>
-              <RunBriefingPanel
-                runs={visibleRuns}
-                selectedRun={selectedRun}
-                source={source}
-                onOpenAnswer={selectRun}
-              />
-            </div>
-          ) : null}
-
           {activeTab === "answer" ? (
             <CurrentRunConsole
               run={selectedRun}
@@ -395,7 +377,6 @@ function runFromJobId(runs: DashboardRun[], jobId: string | null): DashboardRun 
 function workspaceTabFromParam(value: string | null): WorkspaceTab | null {
   if (
     value === "threads" ||
-    value === "run" ||
     value === "answer" ||
     value === "history" ||
     value === "metrics" ||
