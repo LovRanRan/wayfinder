@@ -249,7 +249,7 @@ export function RepoConversationWorkspace({
   }
 
   return (
-    <section className="grid h-[calc(100vh-310px)] min-h-[560px] max-h-[760px] gap-4 xl:grid-cols-[290px_minmax(0,1fr)_320px]">
+    <section className="grid h-[calc(100vh-300px)] min-h-[560px] gap-4 xl:grid-cols-[290px_minmax(0,1fr)_320px]">
       <aside className="grid min-h-0 grid-rows-[auto_1fr] gap-4">
         <section className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 font-mono text-sm font-semibold">
