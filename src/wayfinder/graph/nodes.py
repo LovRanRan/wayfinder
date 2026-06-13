@@ -23,6 +23,7 @@ from wayfinder.graph.entry import (
 from wayfinder.graph.entry import (
     repo_path_from_state as entry_repo_path_from_state,
 )
+from wayfinder.graph.planning import plan_as_graph_nodes, plan_workers_for_intent
 from wayfinder.graph.resilience import apply_resilience_to_final_output
 from wayfinder.graph.routing import LLMRouter, build_route_decision
 from wayfinder.graph.state import WayfinderState
@@ -39,10 +40,16 @@ def build_supervisor_node(
 ) -> Callable[[WayfinderState], WayfinderState]:
     def _node(state: WayfinderState) -> WayfinderState:
         route_decision = build_route_decision(state, llm_router=llm_router)
+        next_agent = route_decision["next_agent"]
+        plan_nodes = plan_as_graph_nodes(
+            plan_workers_for_intent(route_decision["intent"])
+        )
+        pending_workers = [node for node in plan_nodes if node != next_agent]
         return {
             "intent": route_decision["intent"],
-            "next_agent": route_decision["next_agent"],
+            "next_agent": next_agent,
             "route_decision": route_decision,
+            "pending_workers": pending_workers,
         }
 
     return _node

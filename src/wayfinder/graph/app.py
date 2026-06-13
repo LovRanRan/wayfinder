@@ -50,6 +50,19 @@ def route_from_supervisor(state: WayfinderState) -> AgentName:
     return "architect_mapper"
 
 
+def route_after_architect(state: WayfinderState) -> str:
+    """Continue a multi-worker plan to the symbol path, else finish.
+
+    For single-worker (architectural) plans ``pending_workers`` is empty, so the
+    edge behaves exactly like the old direct ``architect_mapper -> final_writer``.
+    For a mixed plan the supervisor queued ``entry_explainer`` here, so the run
+    fans out to the symbol path (and then the verifier) before final synthesis.
+    """
+    if "entry_explainer" in state.get("pending_workers", []):
+        return "entry_explainer"
+    return "final_writer"
+
+
 def build_graph(
     checkpointer: GraphCheckpointer = None,
     *,
@@ -121,7 +134,14 @@ def build_graph(
             "verifier": "verifier",
         },
     )
-    graph.add_edge("architect_mapper", "final_writer")
+    graph.add_conditional_edges(
+        "architect_mapper",
+        route_after_architect,
+        {
+            "entry_explainer": "entry_explainer",
+            "final_writer": "final_writer",
+        },
+    )
     graph.add_edge("entry_explainer", "verifier")
     graph.add_edge("verifier", "final_writer")
     graph.add_edge("final_writer", END)

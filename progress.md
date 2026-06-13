@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field                  | Value                                                                                                                                                                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current Commit**     | [/] **Commit 23** — True multi-agent: slice 1 (contracts + challenge logic) drafted 2026-06-13, additive/graph-non-invasive, 24 logic tests green in sandbox; awaiting Haichuan full gate + reverse-explanation + slice-2 graph wiring. (22.6 shipped: 28c3f72, CI #48 green.)                                                       |
+| **Current Commit**     | [/] **Commit 23** — True multi-agent. Slice 1 (role contracts / claim packets / challenge logic) + slice 2 (multi-worker planning + graph fan-out wiring) done 2026-06-13: full local gate green (286 passed/8 skipped, ruff/mypy clean). Remaining: thread ClaimPackets through state into verifier/final synthesizer + surface provenance in API/dashboard; Haichuan reverse-explanation pass owed. (22.6 shipped: 28c3f72.)                                                       |
 | **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                |
 | **Blocker**            | None. Prior "local gates slow/hang" was root-caused 2026-06-13: iCloud-synced Desktop evicted `.venv` files to `dataless` placeholders → bulk imports hung. Fixed by relocating venv off iCloud (`UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder`). Local full gate now green (255 passed/8 skipped, ruff/mypy clean); GitHub Actions CI remains backend gate source of truth. See [[wayfinder-venv-icloud-hang]].                            |
 | **Last Activity**      | 2026-06-13 · Commit 23 slice 1 drafted: 6 distinct agent role contracts, claim/evidence packets + provenance, verifier challenge logic, 3 test files, design note 019 — additive, 24 logic tests green in sandbox. (Earlier 2026-06-13: fixed the iCloud-evicted-venv gate hang; 22.6 shipped.) |
 | **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
 | **Today's North Star** | Keep the Commit 22 workspace testable on the live website:the page stays bounded, context can be reset intentionally, and stale threads can be archived without losing audit history.                                      |
-| **Next Action**        | Validate Commit 23 slice 1 on the Mac: `uv run pytest -q` (expect 279 passed/8 skipped), `uv run ruff check .`, `uv run mypy src tests`; paste any nits in the 3 new files for fixing. Then Haichuan reverse-explains `agents.py`/`packets.py`/`challenge.py` + reviews design note 019. After that, decide whether to start **slice 2 (graph fan-out wiring)** under the four-step method. `git add/commit/push` is Haichuan's (sandbox can't write the repo's git).                                                               |
+| **Next Action**        | Commit + push Commit 23 slice 2 (state.py/nodes.py/app.py/test_graph_contract.py/planning.py/progress.md); confirm CI green. Then either (a) continue slice-2 depth — thread real ClaimPackets through `WayfinderState` into verifier/final synthesizer + surface provenance in API/dashboard — under the gate loop, or (b) pause for Haichuan's reverse-explanation pass over the new modules (rule 16). `git add/commit/push` is Haichuan's.                                                               |
 
 ---
 
@@ -561,7 +561,7 @@ Guided design mode:
 
   Slice 2 — graph wiring (in progress; touches `state.py`/`nodes.py`/`app.py`, must be done with gates running):
   - [x] Pure multi-worker planning policy (`src/wayfinder/graph/planning.py`: `plan_workers_for_intent` — mixed fans out to both grounding workers — `is_multi_worker_plan`, `plan_as_graph_nodes`) + tests; additive, no graph change, 29 logic tests green in sandbox ✅ 2026-06-13
-  - [ ] Wire the plan into the compiled graph so the supervisor fans out to >1 worker for one query and merges their packets (will require updating exact-match assertions in `test_graph_contract.py`; do under gate loop).
+  - [/] Wire the plan into the compiled graph (2026-06-13, awaiting Haichuan gate run): `state.py` adds `pending_workers` + a `merge_summaries` reducer on `partial_summaries`; supervisor emits `pending_workers` from the plan; `app.py` `architect_mapper` edge becomes conditional (`route_after_architect`) so mixed fans out architect→entry→verifier→final while single-intent paths are byte-identical. Updated `test_mixed_or_missing_query` + added `test_architectural_intent_runs_single_worker_only` / `test_mixed_intent_fans_out_to_architect_and_entry`. py_compile clean; full gate to be run by Haichuan.
   - [ ] Thread `ClaimPacket`s through `WayfinderState` into the verifier and final synthesizer nodes.
   - [ ] Surface the provenance trace through the API/dashboard.
   - [ ] Integration tests proving multi-worker routing and end-to-end provenance through the compiled graph.
@@ -582,6 +582,14 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-13 — Commit 23 slice 2 — `Multi-worker planning + graph fan-out wiring`
+
+- **做了什么**:Added the pure multi-worker planning policy (`graph/planning.py`: `plan_workers_for_intent` — mixed fans out to both grounding workers — `is_multi_worker_plan`, `plan_as_graph_nodes`) and then wired it into the compiled graph: `state.py` got a `merge_summaries` reducer on `partial_summaries` + a `pending_workers` channel; the supervisor emits `pending_workers` from the plan; `app.py`'s `architect_mapper` edge became conditional (`route_after_architect`) so a mixed query runs architect→entry→verifier→final while every single-intent path stays byte-identical.
+- **自己设计了什么 / 边界**:Chose sequential fan-out over LangGraph parallel branches to avoid concurrent-write reducer hazards; the only shared channel two workers write is `partial_summaries`, which now has an explicit merge reducer. Single-intent behaviour is intentionally unchanged so the existing suite could not regress.
+- **验证方式**:`uv run pytest -q` → **286 passed, 8 skipped**; `uv run ruff check .` → All checks passed; `uv run mypy src tests` → Success (69 files). Updated `test_mixed_or_missing_query` to assert fan-out (both architect + entry summaries) and added `test_architectural_intent_runs_single_worker_only` / `test_mixed_intent_fans_out_to_architect_and_entry`. Validated on the Mac (iCloud-relocated venv); CI to confirm on push.
+- **谁写的(诚实记录)**:Cowork-implemented at Haichuan's explicit request. Reverse-explanation pass over the slice-1 modules + `planning.py` + the graph wiring still owed by Haichuan (rule 16) before this is interview-owned.
+- **下一步**:Remaining slice-2 depth — thread real `ClaimPacket`s through `WayfinderState` into the verifier/final synthesizer nodes and surface the provenance trace in the API/dashboard — is still open; decide whether to continue or pause for the reverse-explanation pass.
 
 ### 2026-06-13 — Commit 23 slice 1 — `True multi-agent contracts + challenge logic`
 

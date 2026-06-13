@@ -146,19 +146,49 @@ def test_mixed_or_missing_query() -> None:
 
     assert result_b["route_decision"]["needs_human_review"] is True
     assert result_b["route_decision"]["next_agent"] == "architect_mapper"
-    assert result_b["final_output"] == (
-        "Architecture overview for unknown repo: \n\n"
-        "Placeholder architecture summary unavailable: I cannot map "
-        "the repository architecture because no local repo path was "
-        "available from ingestion."
-    )
 
+    # Commit 23: a mixed plan fans out to more than one worker, so both the
+    # architecture and the symbol/entry summaries accumulate (not just one).
+    assert result_a["pending_workers"] == ["entry_explainer"]
     assert result_a["partial_summaries"]["architect_mapper"].startswith(
         "Placeholder architecture summary"
     )
+    assert "entry_explainer" in result_a["partial_summaries"]
+    assert isinstance(result_a["final_output"], str)
+    assert result_a["final_output"]
+
+    assert result_b["pending_workers"] == ["entry_explainer"]
     assert result_b["partial_summaries"]["architect_mapper"].startswith(
         "Placeholder architecture summary"
     )
+    assert "entry_explainer" in result_b["partial_summaries"]
+    assert isinstance(result_b["final_output"], str)
+    assert result_b["final_output"]
+
+
+def test_architectural_intent_runs_single_worker_only() -> None:
+    graph = build_graph()
+
+    result = graph.invoke({"repo_url": "repo", "query": "Explain architecture"})
+
+    assert result["intent"] == "architectural"
+    assert result["pending_workers"] == []
+    assert "architect_mapper" in result["partial_summaries"]
+    assert "entry_explainer" not in result["partial_summaries"]
+
+
+def test_mixed_intent_fans_out_to_architect_and_entry() -> None:
+    graph = build_graph()
+
+    result = graph.invoke(
+        {"repo_url": "repo", "query": "Help me understand this whole repo"}
+    )
+
+    assert result["intent"] == "mixed"
+    assert result["pending_workers"] == ["entry_explainer"]
+    # Both grounding workers contributed summaries (multi-worker fan-out).
+    assert "architect_mapper" in result["partial_summaries"]
+    assert "entry_explainer" in result["partial_summaries"]
 
 
 def test_sqlite_checkpoint_persists_state_across_graph_instances(tmp_path: Path) -> None:

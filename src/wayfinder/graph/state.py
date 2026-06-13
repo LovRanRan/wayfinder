@@ -15,6 +15,18 @@ TestStrategy = Literal["existing_test", "generate_test", "skip"]
 ClaimStatus = Literal["pending", "verified", "unverified", "contradicted"]
 
 
+def merge_summaries(left: dict[str, str], right: dict[str, str]) -> dict[str, str]:
+    """Accumulate per-agent partial summaries instead of overwriting.
+
+    Used as the ``partial_summaries`` channel reducer so a multi-worker plan
+    (Commit 23) keeps every worker's summary when workers run in sequence.
+    Behaviour for a single worker is unchanged (merge into an empty/absent map).
+    """
+    merged = dict(left)
+    merged.update(right)
+    return merged
+
+
 class RouteDecision(TypedDict):
     intent: Intent
     next_agent: AgentName
@@ -71,6 +83,8 @@ class WayfinderState(TypedDict, total=False):
     intent: Intent
     route_decision: RouteDecision
     next_agent: AgentName | None
+    # Graph nodes to run after the first worker, for multi-worker plans (Commit 23).
+    pending_workers: list[str]
 
     repo_metadata: dict[str, object]
     module_dep_graph: dict[str, object] | None
@@ -84,7 +98,7 @@ class WayfinderState(TypedDict, total=False):
 
     test_results: dict[str, TestResult]
     community_context: list[CommunityContextItem]
-    partial_summaries: dict[str, str]
+    partial_summaries: Annotated[dict[str, str], merge_summaries]
     user_corrections: list[str]
     verifier_approval_decision: dict[str, object]
     errors: list[GraphError]
