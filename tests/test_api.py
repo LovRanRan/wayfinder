@@ -133,6 +133,9 @@ def test_explain_status_and_refine_flow(tmp_path: Path) -> None:
     assert status_payload["status"] == "completed"
     assert status_payload["verified_count"] == 0
     assert status_payload["contradicted_count"] == 0
+    # Commit 23: the run status surfaces per-agent claim provenance (empty here
+    # because this fixture produces no resolved claims).
+    assert status_payload["claim_provenance"] == []
     assert str(tmp_path) in status_payload["final_output"]
     assert status_payload["trace_metadata"]["thread_id"] == payload["job_id"]
 

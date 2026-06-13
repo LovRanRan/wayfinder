@@ -132,6 +132,9 @@ class RunSummary(BaseModel):
     verified_count: int = 0
     unverified_count: int = 0
     contradicted_count: int = 0
+    # Per-agent claim provenance from the multi-agent run (Commit 23). Persisted
+    # inside run_json, so old rows without it fall back to an empty list.
+    claim_provenance: list[dict[str, object]] = Field(default_factory=list)
     trace_url: str | None = None
     trace_metadata: dict[str, TraceMetadataValue] = Field(default_factory=dict)
     created_at: datetime

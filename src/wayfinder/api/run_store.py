@@ -208,6 +208,7 @@ class InMemoryRunStore:
             verified_count=len(result.get("verified_claims", [])),
             unverified_count=len(result.get("unverified_claims", [])),
             contradicted_count=len(result.get("contradicted_claims", [])),
+            claim_provenance=result.get("claim_provenance", []),
             trace_metadata={**existing.trace_metadata, **trace_metadata},
             updated_at=datetime.now(UTC),
         )

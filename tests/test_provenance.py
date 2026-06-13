@@ -1,6 +1,9 @@
 """Tests for the agent provenance trace built from the live claim flow."""
 
-from wayfinder.graph.provenance import agent_trace_from_claims, agent_trace_from_state
+from wayfinder.graph.provenance import (
+    claim_provenance_from_claims,
+    claim_provenance_from_state,
+)
 from wayfinder.graph.state import Claim, WayfinderState
 
 
@@ -13,7 +16,7 @@ def test_groups_by_agent_and_counts_statuses() -> None:
     unverified: list[Claim] = [_claim("symbol_investigator", "unverified")]
     contradicted: list[Claim] = [_claim("repo_cartographer", "contradicted")]
 
-    trace = agent_trace_from_claims(
+    trace = claim_provenance_from_claims(
         verified=verified,
         unverified=unverified,
         contradicted=contradicted,
@@ -28,7 +31,7 @@ def test_groups_by_agent_and_counts_statuses() -> None:
 
 
 def test_summary_text_is_present() -> None:
-    trace = agent_trace_from_claims(
+    trace = claim_provenance_from_claims(
         verified=[_claim("symbol_investigator", "verified")],
         unverified=[],
         contradicted=[],
@@ -42,13 +45,13 @@ def test_first_seen_order_is_deterministic() -> None:
     verified: list[Claim] = [_claim("repo_cartographer", "verified")]
     unverified: list[Claim] = [_claim("symbol_investigator", "unverified")]
 
-    trace = agent_trace_from_claims(verified=verified, unverified=unverified, contradicted=[])
+    trace = claim_provenance_from_claims(verified=verified, unverified=unverified, contradicted=[])
 
     assert [row["agent"] for row in trace] == ["repo_cartographer", "symbol_investigator"]
 
 
 def test_empty_claims_produce_empty_trace() -> None:
-    assert agent_trace_from_claims(verified=[], unverified=[], contradicted=[]) == []
+    assert claim_provenance_from_claims(verified=[], unverified=[], contradicted=[]) == []
 
 
 def test_agent_trace_from_state_reads_claim_lists() -> None:
@@ -58,7 +61,7 @@ def test_agent_trace_from_state_reads_claim_lists() -> None:
         "contradicted_claims": [],
     }
 
-    trace = agent_trace_from_state(state)
+    trace = claim_provenance_from_state(state)
 
     assert len(trace) == 1
     assert trace[0]["agent"] == "symbol_investigator"
@@ -66,4 +69,4 @@ def test_agent_trace_from_state_reads_claim_lists() -> None:
 
 
 def test_agent_trace_from_empty_state() -> None:
-    assert agent_trace_from_state({}) == []
+    assert claim_provenance_from_state({}) == []

@@ -13,16 +13,16 @@ from collections.abc import Sequence
 from wayfinder.graph.state import Claim, WayfinderState
 
 
-def agent_trace_from_state(state: WayfinderState) -> list[dict[str, object]]:
+def claim_provenance_from_state(state: WayfinderState) -> list[dict[str, object]]:
     """Build the provenance trace from a state's resolved claim lists."""
-    return agent_trace_from_claims(
+    return claim_provenance_from_claims(
         verified=state.get("verified_claims", []),
         unverified=state.get("unverified_claims", []),
         contradicted=state.get("contradicted_claims", []),
     )
 
 
-def agent_trace_from_claims(
+def claim_provenance_from_claims(
     *,
     verified: Sequence[Claim],
     unverified: Sequence[Claim],

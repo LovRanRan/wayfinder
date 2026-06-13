@@ -24,7 +24,7 @@ from wayfinder.graph.entry import (
     repo_path_from_state as entry_repo_path_from_state,
 )
 from wayfinder.graph.planning import plan_as_graph_nodes, plan_workers_for_intent
-from wayfinder.graph.provenance import agent_trace_from_state
+from wayfinder.graph.provenance import claim_provenance_from_state
 from wayfinder.graph.resilience import apply_resilience_to_final_output
 from wayfinder.graph.routing import LLMRouter, build_route_decision
 from wayfinder.graph.state import WayfinderState
@@ -137,7 +137,7 @@ def build_final_writer_node(
             synthesizer=synthesizer,
         )
         result = apply_resilience_to_final_output(synthesis_state, final_output)
-        result["agent_trace"] = agent_trace_from_state(state)
+        result["claim_provenance"] = claim_provenance_from_state(state)
         return result
 
     return _node

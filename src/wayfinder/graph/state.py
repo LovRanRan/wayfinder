@@ -100,8 +100,9 @@ class WayfinderState(TypedDict, total=False):
     community_context: list[CommunityContextItem]
     partial_summaries: Annotated[dict[str, str], merge_summaries]
     user_corrections: list[str]
-    # Per-agent provenance trace (serializable) built from resolved claims (Commit 23).
-    agent_trace: list[dict[str, object]]
+    # Per-agent claim provenance (serializable) built from resolved claims (Commit 23).
+    # Named distinctly from the chat-layer `agent_trace` (planned UI steps).
+    claim_provenance: list[dict[str, object]]
     verifier_approval_decision: dict[str, object]
     errors: list[GraphError]
     final_output: str | None
