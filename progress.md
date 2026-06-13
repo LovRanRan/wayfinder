@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field                  | Value                                                                                                                                                                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current Commit**     | [x] **Commit 22.6** — Workspace scroll + thread lifecycle polish · **shipped** (28c3f72 on origin/main, CI #48 green, Railway redeployed). Next: Commit 23.                                                                 |
+| **Current Commit**     | [/] **Commit 23** — True multi-agent: slice 1 (contracts + challenge logic) drafted 2026-06-13, additive/graph-non-invasive, 24 logic tests green in sandbox; awaiting Haichuan full gate + reverse-explanation + slice-2 graph wiring. (22.6 shipped: 28c3f72, CI #48 green.)                                                       |
 | **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                |
 | **Blocker**            | None. Prior "local gates slow/hang" was root-caused 2026-06-13: iCloud-synced Desktop evicted `.venv` files to `dataless` placeholders → bulk imports hung. Fixed by relocating venv off iCloud (`UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder`). Local full gate now green (255 passed/8 skipped, ruff/mypy clean); GitHub Actions CI remains backend gate source of truth. See [[wayfinder-venv-icloud-hang]].                            |
-| **Last Activity**      | 2026-06-13 · Root-caused & fixed the local gate hang (iCloud-evicted venv → relocated via `UV_PROJECT_ENVIRONMENT`); local backend full gate now green: 255 passed/8 skipped, ruff/mypy clean. (2026-06-12: Commit 22.6 workspace scroll + thread lifecycle.) |
+| **Last Activity**      | 2026-06-13 · Commit 23 slice 1 drafted: 6 distinct agent role contracts, claim/evidence packets + provenance, verifier challenge logic, 3 test files, design note 019 — additive, 24 logic tests green in sandbox. (Earlier 2026-06-13: fixed the iCloud-evicted-venv gate hang; 22.6 shipped.) |
 | **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
 | **Today's North Star** | Keep the Commit 22 workspace testable on the live website:the page stays bounded, context can be reset intentionally, and stale threads can be archived without losing audit history.                                      |
-| **Next Action**        | Commit 22.6 is shipped (28c3f72 pushed to origin/main, CI #48 green, Railway auto-redeployed). Remaining closeout is local-only: clean working tree (delete iCloud dup `workspace-metrics 2.tsx`, review dashboard `git status` on the Mac, commit progress.md/vscode tweaks) + live-smoke New/Archive/long-transcript on the deployed dashboard. Then start **Commit 23 true multi-agent implementation**.                                                               |
+| **Next Action**        | Validate Commit 23 slice 1 on the Mac: `uv run pytest -q` (expect 279 passed/8 skipped), `uv run ruff check .`, `uv run mypy src tests`; paste any nits in the 3 new files for fixing. Then Haichuan reverse-explains `agents.py`/`packets.py`/`challenge.py` + reviews design note 019. After that, decide whether to start **slice 2 (graph fan-out wiring)** under the four-step method. `git add/commit/push` is Haichuan's (sandbox can't write the repo's git).                                                               |
 
 ---
 
@@ -550,12 +550,20 @@ Guided design mode:
   - [x] Add dashboard thread-list archive controls and parent-state removal so archived threads disappear immediately from the sidebar ✅ 2026-06-12
   - [x] Add tests/smoke coverage for context clearing, thread archive hiding, archived-thread rejection, and SQLite/InMemory archive/clear behavior ✅ 2026-06-12
 
-  - [ ] Commit 23 follow-up candidate — True multi-agent implementation deepening:
-    - [ ] Split role prompts/contracts for Conversation/Memory, Supervisor, Repo Cartographer, Symbol Investigator, Verification, and Final Synthesizer agents.
-    - [ ] Add supervisor plans that can call more than one worker agent for one user question.
-    - [ ] Make worker outputs claim/evidence/limitation packets instead of final prose.
-    - [ ] Add verification challenge loop where the verifier can downgrade or contradict another agent's claim before final synthesis.
-    - [ ] Add tests proving multi-worker routing, verifier challenge behavior, and final answer provenance.
+- [/] **Commit 23 — True multi-agent implementation deepening**
+
+  Slice 1 — contracts + pure logic (additive, graph-non-invasive) ✅ code 2026-06-13 (Cowork-drafted at Haichuan's explicit request; design note `019` + reverse-explanation pass owed by Haichuan per ownership rule 16):
+  - [x] Distinct role prompts/contracts for the 6 agents (`src/wayfinder/graph/agents.py`: `AgentRole` + `AGENT_ROLES` + `get_agent_role`) ✅ 2026-06-13
+  - [x] Worker outputs as claim/evidence/limitation packets + per-agent provenance (`src/wayfinder/graph/packets.py`: `ClaimPacket`, `ClaimEvidence`, `AgentContribution`, `build_agent_trace`) ✅ 2026-06-13
+  - [x] Verifier challenge loop that can uphold / downgrade / contradict a claim (`src/wayfinder/graph/challenge.py`: `challenge_claim`, `apply_challenges`) ✅ 2026-06-13
+  - [x] Tests for distinct prompts, packet assembly, provenance grouping, and challenge behavior (`tests/test_agent_roles.py`, `tests/test_claim_packets.py`, `tests/test_verifier_challenge.py`) — 24 logic tests green in a sandbox stub; full local gate (255+24 + ruff + mypy) to be rerun by Haichuan ✅ logic 2026-06-13
+  - `docs/design_notes/019_true_multi_agent_contracts.md` written ✅ 2026-06-13
+
+  Slice 2 — graph wiring (deferred; touches `state.py`/`nodes.py`/`app.py`, must be done with gates running):
+  - [ ] Supervisor plan that fans out to more than one worker agent for one query and merges their packets.
+  - [ ] Thread `ClaimPacket`s through `WayfinderState` into the verifier and final synthesizer nodes.
+  - [ ] Surface the provenance trace through the API/dashboard.
+  - [ ] Integration tests proving multi-worker routing and end-to-end provenance through the compiled graph.
 
 ### Ship
 
@@ -573,6 +581,14 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-13 — Commit 23 slice 1 — `True multi-agent contracts + challenge logic`
+
+- **做了什么**:Shipped the first, graph-non-invasive slice of Commit 23. Added `graph/agents.py` (6 distinct `AgentRole` contracts: mission / distinct system prompt / least-privilege tools / output contract / graph-node map), `graph/packets.py` (`ClaimPacket` + typed `ClaimEvidence` + `AgentContribution` provenance via `build_agent_trace`), and `graph/challenge.py` (`challenge_claim` / `apply_challenges`: failing→contradicted, passing or ast/repo evidence→verified, high-risk + no grounding→downgraded to unverified, community context never upgrades). Plus design note `019` and three test files.
+- **自己设计了什么 / 边界**:Intentionally additive — no existing module edited — so the Commit 22.6 suite cannot regress. The risky LangGraph fan-out rewiring (multi-worker supervisor plan + threading packets through `WayfinderState`/nodes) is deferred to slice 2, to be done with local gates running.
+- **谁写的(诚实记录)**:Cowork drafted this slice at Haichuan's explicit request, deviating from the four-step "Haichuan writes design + skeleton first" rule. Per ownership rule 16, Haichuan still owes a reverse-explanation pass over `agents.py` / `packets.py` / `challenge.py` and a review of design note `019` before this counts as interview-owned.
+- **验证方式**:`python3 -m py_compile` on all 6 files passed; 24 logic tests passed in a sandbox stub (replacing the heavy `state.py` imports with the two Literals `packets.py` needs). Full local gate not run here — Haichuan to run `uv run pytest -q` (expect 279 passed/8 skipped), `uv run ruff check .`, `uv run mypy src tests`. Sandbox cannot run the real gate (iCloud-evicted files).
+- **下一步**:Haichuan runs the full gate; fix any ruff/mypy nits in the new files; reverse-explain the three modules; then decide whether to start slice 2 (graph wiring) under the four-step method.
 
 ### 2026-06-13 — Env fix — `Local gate hang root-caused: iCloud-evicted venv`
 
