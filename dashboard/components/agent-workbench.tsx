@@ -313,7 +313,11 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {activeTab === "history" ? (
             <div className="grid gap-4">
-              <ThreadActivityTimeline threads={liveThreads} onSelectRun={selectRun} />
+              <ThreadActivityTimeline
+                threads={liveThreads}
+                onSelectRun={selectRun}
+                onOpenThread={selectThread}
+              />
               <details className="rounded-lg border border-border bg-card p-4">
                 <summary className="cursor-pointer font-mono text-sm font-semibold text-muted-foreground">
                   Run diagnostics
@@ -371,9 +375,11 @@ function workspaceTabFromParam(value: string | null): WorkspaceTab | null {
 function ThreadActivityTimeline({
   threads,
   onSelectRun,
+  onOpenThread,
 }: {
   threads: DashboardThread[];
   onSelectRun: (run: DashboardRun | null) => void;
+  onOpenThread: (thread: DashboardThread) => void;
 }) {
   const ordered = [...threads].sort((a, b) => timestamp(b.updatedAt) - timestamp(a.updatedAt));
 
@@ -434,6 +440,16 @@ function ThreadActivityTimeline({
                         <span className="text-danger">{latestRun.contradictedCount}✗</span>
                       </span>
                     ) : null}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onOpenThread(thread);
+                      }}
+                    >
+                      <Badge variant="success">Open</Badge>
+                    </button>
                   </div>
                 </summary>
                 <div className="grid gap-2 border-t border-border px-3 py-2">
