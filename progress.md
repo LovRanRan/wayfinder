@@ -151,13 +151,13 @@ Guided design mode:
 
 | Field                  | Value                                                                                                                                                                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current Commit**     | [x] **Commit 22.6** — Workspace scroll + thread lifecycle polish                                                                                                                                                           |
+| **Current Commit**     | [x] **Commit 22.6** — Workspace scroll + thread lifecycle polish · **shipped** (28c3f72 on origin/main, CI #48 green, Railway redeployed). Next: Commit 23.                                                                 |
 | **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                |
-| **Blocker**            | None for Commit 22.6 product code. Local Python pytest/mypy full gates are slow on import/cache I/O;use recorded smoke/static gates and rerun full backend gates in a clean terminal if needed.                            |
-| **Last Activity**      | 2026-06-12 · Added bounded workspace scrolling, explicit New context reset, soft-archive thread lifecycle, and dashboard New/Archive controls;frontend type/lint/build and store-level archive/clear smoke pass.             |
+| **Blocker**            | None. Prior "local gates slow/hang" was root-caused 2026-06-13: iCloud-synced Desktop evicted `.venv` files to `dataless` placeholders → bulk imports hung. Fixed by relocating venv off iCloud (`UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder`). Local full gate now green (255 passed/8 skipped, ruff/mypy clean); GitHub Actions CI remains backend gate source of truth. See [[wayfinder-venv-icloud-hang]].                            |
+| **Last Activity**      | 2026-06-13 · Root-caused & fixed the local gate hang (iCloud-evicted venv → relocated via `UV_PROJECT_ENVIRONMENT`); local backend full gate now green: 255 passed/8 skipped, ruff/mypy clean. (2026-06-12: Commit 22.6 workspace scroll + thread lifecycle.) |
 | **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
 | **Today's North Star** | Keep the Commit 22 workspace testable on the live website:the page stays bounded, context can be reset intentionally, and stale threads can be archived without losing audit history.                                      |
-| **Next Action**        | Push Commit 22.6, let Railway redeploy, then live-smoke New / Archive / long transcript scrolling before starting Commit 23 true multi-agent implementation.                                                               |
+| **Next Action**        | Commit 22.6 is shipped (28c3f72 pushed to origin/main, CI #48 green, Railway auto-redeployed). Remaining closeout is local-only: clean working tree (delete iCloud dup `workspace-metrics 2.tsx`, review dashboard `git status` on the Mac, commit progress.md/vscode tweaks) + live-smoke New/Archive/long-transcript on the deployed dashboard. Then start **Commit 23 true multi-agent implementation**.                                                               |
 
 ---
 
@@ -573,6 +573,13 @@ Guided design mode:
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-13 — Env fix — `Local gate hang root-caused: iCloud-evicted venv`
+
+- **做了什么**:Root-caused the long-standing "local pytest/mypy hang" recorded in the 2026-06-12 log. It was NOT a code/test/network problem. The repo lives under `~/Desktop` which macOS syncs to iCloud; iCloud evicted `.venv` files to `dataless` placeholders, so bulk imports (`import langgraph.graph` touches hundreds of site-packages files) hung for minutes re-downloading each file. Single-file import was instant — the tell. Confirmed with `find .venv/lib/.../langgraph -type f -flags +dataless` (listed evicted files).
+- **怎么修的**:Relocated the venv off iCloud while keeping the repo in place (Cowork mount / git / trackers untouched): `export UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder` (persisted in `~/.zshrc`), `rm -rf .venv && uv sync --extra dev`.
+- **验证方式**:`uv run pytest -q` → **255 passed, 8 skipped in 87.22s** (8 skips = env-gated MCP integration tests, skip-by-design); `uv run ruff check .` → All checks passed; `uv run mypy src tests` → Success, no issues in 61 source files. Backend full gate now green locally. GitHub Actions CI #48 (commit 28c3f72, Commit 22.6) is also green and remains the backend gate source of truth.
+- **下一步**:Resume Commit 22.6 closeout (push/redeploy/live-smoke) and start Commit 23 true multi-agent implementation.
 
 ### 2026-06-12 — Commit 22.6 polish — `Bounded workspace and thread lifecycle`
 
