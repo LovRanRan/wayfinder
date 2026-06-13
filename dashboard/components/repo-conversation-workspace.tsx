@@ -60,12 +60,18 @@ export function RepoConversationWorkspace({
   onRunChange,
 }: RepoConversationWorkspaceProps) {
   const [isNewThreadMode, setIsNewThreadMode] = useState(false);
+  // Archived threads stay loadable (so History can open them read-only) but are
+  // hidden from the active thread rail / default selection.
+  const activeThreads = useMemo(
+    () => threads.filter((thread) => thread.status !== "archived"),
+    [threads],
+  );
   const selectedThread = useMemo(
     () =>
       selectedThreadId === null && isNewThreadMode
         ? null
-        : threadFromId(threads, selectedThreadId) ?? threads[0] ?? null,
-    [isNewThreadMode, selectedThreadId, threads],
+        : threadFromId(threads, selectedThreadId) ?? activeThreads[0] ?? null,
+    [isNewThreadMode, selectedThreadId, threads, activeThreads],
   );
   const [chatDraft, setChatDraft] = useState("");
   const [answerMode, setAnswerMode] = useState<ChatAnswerMode>("auto");
@@ -291,7 +297,7 @@ export function RepoConversationWorkspace({
           <header className="flex items-center justify-between gap-3 border-b border-border bg-muted/60 px-4 py-3">
             <div className="font-mono text-sm font-semibold">Repo threads</div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">{threads.length}</Badge>
+              <Badge variant="outline">{activeThreads.length}</Badge>
               <Button
                 type="button"
                 variant="outline"
@@ -308,12 +314,12 @@ export function RepoConversationWorkspace({
             </div>
           </header>
           <div className="max-h-full overflow-y-auto p-2">
-            {threads.length === 0 ? (
+            {activeThreads.length === 0 ? (
               <div className="rounded-md border border-border bg-muted/50 p-3 font-mono text-xs leading-5 text-muted-foreground">
                 Start by typing a repo URL in chat.
               </div>
             ) : (
-              threads.map((thread) => (
+              activeThreads.map((thread) => (
                 <div
                   key={thread.threadId}
                   className={
@@ -836,6 +842,9 @@ function sendDisabledReason({
   }
   if (draft.trim().length === 0) {
     return "message is empty";
+  }
+  if (selectedThread?.status === "archived") {
+    return "thread archived (read-only)";
   }
   // No repo to ground against: only allow messages that attach one (URL / owner/repo),
   // so a plain question is not silently sent and cleared with no answer.

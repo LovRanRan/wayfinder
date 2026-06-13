@@ -23,8 +23,10 @@ type MetricTabId = "threads" | "grounding" | "context" | "attention";
 
 export function DashboardStats({ metrics, threads, onOpenMetrics }: DashboardStatsProps) {
   const [activeTab, setActiveTab] = useState<MetricTabId>("threads");
-  const activeThreads = threads.filter((thread) => thread.status === "running").length;
-  const groundedAnswers = threads.reduce(
+  // Top stats reflect active conversations only; archived threads are excluded.
+  const visibleThreads = threads.filter((thread) => thread.status !== "archived");
+  const activeThreads = visibleThreads.filter((thread) => thread.status === "running").length;
+  const groundedAnswers = visibleThreads.reduce(
     (total, thread) =>
       total +
       thread.messages.filter(
@@ -35,7 +37,7 @@ export function DashboardStats({ metrics, threads, onOpenMetrics }: DashboardSta
       ).length,
     0,
   );
-  const repoCount = new Set(threads.map((thread) => thread.repoUrl)).size;
+  const repoCount = new Set(visibleThreads.map((thread) => thread.repoUrl)).size;
   const attentionCount =
     activeThreads + metrics.failedRuns + (metrics.contradictedClaims > 0 ? 1 : 0);
   const tabs: MetricTab[] = [
@@ -44,7 +46,7 @@ export function DashboardStats({ metrics, threads, onOpenMetrics }: DashboardSta
       icon: MessageSquare,
       label: "Threads",
       eyebrow: "Repo conversations",
-      value: threads.length.toString(),
+      value: visibleThreads.length.toString(),
       detail: `${activeThreads} running · ${repoCount} repos`,
     },
     {
@@ -61,7 +63,7 @@ export function DashboardStats({ metrics, threads, onOpenMetrics }: DashboardSta
       label: "Context",
       eyebrow: "Active repo scope",
       value: repoCount.toString(),
-      detail: `${threads.length} threads · ${formatPercent(metrics.verificationRate)} verification rate`,
+      detail: `${visibleThreads.length} threads · ${formatPercent(metrics.verificationRate)} verification rate`,
     },
     {
       id: "attention",

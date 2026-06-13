@@ -370,10 +370,13 @@ def list_runs(
 def list_threads(
     user: Annotated[AuthenticatedUser, Depends(_current_user)],
     limit: int = Query(default=10, ge=1, le=50),
+    include_archived: bool = Query(default=False),
 ) -> list[ConversationThreadDetail]:
     return [
         _thread_detail_for_user(user=user, thread_id=thread.thread_id)
-        for thread in _RUNS.list_threads(user_id=user.user_id, limit=limit)
+        for thread in _RUNS.list_threads(
+            user_id=user.user_id, limit=limit, include_archived=include_archived
+        )
     ]
 
 

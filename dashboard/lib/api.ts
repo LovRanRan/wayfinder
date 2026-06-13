@@ -53,7 +53,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         headers: authHeaders,
         cache: "no-store",
       }),
-      fetch(`${apiBaseUrl}/threads?limit=20`, {
+      fetch(`${apiBaseUrl}/threads?limit=20&include_archived=true`, {
         headers: authHeaders,
         cache: "no-store",
       }),

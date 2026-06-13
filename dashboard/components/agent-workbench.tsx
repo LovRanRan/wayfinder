@@ -381,15 +381,28 @@ function ThreadActivityTimeline({
   onSelectRun: (run: DashboardRun | null) => void;
   onOpenThread: (thread: DashboardThread) => void;
 }) {
-  const ordered = [...threads].sort((a, b) => timestamp(b.updatedAt) - timestamp(a.updatedAt));
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = threads.filter((thread) => thread.status === "archived").length;
+  const ordered = [...threads]
+    .filter((thread) => showArchived || thread.status !== "archived")
+    .sort((a, b) => timestamp(b.updatedAt) - timestamp(a.updatedAt));
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <header className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-3">
+      <header className="flex items-center justify-between gap-2 border-b border-border bg-muted/60 px-4 py-3">
         <div className="font-mono text-sm font-semibold">Repo activity timeline</div>
-        <span className="font-mono text-xs text-muted-foreground">
-          {threads.length} thread{threads.length === 1 ? "" : "s"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-muted-foreground">
+            {ordered.length} thread{ordered.length === 1 ? "" : "s"}
+          </span>
+          {archivedCount > 0 ? (
+            <button type="button" onClick={() => setShowArchived((value) => !value)}>
+              <Badge variant={showArchived ? "warning" : "outline"}>
+                {showArchived ? "Hide archived" : `Show archived (${archivedCount})`}
+              </Badge>
+            </button>
+          ) : null}
+        </div>
       </header>
       <div className="grid gap-2 p-4">
         {ordered.length === 0 ? (

@@ -411,6 +411,10 @@ def test_archiving_thread_hides_it_and_clears_active_context(
     assert archive_response.json()["status"] == "empty"
     assert archive_response.json()["default_thread_id"] is None
     assert client.get("/threads").json() == []
+    # Archived threads stay retrievable for History via include_archived.
+    included = client.get("/threads?include_archived=true").json()
+    assert [t["thread"]["thread_id"] for t in included] == [thread_id]
+    assert included[0]["thread"]["status"] == "archived"
     archived_detail = client.get(f"/threads/{thread_id}").json()
     assert archived_detail["thread"]["status"] == "archived"
     assert (

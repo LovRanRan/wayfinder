@@ -297,13 +297,15 @@ class InMemoryRunStore:
             self._thread_order.insert(0, thread.thread_id)
         return thread
 
-    def list_threads(self, *, user_id: str, limit: int) -> list[ConversationThread]:
+    def list_threads(
+        self, *, user_id: str, limit: int, include_archived: bool = False
+    ) -> list[ConversationThread]:
         with self._lock:
             threads = [
                 self._threads[thread_id]
                 for thread_id in self._thread_order
                 if self._threads[thread_id].user_id == user_id
-                and self._threads[thread_id].status != "archived"
+                and (include_archived or self._threads[thread_id].status != "archived")
             ]
         return sorted(threads, key=lambda thread: thread.updated_at, reverse=True)[:limit]
 
@@ -927,13 +929,16 @@ class SQLiteRunStore(InMemoryRunStore):
             )
         return thread
 
-    def list_threads(self, *, user_id: str, limit: int) -> list[ConversationThread]:
+    def list_threads(
+        self, *, user_id: str, limit: int, include_archived: bool = False
+    ) -> list[ConversationThread]:
+        status_clause = "" if include_archived else "AND status != 'archived'"
         with self._lock:
             rows = self._connection.execute(
-                """
+                f"""
                 SELECT *
                 FROM conversation_threads
-                WHERE user_id = ? AND status != 'archived'
+                WHERE user_id = ? {status_clause}
                 ORDER BY updated_at DESC
                 LIMIT ?
                 """,
