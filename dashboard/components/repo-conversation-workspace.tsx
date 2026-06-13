@@ -83,7 +83,7 @@ export function RepoConversationWorkspace({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClearingContext, setIsClearingContext] = useState(false);
   const [archivingThreadId, setArchivingThreadId] = useState<string | null>(null);
-  const activeRun = selectedThread?.activeRun ?? selectedAttachmentRun ?? externalRun ?? null;
+  const activeRun = selectedAttachmentRun ?? selectedThread?.activeRun ?? null;
   const activeRunStatus = activeRun?.status ?? null;
   const sendBlocker = sendDisabledReason({
     draft: chatDraft,
@@ -101,6 +101,15 @@ export function RepoConversationWorkspace({
       setSelectedAttachmentRun(selectedThread.activeRun);
     }
   }, [selectedThread]);
+
+  // A run picked from History (or a just-completed chat run) is an explicit
+  // selection — surface its report even if it belongs to a different repo/thread
+  // than the default. Feeds the attachment-run that drives the Grounded report.
+  useEffect(() => {
+    if (externalRun !== null) {
+      setSelectedAttachmentRun(externalRun);
+    }
+  }, [externalRun]);
 
   useEffect(() => {
     if (selectedThreadId !== null) {
