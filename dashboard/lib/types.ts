@@ -78,6 +78,24 @@ export type ApiRunError = {
   retryable: boolean;
 };
 
+export type ApiClaimProvenanceRow = {
+  agent: string;
+  claims_made: number;
+  verified: number;
+  unverified: number;
+  contradicted: number;
+  summary: string;
+};
+
+export type ClaimProvenanceRow = {
+  agent: string;
+  claimsMade: number;
+  verified: number;
+  unverified: number;
+  contradicted: number;
+  summary: string;
+};
+
 export type ApiRunSummary = {
   job_id: string;
   user_id: string;
@@ -93,6 +111,7 @@ export type ApiRunSummary = {
   verified_count: number;
   unverified_count: number;
   contradicted_count: number;
+  claim_provenance: ApiClaimProvenanceRow[];
   trace_url: string | null;
   trace_metadata: Record<string, TraceMetadataValue>;
   created_at: string;
@@ -200,6 +219,7 @@ export type DashboardRun = {
   verifiedCount: number;
   unverifiedCount: number;
   contradictedCount: number;
+  claimProvenance: ClaimProvenanceRow[];
   traceUrl: string | null;
   traceMetadata: Record<string, TraceMetadataValue>;
   agentName: string;

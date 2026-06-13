@@ -100,6 +100,24 @@ export function CurrentRunConsole({ run, publicApiBaseUrl, source }: CurrentRunC
               <ClaimPill label="contradicted" value={run.contradictedCount} tone="danger" />
             </div>
 
+            {run.claimProvenance.length > 0 ? (
+              <div className="rounded-md border border-border bg-background/60 p-3">
+                <div className="mb-2 font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                  Claim provenance
+                </div>
+                <ul className="space-y-1">
+                  {run.claimProvenance.map((row) => (
+                    <li key={row.agent} className="text-xs text-foreground/90">
+                      <span className="font-medium text-primary">{row.agent}</span>
+                      {" — "}
+                      {row.verified} verified, {row.unverified} unverified,{" "}
+                      {row.contradicted} contradicted
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             {hasPendingOutput ? <WaitingOutput /> : null}
 
             {outputBlocks.map((block, index) => (
