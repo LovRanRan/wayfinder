@@ -99,7 +99,8 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
   const selectThread = useCallback(
     (thread: DashboardThread) => {
       setLiveThreads((currentThreads) => upsertThread(currentThreads, thread));
-      updateUrl({ thread: thread.threadId, tab: "threads" });
+      setSelectedRun(null);
+      updateUrl({ job: null, thread: thread.threadId, tab: "threads" });
       setActiveTab("threads");
     },
     [updateUrl],

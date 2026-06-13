@@ -103,7 +103,15 @@ export function RepoConversationWorkspace({
 
   useEffect(() => {
     if (selectedThread !== null) {
-      setActiveContext((current) => current ?? contextFromThread(selectedThread));
+      // Switch the active context when the selected thread changes identity
+      // (e.g. opening a different/archived thread from History). Keep the
+      // existing context only when it already belongs to this same thread, so a
+      // rich chat-returned context isn't clobbered on in-thread re-renders.
+      setActiveContext((current) =>
+        current?.defaultThreadId === selectedThread.threadId
+          ? current
+          : contextFromThread(selectedThread),
+      );
       setSelectedAttachmentRun(selectedThread.activeRun);
     }
   }, [selectedThread]);
