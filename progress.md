@@ -591,6 +591,14 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-13 — Repo relocated off iCloud + Commit 24 follow-up step 2 — `Retire Answer tab`
+
+- **⚠️ 仓库搬家(重要,给未来 session)**:Canonical working repo moved from the iCloud-synced `~/Desktop/AI_agent_Engineer/Final_checklist/Final_checklist_phase_projects/project6` to **`~/dev/wayfinder`** (fresh `git clone`, NOT iCloud-synced). Reason: iCloud progressively corrupted the Desktop copy — venv eviction, repeated `node_modules` corruption, source-file reverts, and finally **`.git` object corruption** (`fatal: unable to read <object>` / `bus error`) that made local git unusable. The Desktop copy is abandoned. Global notes (`CLAUDE.md`/`TASKS.md`/`AGENTS.md`) still live in `~/Desktop/.../Final_checklist/` and need a manual pointer update to `~/dev/wayfinder`.
+- **做了什么**:Re-applied Commit 24 follow-up **step 2** (the Answer-tab removal that was lost with the corrupted Desktop `.git`) cleanly in `~/dev/wayfinder`: removed `answer` from the `WorkspaceTab` union + `WorkspaceTabs` list (5→4 tabs, dropped `Terminal`), deleted the `activeTab === "answer"` block + `CurrentRunConsole`/`publicApiBaseUrl` from `agent-workbench.tsx`, redirected all `answer` navigation (default tab / `selectRun` / run-selection effect / `workspaceTabFromParam` / `run-status-table` link) to `threads`, and added an `externalRun` prop to `RepoConversationWorkspace` so a History-selected run renders its report in Threads. Step 1 (embed) was already in `f1cfa4f`.
+- **结果**:Tabs = **Threads / History / Metrics / Settings** (4). Threads is the single input + grounded-report surface.
+- **验证方式**:Build/gate now runs in the stable `~/dev/wayfinder` (off iCloud): `cd dashboard && npm install && npm run lint && npm run typecheck && npm run build`. Consistency grep clean (no `answer` tab refs).
+- **下一步**:Gate + commit + push from `~/dev/wayfinder`; confirm CI green + 4 tabs + History→Threads report flow. Update the Desktop global trackers to point at `~/dev/wayfinder`.
+
 ### 2026-06-13 — Commit 24 follow-up step 1 — `Fold Answer report into Threads`
 
 - **做了什么**:Surfaced the rich grounded report inside Threads by reusing `CurrentRunConsole` in a new `embedded` mode (no fixed height / no internal scroll / optional `publicApiBaseUrl` / guarded API-docs button). `repo-conversation-workspace.tsx` now renders it as a collapsible "Grounded report" `<details>` for `activeRun` in the transcript — full verified/unverified/contradicted pills, evidence cards, and the claim-provenance panel, with zero duplicated rendering logic. Design note `020` written.

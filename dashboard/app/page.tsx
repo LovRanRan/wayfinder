@@ -84,12 +84,7 @@ export default async function DashboardPage() {
           </div>
         </header>
 
-        <AgentWorkbench
-          runs={runs}
-          threads={threads}
-          source={source}
-          publicApiBaseUrl={publicApiBaseUrl}
-        />
+        <AgentWorkbench runs={runs} threads={threads} source={source} />
       </div>
     </main>
   );

@@ -42,6 +42,7 @@ type RepoConversationWorkspaceProps = {
   threads: DashboardThread[];
   selectedThreadId: string | null;
   source: "api" | "demo";
+  externalRun?: DashboardRun | null;
   onNewThread: () => void;
   onThreadChange: (thread: DashboardThread) => void;
   onThreadArchived: (threadId: string) => void;
@@ -52,6 +53,7 @@ export function RepoConversationWorkspace({
   threads,
   selectedThreadId,
   source,
+  externalRun = null,
   onNewThread,
   onThreadChange,
   onThreadArchived,
@@ -81,7 +83,7 @@ export function RepoConversationWorkspace({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClearingContext, setIsClearingContext] = useState(false);
   const [archivingThreadId, setArchivingThreadId] = useState<string | null>(null);
-  const activeRun = selectedThread?.activeRun ?? selectedAttachmentRun;
+  const activeRun = selectedThread?.activeRun ?? selectedAttachmentRun ?? externalRun ?? null;
   const activeRunStatus = activeRun?.status ?? null;
   const sendBlocker = sendDisabledReason({
     draft: chatDraft,

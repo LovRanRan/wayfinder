@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { CurrentRunConsole } from "@/components/current-run-console";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { RepoConversationWorkspace } from "@/components/repo-conversation-workspace";
 import { RunStatusTable } from "@/components/run-status-table";
@@ -21,15 +20,9 @@ type AgentWorkbenchProps = {
   runs: DashboardRun[];
   threads: DashboardThread[];
   source: "api" | "demo";
-  publicApiBaseUrl: string;
 };
 
-export function AgentWorkbench({
-  runs,
-  threads,
-  source,
-  publicApiBaseUrl,
-}: AgentWorkbenchProps) {
+export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,7 +30,7 @@ export function AgentWorkbench({
   const selectedThreadId = searchParams.get("thread");
   const requestedTab = workspaceTabFromParam(searchParams.get("tab"));
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(() =>
-    requestedTab ?? (selectedJobId === null ? "threads" : "answer"),
+    requestedTab ?? "threads",
   );
   const [liveRuns, setLiveRuns] = useState<DashboardRun[]>(runs);
   const [liveThreads, setLiveThreads] = useState<DashboardThread[]>(threads);
@@ -88,9 +81,9 @@ export function AgentWorkbench({
       if (run !== null) {
         setLiveRuns((currentRuns) => upsertRun(currentRuns, run));
       }
-      updateUrl({ job: run?.jobId ?? null, tab: run === null ? null : "answer" });
+      updateUrl({ job: run?.jobId ?? null, tab: run === null ? null : "threads" });
       if (run !== null) {
-        setActiveTab("answer");
+        setActiveTab("threads");
       }
     },
     [updateUrl],
@@ -160,11 +153,7 @@ export function AgentWorkbench({
       setActiveTab(requestedTab);
       return;
     }
-    if (selectedJobId !== null) {
-      setActiveTab("answer");
-      return;
-    }
-    if (selectedThreadId !== null) {
+    if (selectedJobId !== null || selectedThreadId !== null) {
       setActiveTab("threads");
     }
   }, [requestedTab, selectedJobId, selectedThreadId]);
@@ -313,6 +302,7 @@ export function AgentWorkbench({
             threads={liveThreads}
             selectedThreadId={selectedThreadId}
             source={source}
+            externalRun={selectedRun}
             onNewThread={startNewThread}
             onThreadChange={selectThread}
             onThreadArchived={archiveThread}
@@ -321,14 +311,6 @@ export function AgentWorkbench({
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {activeTab === "answer" ? (
-            <CurrentRunConsole
-              run={selectedRun}
-              publicApiBaseUrl={publicApiBaseUrl}
-              source={source}
-            />
-          ) : null}
-
           {activeTab === "history" ? (
             <div className="grid gap-4">
               <ThreadActivityTimeline threads={liveThreads} onSelectRun={selectRun} />
@@ -377,7 +359,6 @@ function runFromJobId(runs: DashboardRun[], jobId: string | null): DashboardRun 
 function workspaceTabFromParam(value: string | null): WorkspaceTab | null {
   if (
     value === "threads" ||
-    value === "answer" ||
     value === "history" ||
     value === "metrics" ||
     value === "settings"

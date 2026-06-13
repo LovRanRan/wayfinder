@@ -86,7 +86,7 @@ export function RunStatusTable({
                   {!compact ? <td className="py-3 pr-4">{formatCurrency(run.costUsd)}</td> : null}
                   <td className="py-3 pr-4">
                     <a
-                      href={`?job=${encodeURIComponent(run.jobId)}&tab=answer`}
+                      href={`?job=${encodeURIComponent(run.jobId)}&tab=threads`}
                       className="inline-flex items-center gap-1 text-primary hover:underline"
                       onClick={(event) => {
                         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
