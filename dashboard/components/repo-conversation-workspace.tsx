@@ -86,6 +86,7 @@ export function RepoConversationWorkspace({
     draft: chatDraft,
     selectedThread,
     isSending,
+    hasActiveRepo: Boolean(activeContext?.repoUrl),
   });
   const canSend = sendBlocker === null;
   const hasVisibleMessages =
@@ -800,16 +801,23 @@ function sendDisabledReason({
   draft,
   selectedThread,
   isSending,
+  hasActiveRepo,
 }: {
   draft: string;
   selectedThread: DashboardThread | null;
   isSending: boolean;
+  hasActiveRepo: boolean;
 }): string | null {
   if (isSending) {
     return "sending";
   }
   if (draft.trim().length === 0) {
     return "message is empty";
+  }
+  // No repo to ground against: only allow messages that attach one (URL / owner/repo),
+  // so a plain question is not silently sent and cleared with no answer.
+  if (!hasActiveRepo && selectedThread === null && !containsRepoReference(draft)) {
+    return "open a repo first";
   }
   if (selectedThread?.status === "running" && !containsRepoReference(draft)) {
     return "run in progress";
