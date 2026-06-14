@@ -772,3 +772,40 @@
 - "I separated active context from grounding. Context chooses the repo and focus; Project 5 MCP tools and the verifier still decide which code claims are supported."
 - "The UI shows Project 6 agents in the trace, while Project 5 MCPs remain deterministic tools. That keeps the multi-agent story honest."
 - "History changed from a run table into a repo conversation timeline, because the user's mental model is investigation continuity, not isolated jobs."
+
+## Defect Fix (2026-06-14) — Empty-evidence on own repo: routing + symbol extraction + AST resolution
+
+> Live-found defect, fixed across three stacked layers (design notes 021/022/023), spanning wayfinder + the Project 5 `mcp-ast-explorer`. Cowork-implemented at Haichuan's request; reverse-explanation pass (rule 16) still owed before interview-owned.
+
+### 📚 Sources
+
+- [x] Routing fan-out design: [`docs/design_notes/021_routing_grounding_fanout_fix.md`](docs/design_notes/021_routing_grounding_fanout_fix.md) — why grounding intents must enter via architect_mapper ✅ 2026-06-14
+- [x] Symbol extraction design: [`docs/design_notes/022_symbol_candidate_resolver.md`](docs/design_notes/022_symbol_candidate_resolver.md) — filenames are not symbols; tiered query extraction ✅ 2026-06-14
+- [x] AST resolution design: [`docs/design_notes/023_ast_explorer_bare_symbol_resolution.md`](docs/design_notes/023_ast_explorer_bare_symbol_resolution.md) — bare/partial-qualified symbol lookup + git-install deploy ✅ 2026-06-14
+- [x] Graph routing/planning: [`src/wayfinder/graph/routing.py`](src/wayfinder/graph/routing.py), [`src/wayfinder/graph/planning.py`](src/wayfinder/graph/planning.py), [`src/wayfinder/graph/app.py`](src/wayfinder/graph/app.py) — supervisor `next_agent` vs `pending_workers`, `route_after_architect` edge ✅ 2026-06-14
+- [x] Symbol candidate extraction: [`src/wayfinder/graph/entry.py`](src/wayfinder/graph/entry.py) — `symbol_candidate_from_state`, `_symbol_candidate_from_query` ✅ 2026-06-14
+- [x] AST indexer (Project 5): `mcp-ast-explorer/src/mcp_ast_explorer/indexer.py` — `find_definition_in_index`, `_module_name_for_path` ✅ 2026-06-14
+
+### 🧠 Concepts Internalized
+
+- An empty evidence packet is a *pipeline* failure, not an LLM failure. The honest refusal was correct; the bug was three layers upstream (routing → extraction → AST lookup), so debugging meant reading the persisted run records, not tuning prompts or env vars.
+- In a supervisor graph, the *order* of work is split between `next_agent` (the supervisor's first hop) and `pending_workers` (queued after). Changing the worker plan alone is useless if the first hop is still the symbol agent — the architecture agent that produces the fallback candidate must run first.
+- A symbol-lookup tool must accept how humans name things. On a src-layout repo a symbol's qualified name is `src.pkg.mod.func`; requiring that exact string makes bare `func` unresolvable. Exact-match-first + unambiguous-suffix-fallback keeps precision while accepting bare/partial names.
+- Honest ambiguity beats a confident wrong answer. When a bare name (`build_graph`) maps to two definitions, returning "not found" and asking for a qualifier is the right behaviour for a verification-first tool.
+- Reading authenticated state through the product's own proxy (`fetch('/api/wayfinder/threads/{id}')` in the dashboard console) is the fastest way to diagnose a deployed agent when the raw API requires login.
+
+### ⚠️ Gotchas Debugged
+
+- Production pinned the PyPI `mcp-ast-explorer==0.1.0` in `Dockerfile.api`, while local dev/CI used the editable `../project5` source — so a local fix wouldn't reach prod. Resolved by installing from `git+...@main` (editing that RUN line also busts the Docker layer cache so latest main is fetched).
+- The query extractor's `_EXPLICIT_SYMBOL_PATTERN` matched only dotted tokens, so `state.py` (a filename) was picked over `merge_summaries` (a bare snake_case symbol). Fix: exclude filename-like tokens, then scan standalone snake_case/CamelCase identifiers as a second tier.
+- A fully-qualified-but-wrong-prefix lookup (`wayfinder.graph.state.merge_summaries`, missing `src.`) triggered wayfinder's `_src_layout_symbol_fallback` double `find_definition` call and timed out the entry_explainer node — masking the real resolution gap.
+- One live run failed on a transient OpenAI Responses API HTTP 500 at the supervisor LLM call — not a code bug; the same query succeeded on retry. Treat single-run failures as possible upstream flakiness before debugging.
+- Sandbox can't run the full gate (Python 3.10 lacks `datetime.UTC`, missing `fastapi`/`libcst`/`fastmcp`; its `mypy 2.1.0` crashes on every file) — the Mac `uv run pytest` + CI stay the source of truth.
+
+### 💼 Interview Soundbites
+
+- "Wayfinder was returning empty evidence on its own repo. I read the persisted run records and found it wasn't an LLM problem — the clone and architecture scan were healthy. The bug was three layers up: routing, symbol extraction, and the AST tool's lookup."
+- "The routing fix was about execution order. Symbol questions were going straight to the symbol agent, which had no candidate; I made them run the architecture agent first so the symbol path always inherits a fallback entry point."
+- "The extraction fix: a filename like `state.py` is not a symbol. I made the query parser prefer real identifiers — backticked, dotted, or snake_case/CamelCase — and reject filenames."
+- "The deepest fix was in my own MCP AST tool: it only matched fully-qualified names, so a bare `merge_summaries` never resolved on a src-layout repo. I added exact-match-first then an unambiguous suffix fallback, and it returns 'not found' rather than guess when a name is ambiguous."
+- "I verified end-to-end on the live deploy: `merge_summaries` went from empty to three verified claims with file-and-line citations, and an ambiguous name still refuses honestly."

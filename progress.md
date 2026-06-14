@@ -1,12 +1,11 @@
 ---
 project: wayfinder
 phase: P3
-status: building
+status: shipped (2026-06-14, 2 owed follow-ups)
 created: 2026-05-26
 soft_deadline: 2026-09-01
 hard_deadline: 2026-09-15
 ---
-
 # Project 6 · `wayfinder` — Progress Tracker
 
 > 单文件进度板 — Description + Dashboard + Roadmap + Logs + Pickup Protocol
@@ -60,16 +59,19 @@ hard_deadline: 2026-09-15
 
 **成功判定**
 
-- [ ] `final_checklist.md` Project 6 acceptance criteria 全部 `[x]`
-- [ ] `WayfinderState` / `Claim` schema、Supervisor routing、3 sub-agent、verifier loop 全部可测
-- [ ] 5 MCP integrations working,其中 3 个 Project 5 self-authored MCP 作为主力工具
-- [ ] 8 个 failure modes 都有 pytest / fault injection coverage
-- [x] FastAPI gateway + Next.js dashboard + Docker Compose + deployed URL 可用 ✅ 2026-06-04
-- [ ] LangSmith traces 可打开,README 有 trace / demo evidence
-- [ ] 3-min recursive demo video 完成
-- [ ] `DESIGN.md` / README / bilingual blog post 完成
-- [ ] Post-mainline enterprise workflow case study 完成:Haichuan-owned design note + skeleton,permission policy / approval queue / audit log / failure handling / eval report,README + resume 一条 bullet
-- [ ] `TASKS.md` Project 6 ship 行 `[x]`
+> **Ship 状态 (2026-06-14)**:核心成功判定达成,项目标记 **shipped**,带 2 个如实记录的 owed follow-up(见下方 ⏳)。
+
+- [/]  `final_checklist.md` Project 6 acceptance criteria — core 全 `[x]`;余 `[/]` demo video + `[ ]` arxiv-mcp(可选)/ enterprise case study(post-ship)
+- [X]  `WayfinderState` / `Claim` schema、Supervisor routing、3 sub-agent、verifier loop 全部可测 ✅ 2026-06-14
+- [X]  5 MCP integrations working,其中 3 个 Project 5 self-authored MCP 作为主力工具(arxiv-mcp 可选未集成) ✅ 2026-06-14
+- [X]  8 个 failure modes 都有 pytest / fault injection coverage ✅ 2026-06-14
+- [X]  FastAPI gateway + Next.js dashboard + Docker Compose + deployed URL 可用 ✅ 2026-06-04
+- [/]  LangSmith traces 可打开(✅),README 有 trace / demo evidence — demo-video 链接随录制补
+- [X]  `DESIGN.md` / README / bilingual blog post 完成 ✅ 2026-06-14
+- [X]  `TASKS.md` Project 6 ship 行 `[x]` ✅ 2026-06-14
+- ⏳ **OWED #1 — 3-min recursive demo video**:录制脚本就绪(`docs/demo/recursive_demo_script.md`),录制是 Haichuan-owned,pending
+- ⏳ **OWED #2 — 反向讲解 ownership (rule 16)**:notes 019/021/022/023 + Commit 23 模块(`agents`/`packets`/`challenge`/`planning`/`provenance` + graph wiring)由 Cowork 写,Haichuan 反向解释后才算 interview-owned
+- [ ]  (post-ship 扩展,非 ship blocker) Enterprise workflow case study — MVP 已本地完成(permission policy / approval queue / audit log / synthetic eval / docs / tests),README + resume bullet 待最终化
 
 ---
 
@@ -121,10 +123,11 @@ Canonical method:`planning/codebase_onboarding_theme/project6_four_step_method.m
 
 Ownership 边界:
 
-| 内容 | 主导者 |
-|---|---|
-| 系统架构、模块边界、State schema、agent routing、Claim / verification 逻辑、test case 设计、README / 面试解释 | Haichuan |
-| FastAPI boilerplate、Pydantic 初稿、LangGraph node 局部 TODO、Docker / CI、debug 建议、review gates | Codex 可辅助,但 Haichuan 审 |
+
+| 内容                                                                                                          | 主导者                      |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| 系统架构、模块边界、State schema、agent routing、Claim / verification 逻辑、test case 设计、README / 面试解释 | Haichuan                    |
+| FastAPI boilerplate、Pydantic 初稿、LangGraph node 局部 TODO、Docker / CI、debug 建议、review gates           | Codex 可辅助,但 Haichuan 审 |
 
 当前小步暂停:`Commit 3 kickoff gate`。恢复前先按四步法确认 Commit 3 materials / design boundary,不要直接进入 production architecture mapper code。
 
@@ -149,15 +152,16 @@ Guided design mode:
 
 ## 📊 Dashboard
 
-| Field                  | Value                                                                                                                                                                                                                       |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current Commit**     | [/] **Commit 24** — Entry-point consolidation: Run tab retired, Threads = single input surface (Answer kept as deep-view). Frontend gate + push owed. Built on **Commit 23** (true multi-agent: role contracts / claim packets / challenge logic / multi-worker planning / graph fan-out / provenance end-to-end), backend gate green 292/8 ruff/mypy clean; live B–G smoke passed; Haichuan reverse-explanation pass still owed. (22.6 shipped: 28c3f72.)                                                       |
-| **Overall Progress**   | Pre-build **3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                |
-| **Blocker**            | None. Prior "local gates slow/hang" was root-caused 2026-06-13: iCloud-synced Desktop evicted `.venv` files to `dataless` placeholders → bulk imports hung. Fixed by relocating venv off iCloud (`UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder`). Local full gate now green (255 passed/8 skipped, ruff/mypy clean); GitHub Actions CI remains backend gate source of truth. See [[wayfinder-venv-icloud-hang]].                            |
-| **Last Activity**      | 2026-06-13 · Commit 24: retired the Run tab (Threads = single input surface; Answer kept as deep-view) + testing-time UI fixes (contradiction mislabel, no-repo send guard, ChatGPT-style viewport-locked workspace). Earlier 2026-06-13: Commit 23 true multi-agent shipped end-to-end (fan-out + provenance), live B–G smoke passed. |
-| **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                               |
-| **Today's North Star** | Keep the Commit 22 workspace testable on the live website:the page stays bounded, context can be reset intentionally, and stale threads can be archived without losing audit history.                                      |
-| **Next Action**        | Run the frontend gate for Commit 24 (`cd dashboard && npm run lint && npm run typecheck && npm run build`), commit/push, redeploy, confirm Run tab is gone + other tabs work. Optional: `git rm` orphaned `run-launcher.tsx`/`run-briefing-panel.tsx`. Then: (a) Commit 24 follow-up — fold Answer's rich provenance/evidence view into the in-thread grounded-report attachment, then drop the Answer tab too; (b) the still-owed Commit 23 reverse-explanation pass (rule 16) over `agents`/`packets`/`challenge`/`planning`/`provenance` + graph wiring. `git add/commit/push` is Haichuan's.                                                               |
+
+| Field                  | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Commit**     | **🚀 SHIPPED 2026-06-14** (2 owed follow-ups: demo video + 反向讲解) · last code work = 2026-06-14 empty-evidence 3-layer fix (notes 021/022/023) on top of **Commit 24** — Entry-point consolidation: Run tab retired, Threads = single input surface (Answer kept as deep-view). Frontend gate + push owed. Built on **Commit 23** (true multi-agent: role contracts / claim packets / challenge logic / multi-worker planning / graph fan-out / provenance end-to-end), backend gate green 292/8 ruff/mypy clean; live B–G smoke passed; Haichuan reverse-explanation pass still owed. (22.6 shipped: 28c3f72.)                                                                                                                                       |
+| **Overall Progress**   | Pre-build**3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Blocker**            | None. Prior "local gates slow/hang" was root-caused 2026-06-13: iCloud-synced Desktop evicted`.venv` files to `dataless` placeholders → bulk imports hung. Fixed by relocating venv off iCloud (`UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder`). Local full gate now green (255 passed/8 skipped, ruff/mypy clean); GitHub Actions CI remains backend gate source of truth. See [[wayfinder-venv-icloud-hang]].                                                                                                                                                                                  |
+| **Last Activity**      | 2026-06-14 · **Empty-evidence defect fixed end-to-end + live-verified** (3 layers: routing note 021, symbol extraction note 022, AST resolution note 023 cross-repo into mcp-ast-explorer 0.1.1). Mac gate 296/8; deployed via git-install + live re-test: `merge_summaries` now returns verified 3, was empty. Earlier 2026-06-13: Commit 24 (Run/Answer tabs retired) + Commit 23 true multi-agent shipped (fan-out + provenance), live B–G smoke passed.                                                                                                                                                                                                                                                          |
+| **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Today's North Star** | Wayfinder gives grounded, non-empty answers on real repos (including its own): symbol/behaviour questions reach the AST tool with the right candidate and return verified definition evidence, with honest refusals only when truly ambiguous.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **Next Action**        | Haichuan's reverse-explanation pass over design notes 021/022/023 (12 Step-4 prompts, rule 16) — the empty-evidence fix was Cowork-implemented and isn't interview-owned yet. Optional: publish mcp-ast-explorer 0.1.1 to PyPI + re-pin `Dockerfile.api` (drop the `git+@main` Docker-cache caveat). Still owed: Commit 23 reverse-explanation pass over `agents`/`packets`/`challenge`/`planning`/`provenance` + graph wiring, and the 3-min recursive demo video. `git add/commit/push` is Haichuan's. |
 
 ---
 
@@ -165,431 +169,489 @@ Guided design mode:
 
 ### Pre-build(从 `fast_path.md` Project 6 节抽取)
 
-- [x] LangChain Academy modules 4-6(HITL / Memory / Subgraphs / Streaming) — https://academy.langchain.com/courses/intro-to-langgraph ✅ 2026-05-26
-- [x] LangGraph Supervisor tutorial — https://langchain-ai.github.io/langgraph/tutorials/multi_agent/agent_supervisor/ ✅ 2026-05-26
-- [x] 确认并同步 B2 TypeScript / Next.js 状态;Project 6 dashboard 默认用 Next.js + shadcn/ui ✅ 2026-05-26
+- [X]  LangChain Academy modules 4-6(HITL / Memory / Subgraphs / Streaming) — https://academy.langchain.com/courses/intro-to-langgraph ✅ 2026-05-26
+- [X]  LangGraph Supervisor tutorial — https://langchain-ai.github.io/langgraph/tutorials/multi_agent/agent_supervisor/ ✅ 2026-05-26
+- [X]  确认并同步 B2 TypeScript / Next.js 状态;Project 6 dashboard 默认用 Next.js + shadcn/ui ✅ 2026-05-26
 
 ### Build
 
-- [x] **Commit 0 — Product contract + repo scaffold** ✅ 2026-05-26
-  - [x] 锁定 Project 6 domain / target user / primary demo repo;默认候选:`langchain-ai/langchain` pinned commit ✅ 2026-05-26
-  - [x] 填完 `项目领域` / `简历差异化` / `Core Principles` / `Today's North Star` ✅ 2026-05-26
-  - [x] 写 README one-page pitch:problem, product promise, verification differentiator, P5/P6/P7 story ✅ 2026-05-26
-  - [x] 写 `DESIGN.md` v0:3-agent architecture, state schema sketch, routing sketch, verifier strategy, 8 failure modes outline ✅ 2026-05-26
-  - [x] 初始化 main repo scaffold:Python package, FastAPI shell, LangGraph package, Next.js + shadcn dashboard shell ✅ 2026-05-26
-  - [x] 配好 local quality gates:ruff, mypy strict, pytest, frontend lint/typecheck placeholder, GitHub Actions main CI ✅ 2026-05-26
+- [X]  **Commit 0 — Product contract + repo scaffold** ✅ 2026-05-26
 
-- [x] **Commit 1 — Repo ingestion + 5-MCP adapter foundation** ✅ 2026-05-29
-  - [x] GitHub URL / local path ingestion layer:shallow clone, pinned ref support, local LRU cache, cleanup policy ✅ 2026-05-27
-    - [x] Local path `RepoSource` / `RepoHandle` models and resolver ✅ 2026-05-27
-    - [x] `count_files()` ignores generated/cache/dependency dirs (`.git`, `.venv`, `node_modules`, `.next`, etc.) ✅ 2026-05-27
-    - [x] GitHub URL parsing / clone cache contract ✅ 2026-05-27
-    - [x] Pinned ref support ✅ 2026-05-27
-    - [x] Cache cleanup policy ✅ 2026-05-27
-    - [x] Shallow clone + checkout execution ✅ 2026-05-27
-  - [x] Repo size guard:>10k files 触发 sampling proposal + HITL confirmation ✅ 2026-05-27
-  - [x] `langchain-mcp-adapters` integration harness with typed tool-call wrappers ✅ 2026-05-28
-  - [x] Project 5 MCP config factory + adapter contract tests for `mcp-repo-mapper`, `mcp-ast-explorer`, `mcp-test-runner` ✅ 2026-05-28
-  - [x] 接入 3 个 Project 5 self-authored MCP:`mcp-repo-mapper`, `mcp-ast-explorer`, `mcp-test-runner` ✅ 2026-05-29
-    - [x] Design note for fake-vs-real integration boundary ✅ 2026-05-29
-    - [x] Skip-safe integration test skeleton with one representative tool per server ✅ 2026-05-29
-    - [x] Real integration run with Project 5 MCP commands available in PATH ✅ 2026-05-29
-  - [x] 接入 2 个 community MCP:`tavily-mcp` + GitHub search MCP (`arxiv-mcp` parked) ✅ 2026-05-29
-    - [x] Design note for Project 5-primary / community-supporting boundary ✅ 2026-05-29
-    - [x] Community MCP package and command choices resolved from official sources ✅ 2026-05-29
-    - [x] Config factory + contract tests for Tavily and GitHub search MCP ✅ 2026-05-29
-    - [x] Env-gated real integration tests for Tavily and GitHub search MCP ✅ 2026-05-29
-      - [x] Skip-safe integration test skeleton ✅ 2026-05-29
-      - [x] Real run with `TAVILY_API_KEY` / `GITHUB_PERSONAL_ACCESS_TOKEN` available ✅ 2026-05-29
-  - [x] 所有 MCP tool calls 加 tenacity exponential backoff, timeout, structured error normalization ✅ 2026-05-29
-  - [x] Contract tests prove each MCP can list tools and return one happy-path response through adapter layer ✅ 2026-05-29
+  - [X]  锁定 Project 6 domain / target user / primary demo repo;默认候选:`langchain-ai/langchain` pinned commit ✅ 2026-05-26
+  - [X]  填完 `项目领域` / `简历差异化` / `Core Principles` / `Today's North Star` ✅ 2026-05-26
+  - [X]  写 README one-page pitch:problem, product promise, verification differentiator, P5/P6/P7 story ✅ 2026-05-26
+  - [X]  写 `DESIGN.md` v0:3-agent architecture, state schema sketch, routing sketch, verifier strategy, 8 failure modes outline ✅ 2026-05-26
+  - [X]  初始化 main repo scaffold:Python package, FastAPI shell, LangGraph package, Next.js + shadcn dashboard shell ✅ 2026-05-26
+  - [X]  配好 local quality gates:ruff, mypy strict, pytest, frontend lint/typecheck placeholder, GitHub Actions main CI ✅ 2026-05-26
+- [X]  **Commit 1 — Repo ingestion + 5-MCP adapter foundation** ✅ 2026-05-29
 
-- [x] **Commit 2 — Supervisor graph + state machine** ✅ 2026-05-30
-  - [x] 实现 `WayfinderState` TypedDict:query, repo_url, intent, repo_metadata, module_dep_graph, entry_points, ast_index, claims, test_results, summaries, next_agent, user_corrections, final_output, messages ✅ 2026-05-30
-  - [x] 实现 `Claim` schema:text, source_agent, risk_level(low/medium/high), test_strategy, test_id ✅ 2026-05-30
-  - [x] LangGraph Supervisor coordinates `architect_mapper`, `entry_explainer`, `verifier` placeholder nodes ✅ 2026-05-30
-  - [x] Intent routing:deterministic rule first, LLM fallback second;覆盖 architectural / runtime / behavioral / debug / mixed — rule routing + mocked LLM parser/validator accepted as Commit 2 boundary;real LLM call deferred ✅ 2026-05-30
-  - [x] SQLite checkpointer supports resumable runs and status recovery after process restart ✅ 2026-05-30
-  - [x] Routing tests cover rule hits, LLM fallback JSON validation, invalid intent recovery, mixed-intent routing ✅ 2026-05-30
+  - [X]  GitHub URL / local path ingestion layer:shallow clone, pinned ref support, local LRU cache, cleanup policy ✅ 2026-05-27
+    - [X]  Local path `RepoSource` / `RepoHandle` models and resolver ✅ 2026-05-27
+    - [X]  `count_files()` ignores generated/cache/dependency dirs (`.git`, `.venv`, `node_modules`, `.next`, etc.) ✅ 2026-05-27
+    - [X]  GitHub URL parsing / clone cache contract ✅ 2026-05-27
+    - [X]  Pinned ref support ✅ 2026-05-27
+    - [X]  Cache cleanup policy ✅ 2026-05-27
+    - [X]  Shallow clone + checkout execution ✅ 2026-05-27
+  - [X]  Repo size guard:>10k files 触发 sampling proposal + HITL confirmation ✅ 2026-05-27
+  - [X]  `langchain-mcp-adapters` integration harness with typed tool-call wrappers ✅ 2026-05-28
+  - [X]  Project 5 MCP config factory + adapter contract tests for `mcp-repo-mapper`, `mcp-ast-explorer`, `mcp-test-runner` ✅ 2026-05-28
+  - [X]  接入 3 个 Project 5 self-authored MCP:`mcp-repo-mapper`, `mcp-ast-explorer`, `mcp-test-runner` ✅ 2026-05-29
+    - [X]  Design note for fake-vs-real integration boundary ✅ 2026-05-29
+    - [X]  Skip-safe integration test skeleton with one representative tool per server ✅ 2026-05-29
+    - [X]  Real integration run with Project 5 MCP commands available in PATH ✅ 2026-05-29
+  - [X]  接入 2 个 community MCP:`tavily-mcp` + GitHub search MCP (`arxiv-mcp` parked) ✅ 2026-05-29
+    - [X]  Design note for Project 5-primary / community-supporting boundary ✅ 2026-05-29
+    - [X]  Community MCP package and command choices resolved from official sources ✅ 2026-05-29
+    - [X]  Config factory + contract tests for Tavily and GitHub search MCP ✅ 2026-05-29
+    - [X]  Env-gated real integration tests for Tavily and GitHub search MCP ✅ 2026-05-29
+      - [X]  Skip-safe integration test skeleton ✅ 2026-05-29
+      - [X]  Real run with `TAVILY_API_KEY` / `GITHUB_PERSONAL_ACCESS_TOKEN` available ✅ 2026-05-29
+  - [X]  所有 MCP tool calls 加 tenacity exponential backoff, timeout, structured error normalization ✅ 2026-05-29
+  - [X]  Contract tests prove each MCP can list tools and return one happy-path response through adapter layer ✅ 2026-05-29
+- [X]  **Commit 2 — Supervisor graph + state machine** ✅ 2026-05-30
 
-- [x] **Commit 3 — Architecture path end-to-end (`architect_mapper`)** ✅ 2026-06-02
-  - [x] `architect_mapper` uses `mcp-repo-mapper` through the `ArchitectureScanner` boundary to produce dependency graph, language breakdown, frameworks, and entry points ✅ 2026-06-02
-  - [x] Architecture summary preserves repo-structure evidence and "what I cannot prove" limitations; richer confidence labels stay in mapper evidence/design notes until a later output schema needs them ✅ 2026-06-02
-  - [x] `repo_metadata`, `module_dep_graph`, and `entry_points` are persisted into `WayfinderState` ✅ 2026-06-02
-  - [x] Architectural query path works through `/explain` with env-selected scanner wiring and default placeholder behavior preserved ✅ 2026-06-02
-  - [x] Tests cover supported repo shaping, missing local path, invalid/non-dict scanner output, scanner injection, API env wiring, runtime scanner factory, and skip-safe real Project 5 MCP integration ✅ 2026-06-02
+  - [X]  实现 `WayfinderState` TypedDict:query, repo_url, intent, repo_metadata, module_dep_graph, entry_points, ast_index, claims, test_results, summaries, next_agent, user_corrections, final_output, messages ✅ 2026-05-30
+  - [X]  实现 `Claim` schema:text, source_agent, risk_level(low/medium/high), test_strategy, test_id ✅ 2026-05-30
+  - [X]  LangGraph Supervisor coordinates `architect_mapper`, `entry_explainer`, `verifier` placeholder nodes ✅ 2026-05-30
+  - [X]  Intent routing:deterministic rule first, LLM fallback second;覆盖 architectural / runtime / behavioral / debug / mixed — rule routing + mocked LLM parser/validator accepted as Commit 2 boundary;real LLM call deferred ✅ 2026-05-30
+  - [X]  SQLite checkpointer supports resumable runs and status recovery after process restart ✅ 2026-05-30
+  - [X]  Routing tests cover rule hits, LLM fallback JSON validation, invalid intent recovery, mixed-intent routing ✅ 2026-05-30
+- [X]  **Commit 3 — Architecture path end-to-end (`architect_mapper`)** ✅ 2026-06-02
+
+  - [X]  `architect_mapper` uses `mcp-repo-mapper` through the `ArchitectureScanner` boundary to produce dependency graph, language breakdown, frameworks, and entry points ✅ 2026-06-02
+  - [X]  Architecture summary preserves repo-structure evidence and "what I cannot prove" limitations; richer confidence labels stay in mapper evidence/design notes until a later output schema needs them ✅ 2026-06-02
+  - [X]  `repo_metadata`, `module_dep_graph`, and `entry_points` are persisted into `WayfinderState` ✅ 2026-06-02
+  - [X]  Architectural query path works through `/explain` with env-selected scanner wiring and default placeholder behavior preserved ✅ 2026-06-02
+  - [X]  Tests cover supported repo shaping, missing local path, invalid/non-dict scanner output, scanner injection, API env wiring, runtime scanner factory, and skip-safe real Project 5 MCP integration ✅ 2026-06-02
+
   - Deferred by boundary:oversized repo sampling remains ingestion/resilience scope;unsupported-language fallback and AST parse flag propagation move to `entry_explainer` / resilience work.
+- [X]  **Commit 4 — Entry explanation + AST anti-hallucination (`entry_explainer`)** ✅ 2026-06-04
 
-- [x] **Commit 4 — Entry explanation + AST anti-hallucination (`entry_explainer`)** ✅ 2026-06-04
-  - [x] `entry_explainer` uses `mcp-ast-explorer` for definitions, references, signatures, call chains, class hierarchy ✅ 2026-06-04
-  - [x] Produces entry-path explanation:call chain, key functions, data flow, assumptions, source citations ✅ 2026-06-04
-  - [x] AST validation gate rejects hallucinated functions/classes before final output ✅ 2026-06-04
-  - [x] `ast_index` and key symbol evidence are persisted into `WayfinderState` ✅ 2026-06-04
-  - [x] Behavioral query works through `/explain` on a real fixture repo ✅ 2026-06-04
-  - [x] Tests cover existing symbol, missing symbol, parse error skip + flag, and unsupported language degraded answer ✅ 2026-06-04
+  - [X]  `entry_explainer` uses `mcp-ast-explorer` for definitions, references, signatures, call chains, class hierarchy ✅ 2026-06-04
+  - [X]  Produces entry-path explanation:call chain, key functions, data flow, assumptions, source citations ✅ 2026-06-04
+  - [X]  AST validation gate rejects hallucinated functions/classes before final output ✅ 2026-06-04
+  - [X]  `ast_index` and key symbol evidence are persisted into `WayfinderState` ✅ 2026-06-04
+  - [X]  Behavioral query works through `/explain` on a real fixture repo ✅ 2026-06-04
+  - [X]  Tests cover existing symbol, missing symbol, parse error skip + flag, and unsupported language degraded answer ✅ 2026-06-04
+- [X]  **Commit 5 — Verifier + HITL test approval** ✅ 2026-06-04
 
-- [x] **Commit 5 — Verifier + HITL test approval** ✅ 2026-06-04
-  - [x] Design note for verifier/HITL boundary, claim policy, approval payload, failure handling, and test matrix ✅ 2026-06-04
-  - [x] Claim extractor turns high-risk output statements into `pending_claims` ✅ 2026-06-04
-  - [x] Risk policy triggers verifier only for concrete function names, numbers, behavior assertions, or testable runtime claims ✅ 2026-06-04
-  - [x] `verifier` uses `mcp-test-runner` to select/run minimal pytest or jest targets ✅ 2026-06-04
-  - [x] Low-risk claims skip verification;no-test-coverage claims become `unverified`, not silently accepted ✅ 2026-06-04
-  - [x] Pre-test HITL interrupt shows test list + estimated time;Command API supports approve / skip / modify_filter ✅ 2026-06-04
-  - [x] Final pre-output HITL summary shows X verified / Y unverified / Z contradicted ✅ 2026-06-04
-  - [x] Tests cover verified, unverified(no tests), contradicted, skipped-by-user, and modified test filter paths ✅ 2026-06-04
+  - [X]  Design note for verifier/HITL boundary, claim policy, approval payload, failure handling, and test matrix ✅ 2026-06-04
+  - [X]  Claim extractor turns high-risk output statements into `pending_claims` ✅ 2026-06-04
+  - [X]  Risk policy triggers verifier only for concrete function names, numbers, behavior assertions, or testable runtime claims ✅ 2026-06-04
+  - [X]  `verifier` uses `mcp-test-runner` to select/run minimal pytest or jest targets ✅ 2026-06-04
+  - [X]  Low-risk claims skip verification;no-test-coverage claims become `unverified`, not silently accepted ✅ 2026-06-04
+  - [X]  Pre-test HITL interrupt shows test list + estimated time;Command API supports approve / skip / modify_filter ✅ 2026-06-04
+  - [X]  Final pre-output HITL summary shows X verified / Y unverified / Z contradicted ✅ 2026-06-04
+  - [X]  Tests cover verified, unverified(no tests), contradicted, skipped-by-user, and modified test filter paths ✅ 2026-06-04
+- [X]  **Commit 6 — Reflection loop + resilience layer** ✅ 2026-06-09
 
-- [x] **Commit 6 — Reflection loop + resilience layer** ✅ 2026-06-09
-  - [x] Design note for bounded reflection, eight failure modes, and Commit 3 deferred resilience scope ✅ 2026-06-04
-  - [x] Reflection self-check rewrites final output when `contradicted_claims` exist:generate -> verify -> rewrite, max 2 iterations ✅ 2026-06-04
-  - [x] Failure mode 1:repo >10k files -> sampling / user-confirmation requirement surfaced as final limitation ✅ 2026-06-04
-  - [x] Failure mode 2:unsupported language -> degraded limitation + verifier skipped/unverified behavior ✅ 2026-06-04
-  - [x] Failure mode 3:AST parse error -> skip symbol certainty + flag in final output ✅ 2026-06-04
-  - [x] Failure mode 4:no tests or all tests fail -> claim unverified(no test coverage / unrelated suite failure) ✅ 2026-06-04
-  - [x] Failure mode 5:Supervisor intent misclassification -> HITL/user correction route contract ✅ 2026-06-04
-  - [x] Failure mode 6:LLM hallucinated symbol -> AST validation hard gate preserved into final output ✅ 2026-06-04
-  - [x] Failure mode 7:reflection loop infinite -> hard cap 2 + abort with explanation ✅ 2026-06-04
-  - [x] Failure mode 8:test timeout / sandbox kill -> retry once + upgraded timeout;still failing becomes validation timed out ✅ 2026-06-04
-  - [x] Fault injection tests cover mock timeout, mock parse error, mock supervisor hallucination / missing symbol, reflection cap ✅ 2026-06-04
+  - [X]  Design note for bounded reflection, eight failure modes, and Commit 3 deferred resilience scope ✅ 2026-06-04
+  - [X]  Reflection self-check rewrites final output when `contradicted_claims` exist:generate -> verify -> rewrite, max 2 iterations ✅ 2026-06-04
+  - [X]  Failure mode 1:repo >10k files -> sampling / user-confirmation requirement surfaced as final limitation ✅ 2026-06-04
+  - [X]  Failure mode 2:unsupported language -> degraded limitation + verifier skipped/unverified behavior ✅ 2026-06-04
+  - [X]  Failure mode 3:AST parse error -> skip symbol certainty + flag in final output ✅ 2026-06-04
+  - [X]  Failure mode 4:no tests or all tests fail -> claim unverified(no test coverage / unrelated suite failure) ✅ 2026-06-04
+  - [X]  Failure mode 5:Supervisor intent misclassification -> HITL/user correction route contract ✅ 2026-06-04
+  - [X]  Failure mode 6:LLM hallucinated symbol -> AST validation hard gate preserved into final output ✅ 2026-06-04
+  - [X]  Failure mode 7:reflection loop infinite -> hard cap 2 + abort with explanation ✅ 2026-06-04
+  - [X]  Failure mode 8:test timeout / sandbox kill -> retry once + upgraded timeout;still failing becomes validation timed out ✅ 2026-06-04
+  - [X]  Fault injection tests cover mock timeout, mock parse error, mock supervisor hallucination / missing symbol, reflection cap ✅ 2026-06-04
+- [X]  **Commit 7 — FastAPI runtime + observability** ✅ 2026-06-04
 
-- [x] **Commit 7 — FastAPI runtime + observability** ✅ 2026-06-04
-  - [x] FastAPI gateway exposes `/explain`, `/status/{job_id}`, `/refine/{job_id}` ✅ 2026-06-04
-  - [x] Async background jobs persist run status, current node, partial summaries, errors, and final output ✅ 2026-06-04
-  - [x] `/refine/{job_id}` accepts user corrections and resumes from checkpointer ✅ 2026-06-04
-  - [x] LangSmith tracing wraps graph runs through `RunnableConfig` metadata and MCP tool calls through `MCPAdapter` tool spans ✅ 2026-06-04
-  - [x] Trace metadata includes agent_name, tool_name, mcp_server, tokens, latency, cost_usd, claim_id ✅ 2026-06-04
-  - [x] API tests cover job lifecycle, status polling, refine/resume, error serialization, trace metadata hooks ✅ 2026-06-04
+  - [X]  FastAPI gateway exposes `/explain`, `/status/{job_id}`, `/refine/{job_id}` ✅ 2026-06-04
+  - [X]  Async background jobs persist run status, current node, partial summaries, errors, and final output ✅ 2026-06-04
+  - [X]  `/refine/{job_id}` accepts user corrections and resumes from checkpointer ✅ 2026-06-04
+  - [X]  LangSmith tracing wraps graph runs through `RunnableConfig` metadata and MCP tool calls through `MCPAdapter` tool spans ✅ 2026-06-04
+  - [X]  Trace metadata includes agent_name, tool_name, mcp_server, tokens, latency, cost_usd, claim_id ✅ 2026-06-04
+  - [X]  API tests cover job lifecycle, status polling, refine/resume, error serialization, trace metadata hooks ✅ 2026-06-04
 
 - [/] **Commit 8 — Dashboard, deploy, and core Wayfinder ship evidence** ✅ local artifacts + Railway live URL 2026-06-04
-  - [x] Next.js + shadcn dashboard replaces Streamlit plan and reads API status/results through `/runs?limit=10` with demo fallback ✅ 2026-06-04
-  - [x] Dashboard panels:recent runs table(10 entries, click -> trace URL), per-agent latency P50/P95, token usage, cost overview, routing decision flow, verification stats, failure mode frequency ✅ 2026-06-04
-  - [x] Docker Compose multi-service:api + 3 MCP servers + dashboard + sqlite-volume;MCP stdio servers are documented under explicit `mcp` profile ✅ 2026-06-04
-  - [x] GitHub Actions CI for main app plus integration checks against the 3 MCP server packages/repos via sibling checkout layout ✅ 2026-06-04
-  - [x] Railway split-service deploy is live:API `https://wayfinder-api-production.up.railway.app`, dashboard `https://wayfinder-dashboard-production-f8d7.up.railway.app` ✅ 2026-06-04
-  - [x] README terminal pass:tagline, architecture, tech stack, quickstart, API spec, 3 curl examples, eval evidence, failure modes, lessons learned, hidden interview talking points ✅ 2026-06-04
-  - [x] `DESIGN.md` v1.0 finalized with 8 failure modes and each mitigation ✅ 2026-06-04
+
+  - [X]  Next.js + shadcn dashboard replaces Streamlit plan and reads API status/results through `/runs?limit=10` with demo fallback ✅ 2026-06-04
+  - [X]  Dashboard panels:recent runs table(10 entries, click -> trace URL), per-agent latency P50/P95, token usage, cost overview, routing decision flow, verification stats, failure mode frequency ✅ 2026-06-04
+  - [X]  Docker Compose multi-service:api + 3 MCP servers + dashboard + sqlite-volume;MCP stdio servers are documented under explicit `mcp` profile ✅ 2026-06-04
+  - [X]  GitHub Actions CI for main app plus integration checks against the 3 MCP server packages/repos via sibling checkout layout ✅ 2026-06-04
+  - [X]  Railway split-service deploy is live:API `https://wayfinder-api-production.up.railway.app`, dashboard `https://wayfinder-dashboard-production-f8d7.up.railway.app` ✅ 2026-06-04
+  - [X]  README terminal pass:tagline, architecture, tech stack, quickstart, API spec, 3 curl examples, eval evidence, failure modes, lessons learned, hidden interview talking points ✅ 2026-06-04
+  - [X]  `DESIGN.md` v1.0 finalized with 8 failure modes and each mitigation ✅ 2026-06-04
+
   - [/] 3-min recursive demo script on pinned LangChain commit is ready;actual recording/link pending ✅ script 2026-06-04
-  - [x] Bilingual blog post ready for external posting in `docs/blog/wayfinder_launch_post.md` ✅ 2026-06-04
+
+  - [X]  Bilingual blog post ready for external posting in `docs/blog/wayfinder_launch_post.md` ✅ 2026-06-04
+
   - [/] `final_checklist.md` Project 6 section updated where local acceptance is satisfied;public deploy/video remain unchecked ✅ 2026-06-04
 
-- [x] **Commit 9 — Enterprise workflow case study design + skeleton contract(post-mainline)** ✅ 2026-06-04
-  - [x] Read `project6_enterprise_workflow_case_study_plan.md` and extract the minimum case-study scope;do not add a new Project 11 ✅ 2026-06-04
-  - [x] Write `docs/design_notes/011_enterprise_workflow_case_study.md`:problem,input,output,rules,failure cases,tests,interview explanation ✅ 2026-06-04
-  - [x] Decide exact module boundary in prose only:graph,schemas,tools,examples,docs;do not create production files until skeleton is approved ✅ 2026-06-04
-  - [x] Define `EnterpriseWorkflowState` fields in the design note:candidate,jobs,contacts,job_matches,outreach_draft,risk_flags,approval_tasks,audit_events,final_status,final_report ✅ 2026-06-04
-  - [x] Define policy table in the design note:allow,allow_if_low_risk,requires_approval,deny ✅ 2026-06-04
-  - [x] Define approval / audit schemas in prose:ApprovalTask and AuditEvent required fields ✅ 2026-06-04
-  - [x] Define eval contract:50 candidates,20 jobs,20 contacts,10 risky cases;metrics include approval_routing_accuracy,unsafe_action_blocking_rate,cost_per_candidate_usd,human_intervention_rate ✅ 2026-06-04
-  - [x] Skeleton gate documented:actual minimal skeleton is deferred until Haichuan writes and approves it for Commit 10 ✅ 2026-06-04
+- [X]  **Commit 9 — Enterprise workflow case study design + skeleton contract(post-mainline)** ✅ 2026-06-04
 
-- [x] **Commit 10 — Enterprise workflow case study MVP + docs(post-mainline)** ✅ 2026-06-04
-  - [x] Implement permission-gated recruiting CRM demo under `src/wayfinder/enterprise`,not a standalone recruiting product ✅ 2026-06-04
-  - [x] Add mock CRM / mock email draft / mock policy store / approval queue / audit log;no real Gmail,Salesforce,login,or frontend dashboard ✅ 2026-06-04
-  - [x] Add example runner under `examples/enterprise_workflow/` that loads synthetic JSON,prints final report,and writes sample audit / approval outputs ✅ 2026-06-04
-  - [x] Add focused tests for policy decisions,approval routing,unsafe email blocking,audit event creation,missing contact handling,high-risk CRM update requiring approval ✅ 2026-06-04
-  - [x] Add `docs/case_studies/enterprise_workflow_agent.md` and `enterprise_eval_report.md`;do not publish fake benchmark numbers ✅ 2026-06-04
-  - [x] Add a small README section under Wayfinder explaining that the architecture generalizes beyond codebase onboarding ✅ 2026-06-04
-  - [x] Add one resume bullet under the existing Wayfinder project;do not create a separate project title ✅ 2026-06-04
+  - [X]  Read `project6_enterprise_workflow_case_study_plan.md` and extract the minimum case-study scope;do not add a new Project 11 ✅ 2026-06-04
+  - [X]  Write `docs/design_notes/011_enterprise_workflow_case_study.md`:problem,input,output,rules,failure cases,tests,interview explanation ✅ 2026-06-04
+  - [X]  Decide exact module boundary in prose only:graph,schemas,tools,examples,docs;do not create production files until skeleton is approved ✅ 2026-06-04
+  - [X]  Define `EnterpriseWorkflowState` fields in the design note:candidate,jobs,contacts,job_matches,outreach_draft,risk_flags,approval_tasks,audit_events,final_status,final_report ✅ 2026-06-04
+  - [X]  Define policy table in the design note:allow,allow_if_low_risk,requires_approval,deny ✅ 2026-06-04
+  - [X]  Define approval / audit schemas in prose:ApprovalTask and AuditEvent required fields ✅ 2026-06-04
+  - [X]  Define eval contract:50 candidates,20 jobs,20 contacts,10 risky cases;metrics include approval_routing_accuracy,unsafe_action_blocking_rate,cost_per_candidate_usd,human_intervention_rate ✅ 2026-06-04
+  - [X]  Skeleton gate documented:actual minimal skeleton is deferred until Haichuan writes and approves it for Commit 10 ✅ 2026-06-04
+- [X]  **Commit 10 — Enterprise workflow case study MVP + docs(post-mainline)** ✅ 2026-06-04
 
-- [x] **Commit 11 — Frontend launch hardening** ✅ 2026-06-05
-  - [x] Add a dashboard run launcher so a visitor can submit a repo/question, poll status, refresh, and refine from the UI ✅ 2026-06-04
-  - [x] Add Next.js proxy routes for `/explain`, `/status/{job_id}`, and `/refine/{job_id}` so browser actions do not require direct API CORS access ✅ 2026-06-04
-  - [x] Split dashboard server API URL from public browser API URL for Railway/internal-service deployment ✅ 2026-06-04
-  - [x] Replace stale Commit 8 badge with launch-ready dashboard labeling ✅ 2026-06-04
-  - [x] Disable fake trace links in demo data mode and show pending/sample trace states honestly ✅ 2026-06-04
-  - [x] Add `dashboard` production `start` script and update README/deploy notes for proxy/env behavior ✅ 2026-06-04
-  - [x] Frontend gates and local proxy smoke pass:build,typecheck,lint,submit,status,refine ✅ 2026-06-04
+  - [X]  Implement permission-gated recruiting CRM demo under `src/wayfinder/enterprise`,not a standalone recruiting product ✅ 2026-06-04
+  - [X]  Add mock CRM / mock email draft / mock policy store / approval queue / audit log;no real Gmail,Salesforce,login,or frontend dashboard ✅ 2026-06-04
+  - [X]  Add example runner under `examples/enterprise_workflow/` that loads synthetic JSON,prints final report,and writes sample audit / approval outputs ✅ 2026-06-04
+  - [X]  Add focused tests for policy decisions,approval routing,unsafe email blocking,audit event creation,missing contact handling,high-risk CRM update requiring approval ✅ 2026-06-04
+  - [X]  Add `docs/case_studies/enterprise_workflow_agent.md` and `enterprise_eval_report.md`;do not publish fake benchmark numbers ✅ 2026-06-04
+  - [X]  Add a small README section under Wayfinder explaining that the architecture generalizes beyond codebase onboarding ✅ 2026-06-04
+  - [X]  Add one resume bullet under the existing Wayfinder project;do not create a separate project title ✅ 2026-06-04
+- [X]  **Commit 11 — Frontend launch hardening** ✅ 2026-06-05
 
-- [x] **Commit 12 — Backend GitHub ingestion launch hardening** ✅ 2026-06-04
-  - [x] Wire `/explain` to resolve trusted GitHub repo URLs into local `RepoHandle`s through the existing shallow-clone/cache resolver ✅ 2026-06-04
-  - [x] Keep GitHub URL ingestion opt-in via `WAYFINDER_ENABLE_GITHUB_INGESTION=1` ✅ 2026-06-04
-  - [x] Add public-demo safety guards:allowlist, max-file limit, explicit 403/413/502 API errors ✅ 2026-06-04
-  - [x] Forward optional GitHub cache root from env so deployments can use a known cache path ✅ 2026-06-04
-  - [x] Add API tests for disabled ingestion, allowed GitHub URL, allowlist rejection, and oversized repo rejection ✅ 2026-06-04
-  - [x] Add `git` to the API Docker image and expose GitHub ingestion env vars in Compose/deploy docs ✅ 2026-06-04
+  - [X]  Add a dashboard run launcher so a visitor can submit a repo/question, poll status, refresh, and refine from the UI ✅ 2026-06-04
+  - [X]  Add Next.js proxy routes for `/explain`, `/status/{job_id}`, and `/refine/{job_id}` so browser actions do not require direct API CORS access ✅ 2026-06-04
+  - [X]  Split dashboard server API URL from public browser API URL for Railway/internal-service deployment ✅ 2026-06-04
+  - [X]  Replace stale Commit 8 badge with launch-ready dashboard labeling ✅ 2026-06-04
+  - [X]  Disable fake trace links in demo data mode and show pending/sample trace states honestly ✅ 2026-06-04
+  - [X]  Add `dashboard` production `start` script and update README/deploy notes for proxy/env behavior ✅ 2026-06-04
+  - [X]  Frontend gates and local proxy smoke pass:build,typecheck,lint,submit,status,refine ✅ 2026-06-04
+- [X]  **Commit 12 — Backend GitHub ingestion launch hardening** ✅ 2026-06-04
 
-- [x] **Commit 13 — Project 5 HTTP reader MCP deploy path** ✅ 2026-06-05
-  - [x] Write deploy design note for replacing placeholder reader scanners with real Project 5 MCP over HTTP ✅ 2026-06-04
-  - [x] Add `streamable_http` Project 5 MCP config helpers for repo mapper and AST explorer ✅ 2026-06-04
-  - [x] Add runtime factories for `WAYFINDER_ARCHITECTURE_SCANNER=mcp_http` and `WAYFINDER_ENTRY_SCANNER=mcp_http` ✅ 2026-06-04
-  - [x] Add API-container localhost FastMCP sidecar startup for read-only Project 5 MCP servers ✅ 2026-06-04
-  - [x] Package public `mcp-repo-mapper` and `mcp-ast-explorer` PyPI releases into the API Docker image ✅ 2026-06-04
-  - [x] Keep `mcp-test-runner` disabled in public deploy until sandbox/auth is designed ✅ 2026-06-04
-  - [x] Add tests for HTTP config generation, runtime mode selection, and sidecar env defaults ✅ 2026-06-04
-  - [x] Remove user-visible final placeholder and show collected MCP evidence in `final_output` ✅ 2026-06-04
-  - [x] Add `src.` layout fallback for common fully qualified Python symbols ✅ 2026-06-04
-  - [x] Build API Docker image with packaged reader MCPs and smoke API-container sidecars locally ✅ 2026-06-04
-  - [x] Deploy Commit 13 to Railway with sidecars enabled ✅ 2026-06-05
-  - [x] Public smoke:dashboard GitHub URL flow uses real reader MCP path instead of placeholder readers ✅ 2026-06-05
+  - [X]  Wire `/explain` to resolve trusted GitHub repo URLs into local `RepoHandle`s through the existing shallow-clone/cache resolver ✅ 2026-06-04
+  - [X]  Keep GitHub URL ingestion opt-in via `WAYFINDER_ENABLE_GITHUB_INGESTION=1` ✅ 2026-06-04
+  - [X]  Add public-demo safety guards:allowlist, max-file limit, explicit 403/413/502 API errors ✅ 2026-06-04
+  - [X]  Forward optional GitHub cache root from env so deployments can use a known cache path ✅ 2026-06-04
+  - [X]  Add API tests for disabled ingestion, allowed GitHub URL, allowlist rejection, and oversized repo rejection ✅ 2026-06-04
+  - [X]  Add `git` to the API Docker image and expose GitHub ingestion env vars in Compose/deploy docs ✅ 2026-06-04
+- [X]  **Commit 13 — Project 5 HTTP reader MCP deploy path** ✅ 2026-06-05
 
-- [x] **Commit 14 — Claude Code-style dashboard workbench** ✅ 2026-06-05
-  - [x] Replace the white card-heavy layout with a dark code-agent workbench style ✅ 2026-06-05
-  - [x] Sync the right-side current-run console to the submitted/refreshed job instead of stale latest-run data ✅ 2026-06-05
-  - [x] Render final output as transcript, evidence, and verification blocks instead of one long paragraph card ✅ 2026-06-05
-  - [x] Add a compact clickable recent-run list for switching selected jobs ✅ 2026-06-05
-  - [x] Frontend gates and browser QA pass ✅ 2026-06-05
+  - [X]  Write deploy design note for replacing placeholder reader scanners with real Project 5 MCP over HTTP ✅ 2026-06-04
+  - [X]  Add `streamable_http` Project 5 MCP config helpers for repo mapper and AST explorer ✅ 2026-06-04
+  - [X]  Add runtime factories for `WAYFINDER_ARCHITECTURE_SCANNER=mcp_http` and `WAYFINDER_ENTRY_SCANNER=mcp_http` ✅ 2026-06-04
+  - [X]  Add API-container localhost FastMCP sidecar startup for read-only Project 5 MCP servers ✅ 2026-06-04
+  - [X]  Package public `mcp-repo-mapper` and `mcp-ast-explorer` PyPI releases into the API Docker image ✅ 2026-06-04
+  - [X]  Keep `mcp-test-runner` disabled in public deploy until sandbox/auth is designed ✅ 2026-06-04
+  - [X]  Add tests for HTTP config generation, runtime mode selection, and sidecar env defaults ✅ 2026-06-04
+  - [X]  Remove user-visible final placeholder and show collected MCP evidence in `final_output` ✅ 2026-06-04
+  - [X]  Add `src.` layout fallback for common fully qualified Python symbols ✅ 2026-06-04
+  - [X]  Build API Docker image with packaged reader MCPs and smoke API-container sidecars locally ✅ 2026-06-04
+  - [X]  Deploy Commit 13 to Railway with sidecars enabled ✅ 2026-06-05
+  - [X]  Public smoke:dashboard GitHub URL flow uses real reader MCP path instead of placeholder readers ✅ 2026-06-05
+- [X]  **Commit 14 — Claude Code-style dashboard workbench** ✅ 2026-06-05
 
-- [x] **Commit 15 — AST-backed verified claims** ✅ 2026-06-05
-  - [x] Convert deterministic `mcp-ast-explorer` found-symbol evidence into verified claims ✅ 2026-06-05
-  - [x] Verify definition location and signature from `ast_index` without requiring public test execution ✅ 2026-06-05
-  - [x] Keep runtime/data-flow claims without focused tests as `unverified(no_test_coverage)` ✅ 2026-06-05
-  - [x] Preserve existing test-backed verifier path for explicit pytest/Jest targets ✅ 2026-06-05
-  - [x] Add regression tests for AST-only verified claims and mixed verified/unverified output ✅ 2026-06-05
+  - [X]  Replace the white card-heavy layout with a dark code-agent workbench style ✅ 2026-06-05
+  - [X]  Sync the right-side current-run console to the submitted/refreshed job instead of stale latest-run data ✅ 2026-06-05
+  - [X]  Render final output as transcript, evidence, and verification blocks instead of one long paragraph card ✅ 2026-06-05
+  - [X]  Add a compact clickable recent-run list for switching selected jobs ✅ 2026-06-05
+  - [X]  Frontend gates and browser QA pass ✅ 2026-06-05
+- [X]  **Commit 15 — AST-backed verified claims** ✅ 2026-06-05
 
-- [x] **Commit 16 — Grounded LLM synthesis + community context policy** ✅ 2026-06-05
-  - [x] Write `docs/design_notes/013_grounded_llm_synthesis.md` defining Project 5 facts vs community context vs LLM synthesis boundary ✅ 2026-06-05
-  - [x] Add OpenAI Responses API client boundary with no hardcoded secrets and runtime-gated usage ✅ 2026-06-05
-  - [x] Add real LLM routing fallback for mixed/ambiguous queries while preserving deterministic rule-first routing ✅ 2026-06-05
-  - [x] Add grounded LLM final writer path that receives bounded MCP/verifier evidence packet and falls back to deterministic output on LLM failure ✅ 2026-06-05
-  - [x] Add optional Tavily/GitHub community context provider for final synthesis;external context is supporting-only and never creates verified code claims ✅ 2026-06-05
-  - [x] Add local `.env` fallback reading for runtime env without printing secrets ✅ 2026-06-05
-  - [x] Add regression tests for LLM routing, synthesis fallback, community context policy, env factories, and default deterministic behavior ✅ 2026-06-05
-  - [x] Run one bounded live OpenAI smoke with `WAYFINDER_FINAL_WRITER=openai` / `WAYFINDER_LLM_ROUTING=openai` ✅ 2026-06-05
+  - [X]  Convert deterministic `mcp-ast-explorer` found-symbol evidence into verified claims ✅ 2026-06-05
+  - [X]  Verify definition location and signature from `ast_index` without requiring public test execution ✅ 2026-06-05
+  - [X]  Keep runtime/data-flow claims without focused tests as `unverified(no_test_coverage)` ✅ 2026-06-05
+  - [X]  Preserve existing test-backed verifier path for explicit pytest/Jest targets ✅ 2026-06-05
+  - [X]  Add regression tests for AST-only verified claims and mixed verified/unverified output ✅ 2026-06-05
+- [X]  **Commit 16 — Grounded LLM synthesis + community context policy** ✅ 2026-06-05
 
-- [x] **Commit 17 — User workspaces + persistent run history** ✅ 2026-06-05
-  - [x] Write `docs/design_notes/014_user_workspaces_persistent_history.md` defining auth, persistence, public repo, and test-runner sandbox boundaries ✅ 2026-06-05
-  - [x] Add workspace register/login/session auth with user-scoped `/explain`, `/runs`, `/status/{job_id}`, and `/refine/{job_id}` ✅ 2026-06-05
-  - [x] Add SQLite-backed persistent run history selected by env ✅ 2026-06-05
-  - [x] Redesign dashboard around login, workspace account state, run composer, current run, and per-user history ✅ 2026-06-05
-  - [x] Update README/DESIGN/deploy docs and Railway env guidance ✅ 2026-06-05
-  - [x] Run backend/frontend quality gates and push ✅ 2026-06-05
+  - [X]  Write `docs/design_notes/013_grounded_llm_synthesis.md` defining Project 5 facts vs community context vs LLM synthesis boundary ✅ 2026-06-05
+  - [X]  Add OpenAI Responses API client boundary with no hardcoded secrets and runtime-gated usage ✅ 2026-06-05
+  - [X]  Add real LLM routing fallback for mixed/ambiguous queries while preserving deterministic rule-first routing ✅ 2026-06-05
+  - [X]  Add grounded LLM final writer path that receives bounded MCP/verifier evidence packet and falls back to deterministic output on LLM failure ✅ 2026-06-05
+  - [X]  Add optional Tavily/GitHub community context provider for final synthesis;external context is supporting-only and never creates verified code claims ✅ 2026-06-05
+  - [X]  Add local `.env` fallback reading for runtime env without printing secrets ✅ 2026-06-05
+  - [X]  Add regression tests for LLM routing, synthesis fallback, community context policy, env factories, and default deterministic behavior ✅ 2026-06-05
+  - [X]  Run one bounded live OpenAI smoke with `WAYFINDER_FINAL_WRITER=openai` / `WAYFINDER_LLM_ROUTING=openai` ✅ 2026-06-05
+- [X]  **Commit 17 — User workspaces + persistent run history** ✅ 2026-06-05
 
-- [x] **Commit 18 — Workspace-owned runtime settings + sandboxed verifier policy** ✅ 2026-06-05
-  - [x] Write `docs/design_notes/015_workspace_runtime_and_sandbox.md` before code. Required sections:problem, threat model, user-owned API key policy, sandbox boundary, input/output contracts, denied operations, failure modes, tests, Railway/local deployment notes, and interview explanation ✅ 2026-06-05
-  - [x] Add workspace runtime settings so each authenticated user can run Wayfinder with their own provider configuration instead of relying only on deployment-level `OPENAI_API_KEY` ✅ 2026-06-05
-    - [x] UI:workspace settings surface for OpenAI key status, model choice, save/update/delete key, and clear copy that raw keys are never shown again ✅ 2026-06-05
-    - [x] API:workspace-scoped settings endpoints with session auth; key update validates shape without logging the secret ✅ 2026-06-05
-    - [x] Storage:raw API keys are not stored in run history, traces, logs, or dashboard payloads; persistent keys are encrypted with `WAYFINDER_KEY_ENCRYPTION_SECRET` ✅ 2026-06-05
-    - [x] Runtime:authenticated runs strip any shared `OPENAI_API_KEY` and inject only the run owner's workspace key/model/routing overrides ✅ 2026-06-05
-    - [x] Tests:auth isolation, no raw-key serialization, key delete, missing-key failure message, workspace-key runtime selection, and no platform-key fallback in auth mode ✅ 2026-06-05
-  - [x] Define and implement the safe `mcp-test-runner` public execution boundary. Auth alone is not enough; arbitrary repo code must not run in the API container ✅ 2026-06-05
-    - [x] Design the execution topology:separate sandbox worker or isolated local Docker runner, not unguarded command execution inside `wayfinder-api` ✅ 2026-06-05
-    - [x] Sandbox constraints documented:no inherited app secrets, ephemeral checkout, read-only input mount where possible, strict timeout, CPU/memory/disk limits, no privileged mode, bounded output size, and network policy ✅ 2026-06-05
-    - [x] Command policy documented:allow only generated minimal pytest/Jest targets; deny shell expansion, arbitrary scripts, destructive commands, package install commands, and unknown runners ✅ 2026-06-05
+  - [X]  Write `docs/design_notes/014_user_workspaces_persistent_history.md` defining auth, persistence, public repo, and test-runner sandbox boundaries ✅ 2026-06-05
+  - [X]  Add workspace register/login/session auth with user-scoped `/explain`, `/runs`, `/status/{job_id}`, and `/refine/{job_id}` ✅ 2026-06-05
+  - [X]  Add SQLite-backed persistent run history selected by env ✅ 2026-06-05
+  - [X]  Redesign dashboard around login, workspace account state, run composer, current run, and per-user history ✅ 2026-06-05
+  - [X]  Update README/DESIGN/deploy docs and Railway env guidance ✅ 2026-06-05
+  - [X]  Run backend/frontend quality gates and push ✅ 2026-06-05
+- [X]  **Commit 18 — Workspace-owned runtime settings + sandboxed verifier policy** ✅ 2026-06-05
+
+  - [X]  Write `docs/design_notes/015_workspace_runtime_and_sandbox.md` before code. Required sections:problem, threat model, user-owned API key policy, sandbox boundary, input/output contracts, denied operations, failure modes, tests, Railway/local deployment notes, and interview explanation ✅ 2026-06-05
+  - [X]  Add workspace runtime settings so each authenticated user can run Wayfinder with their own provider configuration instead of relying only on deployment-level `OPENAI_API_KEY` ✅ 2026-06-05
+
+    - [X]  UI:workspace settings surface for OpenAI key status, model choice, save/update/delete key, and clear copy that raw keys are never shown again ✅ 2026-06-05
+    - [X]  API:workspace-scoped settings endpoints with session auth; key update validates shape without logging the secret ✅ 2026-06-05
+    - [X]  Storage:raw API keys are not stored in run history, traces, logs, or dashboard payloads; persistent keys are encrypted with `WAYFINDER_KEY_ENCRYPTION_SECRET` ✅ 2026-06-05
+    - [X]  Runtime:authenticated runs strip any shared `OPENAI_API_KEY` and inject only the run owner's workspace key/model/routing overrides ✅ 2026-06-05
+    - [X]  Tests:auth isolation, no raw-key serialization, key delete, missing-key failure message, workspace-key runtime selection, and no platform-key fallback in auth mode ✅ 2026-06-05
+  - [X]  Define and implement the safe `mcp-test-runner` public execution boundary. Auth alone is not enough; arbitrary repo code must not run in the API container ✅ 2026-06-05
+
+    - [X]  Design the execution topology:separate sandbox worker or isolated local Docker runner, not unguarded command execution inside `wayfinder-api` ✅ 2026-06-05
+    - [X]  Sandbox constraints documented:no inherited app secrets, ephemeral checkout, read-only input mount where possible, strict timeout, CPU/memory/disk limits, no privileged mode, bounded output size, and network policy ✅ 2026-06-05
+    - [X]  Command policy documented:allow only generated minimal pytest/Jest targets; deny shell expansion, arbitrary scripts, destructive commands, package install commands, and unknown runners ✅ 2026-06-05
+
     - [/] HITL policy remains the Commit 5 verifier contract; dashboard execution approval stays deferred until a real sandbox worker exists.
-    - [x] Runtime env:keep `WAYFINDER_VERIFIER_RUNNER=placeholder` as default; `sandboxed_mcp` reports unavailable unless the explicit sandbox URL/health gate is configured ✅ 2026-06-05
-    - [x] Failure behavior:when sandbox is unavailable, public deployment keeps executable claims unverified rather than inventing test evidence ✅ 2026-06-05
+
+    - [X]  Runtime env:keep `WAYFINDER_VERIFIER_RUNNER=placeholder` as default; `sandboxed_mcp` reports unavailable unless the explicit sandbox URL/health gate is configured ✅ 2026-06-05
+    - [X]  Failure behavior:when sandbox is unavailable, public deployment keeps executable claims unverified rather than inventing test evidence ✅ 2026-06-05
+
     - [/] Tests cover sandbox status policy gates; no live fixture-backed sandbox run is claimed because no remote sandbox worker exists yet.
-  - [x] Connect verifier evidence back into the product surface ✅ 2026-06-05
-    - [x] Answer cards continue to surface AST evidence, limitations, verified/unverified/contradicted counts, and runtime errors ✅ 2026-06-05
+  - [X]  Connect verifier evidence back into the product surface ✅ 2026-06-05
+
+    - [X]  Answer cards continue to surface AST evidence, limitations, verified/unverified/contradicted counts, and runtime errors ✅ 2026-06-05
+
     - [/] Detailed test command/result display remains deferred until sandboxed execution is actually enabled.
-    - [x] Recent history preserves verification labels and sandbox limitations per user ✅ 2026-06-05
-  - [x] Commit 18 Definition of Done ✅ 2026-06-05
-    - [x] A logged-in user can provide their own OpenAI key/model and run grounded LLM mode without a global key fallback ✅ 2026-06-05
-    - [x] Public deployment clearly reports sandbox unavailable/disabled and keeps test execution disabled until a separate worker exists ✅ 2026-06-05
-    - [x] Public Railway configuration is documented with exact variables, including intentionally disabled sandbox status ✅ 2026-06-05
-    - [x] Full gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build; local/browser smoke should be repeated after deploy in Commit 19 ✅ local 2026-06-05
 
-- [x] **Commit 19 — Final launch evidence + Project 6 closeout** ✅ 2026-06-05
-  - [x] Public smoke matrix after Commit 18 deploy:
-    - [x] Register/login with a fresh workspace; public logged-in workspace observed, single-user history privacy is enforced by authenticated API routes and tested API boundaries ✅ 2026-06-05
-    - [x] Save or provide a user-owned OpenAI key; public runs completed while deployment-level `OPENAI_API_KEY` was intentionally empty in authenticated workspace mode ✅ 2026-06-05
-    - [x] Analyze `LovRanRan/wayfinder` with `wayfinder.graph.app.build_graph`; verified grounded answer cards, AST evidence, limitations, elapsed timer, and Answer deep link ✅ 2026-06-05
-    - [x] Analyze external public repos with `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`: `pallets/click` behavioral run and `psf/requests` architecture run completed ✅ 2026-06-05
-    - [x] Exercise failure/limitation cases: `pallets/click` overload-body limitation, `langchain-ai/langchain` UTF-8 scan degradation, and no-test/data-flow unverified labels were surfaced honestly ✅ 2026-06-05
-    - [x] Refresh/redeploy check:dashboard reload preserves visible history; full API restart persistence remains a post-closeout ops smoke and is not claimed ✅ 2026-06-05
-  - [x] Prepare the 3-minute recursive demo handoff.
-    - [x] Opening script ready:Wayfinder positioning in one sentence as a grounded LLM codebase-onboarding copilot using Project 5 MCPs as the fact layer ✅ 2026-06-05
-    - [x] Flow 1 script ready:login/workspace, user-owned runtime settings, submit repo/question ✅ 2026-06-05
-    - [x] Flow 2 script ready:show answer cards, verified/unverified/contradicted labels, evidence vs limitations, and recent-run history ✅ 2026-06-05
-    - [x] Flow 3 script ready:show a failure or sandbox limitation honestly ✅ 2026-06-05
-    - [x] Close script ready:explain P5 -> P6 -> P7 chain and why this is not a generic chat app ✅ 2026-06-05
+    - [X]  Recent history preserves verification labels and sandbox limitations per user ✅ 2026-06-05
+  - [X]  Commit 18 Definition of Done ✅ 2026-06-05
+
+    - [X]  A logged-in user can provide their own OpenAI key/model and run grounded LLM mode without a global key fallback ✅ 2026-06-05
+    - [X]  Public deployment clearly reports sandbox unavailable/disabled and keeps test execution disabled until a separate worker exists ✅ 2026-06-05
+    - [X]  Public Railway configuration is documented with exact variables, including intentionally disabled sandbox status ✅ 2026-06-05
+    - [X]  Full gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build; local/browser smoke should be repeated after deploy in Commit 19 ✅ local 2026-06-05
+- [X]  **Commit 19 — Final launch evidence + Project 6 closeout** ✅ 2026-06-05
+
+  - [X]  Public smoke matrix after Commit 18 deploy:
+
+    - [X]  Register/login with a fresh workspace; public logged-in workspace observed, single-user history privacy is enforced by authenticated API routes and tested API boundaries ✅ 2026-06-05
+    - [X]  Save or provide a user-owned OpenAI key; public runs completed while deployment-level `OPENAI_API_KEY` was intentionally empty in authenticated workspace mode ✅ 2026-06-05
+    - [X]  Analyze `LovRanRan/wayfinder` with `wayfinder.graph.app.build_graph`; verified grounded answer cards, AST evidence, limitations, elapsed timer, and Answer deep link ✅ 2026-06-05
+    - [X]  Analyze external public repos with `WAYFINDER_GITHUB_REPO_ALLOWLIST=*`: `pallets/click` behavioral run and `psf/requests` architecture run completed ✅ 2026-06-05
+    - [X]  Exercise failure/limitation cases: `pallets/click` overload-body limitation, `langchain-ai/langchain` UTF-8 scan degradation, and no-test/data-flow unverified labels were surfaced honestly ✅ 2026-06-05
+    - [X]  Refresh/redeploy check:dashboard reload preserves visible history; full API restart persistence remains a post-closeout ops smoke and is not claimed ✅ 2026-06-05
+  - [X]  Prepare the 3-minute recursive demo handoff.
+
+    - [X]  Opening script ready:Wayfinder positioning in one sentence as a grounded LLM codebase-onboarding copilot using Project 5 MCPs as the fact layer ✅ 2026-06-05
+    - [X]  Flow 1 script ready:login/workspace, user-owned runtime settings, submit repo/question ✅ 2026-06-05
+    - [X]  Flow 2 script ready:show answer cards, verified/unverified/contradicted labels, evidence vs limitations, and recent-run history ✅ 2026-06-05
+    - [X]  Flow 3 script ready:show a failure or sandbox limitation honestly ✅ 2026-06-05
+    - [X]  Close script ready:explain P5 -> P6 -> P7 chain and why this is not a generic chat app ✅ 2026-06-05
+
     - [/] Actual video recording/link is user-owned and pending.
-  - [x] Update public project artifacts.
-    - [x] README terminal pass:current live URLs, BYOK/runtime settings, Railway variables, `/data` volume note, sandbox status, API examples, failure modes, and interview talking points are present;demo link remains a user-owned handoff ✅ 2026-06-05
-    - [x] `DESIGN.md` v1.1:include Commit 16 grounded LLM policy, Commit 17 auth/persistence, Commit 18 workspace runtime/sandbox policy, and Commit 19 public evidence boundary ✅ 2026-06-05
-    - [x] `docs/deploy/README.md`:exact Railway variables and which service owns each variable; auth-aware smoke checks and sandbox policy included ✅ 2026-06-05
-    - [x] `docs/blog/wayfinder_launch_post.md`:refresh launch story so it matches the deployed product instead of older local-only assumptions ✅ 2026-06-05
-    - [x] Add final evidence handoff notes into `final_checklist.md`, `TASKS.md`, and this `progress.md`;actual demo video URL remains pending until Haichuan records it ✅ 2026-06-05
-    - [x] Append closing section to `LEARNINGS.md`:what changed from deterministic fact panel to grounded LLM copilot, why auth/DB was needed, why sandbox is a separate boundary, and interview soundbites ✅ 2026-06-05
-  - [x] Final acceptance reconciliation:
-    - [x] Compare every Project 6 acceptance line in `final_checklist.md` against the shipped product; mark only what is truly live or honestly scoped ✅ 2026-06-05
-    - [x] Public test execution remains disabled;explicit reason is documented and executable verifier deployment is not claimed ✅ 2026-06-05
-    - [x] Sandbox is not enabled;Commit 20 now owns sandbox worker evidence and denied-operation smoke ✅ 2026-06-05
-    - [x] Confirm P7 handoff:run labels/traces/history become eval data for `agent-eval-harness` ✅ 2026-06-05
-  - [x] Commit 19 Definition of Done:
-    - [x] Public dashboard and API are live and smoke-tested ✅ 2026-06-05
-    - [x] README, DESIGN, deploy docs, final checklist, TASKS, progress, LEARNINGS, and launch/blog docs are consistent with the current product boundary ✅ 2026-06-05
-    - [x] Demo script/handoff exists and covers current UI, auth, evidence cards, history, and limitation behavior;actual recording is user-owned pending ✅ 2026-06-05
-    - [x] Final local gates pass for the closeout slice:backend tests, ruff, mypy, frontend lint/typecheck/build;API Docker build was not rerun because no deploy/runtime files changed ✅ 2026-06-05
-    - [x] Project 6 can be described in resume/interview as a deployed grounded LLM copilot with deterministic MCP evidence, user workspaces, persistent history, and explicit verification/sandbox policy ✅ 2026-06-05
+  - [X]  Update public project artifacts.
 
-- [x] **Commit 20 — Sandboxed test runner worker** ✅ 2026-06-05
-  - [x] Design gate before code:
-    - [x] Write `docs/design_notes/016_sandboxed_test_runner_worker.md` with threat model, worker topology, request/response schema, command policy, isolation limits, failure modes, tests, Railway/local deployment plan, and interview explanation ✅ 2026-06-05
-    - [x] Explicitly state the boundary:auth/BYOK/history do not make untrusted public repo code safe;only the sandbox worker can run executable verifier requests ✅ 2026-06-05
-    - [x] Define allowed test request shape:resolved checkout path, generated minimal pytest/Jest target, timeout, claim refs, and run owner/job id metadata ✅ 2026-06-05
-    - [x] Define denied operations:package install commands, arbitrary shell scripts, shell expansion, destructive commands, unknown runners, inherited app secrets, unbounded output, and path traversal ✅ 2026-06-05
-  - [x] Worker implementation:
-    - [x] Add `wayfinder.sandbox.worker` as a small FastAPI service separate from `wayfinder-api`;it receives signed/bounded test-run requests and returns normalized `TestRunObservation` payloads ✅ 2026-06-05
-    - [x] Worker uses an ephemeral workdir and copies the selected repo before execution;Compose mounts only the repo-cache volume and does not mount API SQLite `/data` or app secrets ✅ 2026-06-05
-    - [x] Enforce timeout, max output bytes, bounded failure list, denied filters, and deterministic cleanup after every request ✅ 2026-06-05
-    - [x] Add `/health`;runtime uses a live worker health check instead of `WAYFINDER_TEST_SANDBOX_HEALTH=ok` ✅ 2026-06-05
-  - [x] API integration:
-    - [x] Implement `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` as a real `RemoteSandboxTestRunner` when `WAYFINDER_TEST_SANDBOX_URL` is healthy ✅ 2026-06-05
-    - [x] Keep `WAYFINDER_VERIFIER_RUNNER=placeholder` as the default for public deploys until the sandbox worker URL and health gate are configured ✅ 2026-06-05
-    - [x] Surface sandbox runner status in Settings and Run briefing based on true `sandbox_status`, not just the runner string ✅ 2026-06-05
-    - [x] Preserve AST-backed verified facts even when sandbox execution is unavailable ✅ 2026-06-05
-  - [x] HITL / UI:
-    - [x] Existing Commit 5 verifier interrupt still shows selected test target, estimated timeout, claim refs, and approve/skip/modify-filter before tests run ✅ 2026-06-05
-    - [x] Remote runner receives job/run-owner metadata and bounded test payloads after the existing approval path resumes ✅ 2026-06-05
-    - [x] Answer cards continue to render bounded `test_results`;worker output is capped before returning to the API ✅ 2026-06-05
-  - [x] Tests and smoke:
-    - [x] Unit tests cover request validation, command denial, output truncation, timeout, unavailable sandbox, healthy sandbox, remote adapter mapping, and successful normalized observation ✅ 2026-06-05
-    - [x] API/runtime tests prove `sandboxed_mcp` uses the remote adapter only when URL + live health gate pass ✅ 2026-06-05
-    - [x] Denied-operation smoke:unsafe shell/package-install filters are blocked with recorded `denied_reason` ✅ 2026-06-05
-    - [x] Happy-path smoke on a tiny fixture repo verifies one pytest target through the worker function ✅ 2026-06-05
+    - [X]  README terminal pass:current live URLs, BYOK/runtime settings, Railway variables, `/data` volume note, sandbox status, API examples, failure modes, and interview talking points are present;demo link remains a user-owned handoff ✅ 2026-06-05
+    - [X]  `DESIGN.md` v1.1:include Commit 16 grounded LLM policy, Commit 17 auth/persistence, Commit 18 workspace runtime/sandbox policy, and Commit 19 public evidence boundary ✅ 2026-06-05
+    - [X]  `docs/deploy/README.md`:exact Railway variables and which service owns each variable; auth-aware smoke checks and sandbox policy included ✅ 2026-06-05
+    - [X]  `docs/blog/wayfinder_launch_post.md`:refresh launch story so it matches the deployed product instead of older local-only assumptions ✅ 2026-06-05
+    - [X]  Add final evidence handoff notes into `final_checklist.md`, `TASKS.md`, and this `progress.md`;actual demo video URL remains pending until Haichuan records it ✅ 2026-06-05
+    - [X]  Append closing section to `LEARNINGS.md`:what changed from deterministic fact panel to grounded LLM copilot, why auth/DB was needed, why sandbox is a separate boundary, and interview soundbites ✅ 2026-06-05
+  - [X]  Final acceptance reconciliation:
+
+    - [X]  Compare every Project 6 acceptance line in `final_checklist.md` against the shipped product; mark only what is truly live or honestly scoped ✅ 2026-06-05
+    - [X]  Public test execution remains disabled;explicit reason is documented and executable verifier deployment is not claimed ✅ 2026-06-05
+    - [X]  Sandbox is not enabled;Commit 20 now owns sandbox worker evidence and denied-operation smoke ✅ 2026-06-05
+    - [X]  Confirm P7 handoff:run labels/traces/history become eval data for `agent-eval-harness` ✅ 2026-06-05
+  - [X]  Commit 19 Definition of Done:
+
+    - [X]  Public dashboard and API are live and smoke-tested ✅ 2026-06-05
+    - [X]  README, DESIGN, deploy docs, final checklist, TASKS, progress, LEARNINGS, and launch/blog docs are consistent with the current product boundary ✅ 2026-06-05
+    - [X]  Demo script/handoff exists and covers current UI, auth, evidence cards, history, and limitation behavior;actual recording is user-owned pending ✅ 2026-06-05
+    - [X]  Final local gates pass for the closeout slice:backend tests, ruff, mypy, frontend lint/typecheck/build;API Docker build was not rerun because no deploy/runtime files changed ✅ 2026-06-05
+    - [X]  Project 6 can be described in resume/interview as a deployed grounded LLM copilot with deterministic MCP evidence, user workspaces, persistent history, and explicit verification/sandbox policy ✅ 2026-06-05
+- [X]  **Commit 20 — Sandboxed test runner worker** ✅ 2026-06-05
+
+  - [X]  Design gate before code:
+
+    - [X]  Write `docs/design_notes/016_sandboxed_test_runner_worker.md` with threat model, worker topology, request/response schema, command policy, isolation limits, failure modes, tests, Railway/local deployment plan, and interview explanation ✅ 2026-06-05
+    - [X]  Explicitly state the boundary:auth/BYOK/history do not make untrusted public repo code safe;only the sandbox worker can run executable verifier requests ✅ 2026-06-05
+    - [X]  Define allowed test request shape:resolved checkout path, generated minimal pytest/Jest target, timeout, claim refs, and run owner/job id metadata ✅ 2026-06-05
+    - [X]  Define denied operations:package install commands, arbitrary shell scripts, shell expansion, destructive commands, unknown runners, inherited app secrets, unbounded output, and path traversal ✅ 2026-06-05
+  - [X]  Worker implementation:
+
+    - [X]  Add `wayfinder.sandbox.worker` as a small FastAPI service separate from `wayfinder-api`;it receives signed/bounded test-run requests and returns normalized `TestRunObservation` payloads ✅ 2026-06-05
+    - [X]  Worker uses an ephemeral workdir and copies the selected repo before execution;Compose mounts only the repo-cache volume and does not mount API SQLite `/data` or app secrets ✅ 2026-06-05
+    - [X]  Enforce timeout, max output bytes, bounded failure list, denied filters, and deterministic cleanup after every request ✅ 2026-06-05
+    - [X]  Add `/health`;runtime uses a live worker health check instead of `WAYFINDER_TEST_SANDBOX_HEALTH=ok` ✅ 2026-06-05
+  - [X]  API integration:
+
+    - [X]  Implement `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` as a real `RemoteSandboxTestRunner` when `WAYFINDER_TEST_SANDBOX_URL` is healthy ✅ 2026-06-05
+    - [X]  Keep `WAYFINDER_VERIFIER_RUNNER=placeholder` as the default for public deploys until the sandbox worker URL and health gate are configured ✅ 2026-06-05
+    - [X]  Surface sandbox runner status in Settings and Run briefing based on true `sandbox_status`, not just the runner string ✅ 2026-06-05
+    - [X]  Preserve AST-backed verified facts even when sandbox execution is unavailable ✅ 2026-06-05
+  - [X]  HITL / UI:
+
+    - [X]  Existing Commit 5 verifier interrupt still shows selected test target, estimated timeout, claim refs, and approve/skip/modify-filter before tests run ✅ 2026-06-05
+    - [X]  Remote runner receives job/run-owner metadata and bounded test payloads after the existing approval path resumes ✅ 2026-06-05
+    - [X]  Answer cards continue to render bounded `test_results`;worker output is capped before returning to the API ✅ 2026-06-05
+  - [X]  Tests and smoke:
+
+    - [X]  Unit tests cover request validation, command denial, output truncation, timeout, unavailable sandbox, healthy sandbox, remote adapter mapping, and successful normalized observation ✅ 2026-06-05
+    - [X]  API/runtime tests prove `sandboxed_mcp` uses the remote adapter only when URL + live health gate pass ✅ 2026-06-05
+    - [X]  Denied-operation smoke:unsafe shell/package-install filters are blocked with recorded `denied_reason` ✅ 2026-06-05
+    - [X]  Happy-path smoke on a tiny fixture repo verifies one pytest target through the worker function ✅ 2026-06-05
+
     - [/] Public deploy smoke is pending until a separate Railway sandbox-worker service is created and wired.
-  - [x] Deployment / docs:
-    - [x] Add `Dockerfile.sandbox` and Docker Compose `sandbox-worker` service with repo-cache-only volume sharing ✅ 2026-06-05
-    - [x] Update Railway docs with separate service variables, no shared secrets, and sandbox worker URL wiring ✅ 2026-06-05
-    - [x] Update README/DESIGN/progress/LEARNINGS to move test runner from policy-only to sandbox-backed execution ✅ 2026-06-05
-  - [x] Commit 20 Definition of Done:
-    - [x] `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` is no longer a placeholder/unavailable path when a healthy worker URL is configured ✅ 2026-06-05
-    - [x] Public repo executable claims can be verified through the worker without running untrusted code in `wayfinder-api` when the worker shares the repo cache ✅ 2026-06-05
-    - [x] Unsafe commands are denied with recorded evidence ✅ 2026-06-05
-    - [x] Full local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and Docker Compose config;Railway/public sandbox-worker smoke stays pending until deployed ✅ 2026-06-05
+  - [X]  Deployment / docs:
 
-- [x] **Commit 21 — Repo conversation threads + memory layer** ✅ pushed/deployed `532a87e` 2026-06-09
-  - [x] Design gate before code:
-    - [x] Write `docs/design_notes/017_repo_conversation_threads.md` with problem, target interaction, thread lifecycle, state/data model, memory policy, API contract, dashboard IA, failure modes, tests, and interview explanation ✅ 2026-06-09
-    - [x] Reframe the product gap explicitly:current Wayfinder is a one-shot grounded synthesis panel;Commit 21 makes it an interactive repo copilot where the user can continue asking questions after the first analysis ✅ 2026-06-09
-    - [x] Define the primary user story:paste a GitHub repo once, create/open a repo thread, ask an initial architecture/onboarding question, then ask follow-ups like "where should I change X?", "explain this file", "what tests cover this path?", or "summarize what we learned so far" ✅ 2026-06-09
-    - [x] Define non-goals:v1 is not an autonomous coding agent, not a full IDE, not arbitrary shell execution, and not ungrounded ChatGPT over a repo ✅ 2026-06-09
-  - [x] Backend data model:
-    - [x] Add a repo-scoped `ConversationThread` concept owned by a workspace user. Required fields:thread_id,user_id,repo_url,repo_name,title,status,created_at,updated_at,last_run_id,summary_memory ✅ 2026-06-09
-    - [x] Add `ThreadMessage` records. Required fields:message_id,thread_id,role(`user`/`assistant`/`system`),content,created_at,source_run_id,evidence_refs,verified/unverified/contradicted counts,trace_metadata ✅ 2026-06-09
-    - [x] Persist threads/messages in the existing run store layer;SQLite auth deployments must survive refresh/restart ✅ 2026-06-09
-    - [x] Keep run history and thread history related but separate:runs are execution traces;threads are the human conversation surface ✅ 2026-06-09
-  - [x] Agent / memory behavior:
-    - [x] Reuse the first repo analysis packet as the repo context seed for the thread:repo structure, key files, AST evidence, verified/unverified claims, limitations, and sandbox status ✅ 2026-06-09
-    - [x] Add a bounded memory layer:short rolling conversation summary + last N messages + selected evidence refs;never pass unbounded full history to OpenAI ✅ 2026-06-09
-    - [x] Follow-up answers call the same grounded graph/evidence path when the question needs new code facts;memory is continuity context only and cannot create verified code claims ✅ 2026-06-09
-    - [x] Add response policy for uncertainty:follow-up output includes a thread-memory note and keeps new code facts tied to repo/AST/test evidence labels ✅ 2026-06-09
-  - [x] API contract:
-    - [x] `POST /threads` creates a repo thread from `repo_url` and optional first question;it may immediately start the first Wayfinder run ✅ 2026-06-09
-    - [x] `GET /threads` lists the user's repo threads with messages, repo, status, and updated timestamp ✅ 2026-06-09
-    - [x] `GET /threads/{thread_id}` returns thread metadata, messages, and linked runs ✅ 2026-06-09
-    - [x] `POST /threads/{thread_id}/messages` appends a user follow-up and runs grounded synthesis with thread memory ✅ 2026-06-09
-    - [x] Existing `/explain` remains for backward compatibility, while dashboard primary flow moves to threads ✅ 2026-06-09
-  - [x] Dashboard interaction:
-    - [x] Replace the one-shot Run-first default with a Threads workspace:thread sidebar, repo header, message timeline, evidence chips, and bottom composer ✅ 2026-06-09
-    - [x] Opening a repo lands in that repo's thread, not a prefilled run form ✅ 2026-06-09
-    - [x] Each assistant answer card shows answer text plus compact grounding chips:verified/unverified/contradicted, linked run, and evidence refs ✅ 2026-06-09
-    - [x] Keep Metrics and Settings as workspace tabs, with repo conversation as the main daily-use surface ✅ 2026-06-09
-  - [x] Tests and verification:
-    - [x] API tests cover auth isolation for threads/messages, thread creation, two follow-up messages, persistence, and missing-thread access control ✅ 2026-06-09
-    - [x] Graph/runtime tests cover memory packet construction, bounded context, and grounded follow-up behavior ✅ 2026-06-09
-    - [x] Frontend type/lint/build gates pass;browser smoke covers create thread, ask follow-up, URL returns to the thread, and message history remains visible ✅ 2026-06-09
-    - [x] Public Railway smoke covers deployed API/dashboard thread routes and one `pallets/click` repo thread with two follow-up messages through the dashboard proxy ✅ 2026-06-09
-  - [x] Commit 21 Definition of Done:
-    - [x] A logged-in user can create one repo thread, ask an initial question, then ask at least two follow-up questions without re-pasting the repo URL ✅ 2026-06-09
-    - [x] Refreshing the dashboard returns to the same thread with prior messages via `?tab=threads&thread=<id>` ✅ 2026-06-09
-    - [x] Follow-up answers clearly separate memory-derived context from newly verified repo evidence ✅ 2026-06-09
-    - [x] Thread history is user-scoped and persisted in SQLite ✅ 2026-06-09
-    - [x] README/DESIGN/progress explain Wayfinder as a grounded repo copilot with conversational threads, not a deterministic fact panel or one-shot report ✅ 2026-06-09
+    - [X]  Add `Dockerfile.sandbox` and Docker Compose `sandbox-worker` service with repo-cache-only volume sharing ✅ 2026-06-05
+    - [X]  Update Railway docs with separate service variables, no shared secrets, and sandbox worker URL wiring ✅ 2026-06-05
+    - [X]  Update README/DESIGN/progress/LEARNINGS to move test runner from policy-only to sandbox-backed execution ✅ 2026-06-05
+  - [X]  Commit 20 Definition of Done:
+
+    - [X]  `WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp` is no longer a placeholder/unavailable path when a healthy worker URL is configured ✅ 2026-06-05
+    - [X]  Public repo executable claims can be verified through the worker without running untrusted code in `wayfinder-api` when the worker shares the repo cache ✅ 2026-06-05
+    - [X]  Unsafe commands are denied with recorded evidence ✅ 2026-06-05
+    - [X]  Full local gates pass:backend tests, ruff, mypy, frontend lint/typecheck/build, and Docker Compose config;Railway/public sandbox-worker smoke stays pending until deployed ✅ 2026-06-05
+- [X]  **Commit 21 — Repo conversation threads + memory layer** ✅ pushed/deployed `532a87e` 2026-06-09
+
+  - [X]  Design gate before code:
+    - [X]  Write `docs/design_notes/017_repo_conversation_threads.md` with problem, target interaction, thread lifecycle, state/data model, memory policy, API contract, dashboard IA, failure modes, tests, and interview explanation ✅ 2026-06-09
+    - [X]  Reframe the product gap explicitly:current Wayfinder is a one-shot grounded synthesis panel;Commit 21 makes it an interactive repo copilot where the user can continue asking questions after the first analysis ✅ 2026-06-09
+    - [X]  Define the primary user story:paste a GitHub repo once, create/open a repo thread, ask an initial architecture/onboarding question, then ask follow-ups like "where should I change X?", "explain this file", "what tests cover this path?", or "summarize what we learned so far" ✅ 2026-06-09
+    - [X]  Define non-goals:v1 is not an autonomous coding agent, not a full IDE, not arbitrary shell execution, and not ungrounded ChatGPT over a repo ✅ 2026-06-09
+  - [X]  Backend data model:
+    - [X]  Add a repo-scoped `ConversationThread` concept owned by a workspace user. Required fields:thread_id,user_id,repo_url,repo_name,title,status,created_at,updated_at,last_run_id,summary_memory ✅ 2026-06-09
+    - [X]  Add `ThreadMessage` records. Required fields:message_id,thread_id,role(`user`/`assistant`/`system`),content,created_at,source_run_id,evidence_refs,verified/unverified/contradicted counts,trace_metadata ✅ 2026-06-09
+    - [X]  Persist threads/messages in the existing run store layer;SQLite auth deployments must survive refresh/restart ✅ 2026-06-09
+    - [X]  Keep run history and thread history related but separate:runs are execution traces;threads are the human conversation surface ✅ 2026-06-09
+  - [X]  Agent / memory behavior:
+    - [X]  Reuse the first repo analysis packet as the repo context seed for the thread:repo structure, key files, AST evidence, verified/unverified claims, limitations, and sandbox status ✅ 2026-06-09
+    - [X]  Add a bounded memory layer:short rolling conversation summary + last N messages + selected evidence refs;never pass unbounded full history to OpenAI ✅ 2026-06-09
+    - [X]  Follow-up answers call the same grounded graph/evidence path when the question needs new code facts;memory is continuity context only and cannot create verified code claims ✅ 2026-06-09
+    - [X]  Add response policy for uncertainty:follow-up output includes a thread-memory note and keeps new code facts tied to repo/AST/test evidence labels ✅ 2026-06-09
+  - [X]  API contract:
+    - [X]  `POST /threads` creates a repo thread from `repo_url` and optional first question;it may immediately start the first Wayfinder run ✅ 2026-06-09
+    - [X]  `GET /threads` lists the user's repo threads with messages, repo, status, and updated timestamp ✅ 2026-06-09
+    - [X]  `GET /threads/{thread_id}` returns thread metadata, messages, and linked runs ✅ 2026-06-09
+    - [X]  `POST /threads/{thread_id}/messages` appends a user follow-up and runs grounded synthesis with thread memory ✅ 2026-06-09
+    - [X]  Existing `/explain` remains for backward compatibility, while dashboard primary flow moves to threads ✅ 2026-06-09
+  - [X]  Dashboard interaction:
+    - [X]  Replace the one-shot Run-first default with a Threads workspace:thread sidebar, repo header, message timeline, evidence chips, and bottom composer ✅ 2026-06-09
+    - [X]  Opening a repo lands in that repo's thread, not a prefilled run form ✅ 2026-06-09
+    - [X]  Each assistant answer card shows answer text plus compact grounding chips:verified/unverified/contradicted, linked run, and evidence refs ✅ 2026-06-09
+    - [X]  Keep Metrics and Settings as workspace tabs, with repo conversation as the main daily-use surface ✅ 2026-06-09
+  - [X]  Tests and verification:
+    - [X]  API tests cover auth isolation for threads/messages, thread creation, two follow-up messages, persistence, and missing-thread access control ✅ 2026-06-09
+    - [X]  Graph/runtime tests cover memory packet construction, bounded context, and grounded follow-up behavior ✅ 2026-06-09
+    - [X]  Frontend type/lint/build gates pass;browser smoke covers create thread, ask follow-up, URL returns to the thread, and message history remains visible ✅ 2026-06-09
+    - [X]  Public Railway smoke covers deployed API/dashboard thread routes and one `pallets/click` repo thread with two follow-up messages through the dashboard proxy ✅ 2026-06-09
+  - [X]  Commit 21 Definition of Done:
+    - [X]  A logged-in user can create one repo thread, ask an initial question, then ask at least two follow-up questions without re-pasting the repo URL ✅ 2026-06-09
+    - [X]  Refreshing the dashboard returns to the same thread with prior messages via `?tab=threads&thread=<id>` ✅ 2026-06-09
+    - [X]  Follow-up answers clearly separate memory-derived context from newly verified repo evidence ✅ 2026-06-09
+    - [X]  Thread history is user-scoped and persisted in SQLite ✅ 2026-06-09
+    - [X]  README/DESIGN/progress explain Wayfinder as a grounded repo copilot with conversational threads, not a deterministic fact panel or one-shot report ✅ 2026-06-09
 
 - [/] **Commit 22 — Ambient repo chat workspace + Codex-like shell redesign**
-  - [x] Design gate before code:
-    - [x] Write `docs/design_notes/018_ambient_repo_chat_workspace.md` with problem statement, target interaction, repo-context ownership, chat routing, UI information architecture, state/API changes, failure modes, tests, and interview explanation ✅ 2026-06-09
-    - [x] Reframe the product gap explicitly:Commit 21 still requires the user to create a repo thread from a `repo_url` + first question;Commit 22 makes the active repo/workspace context implicit in the chat, like Codex operating inside a current worktree ✅ 2026-06-09
-    - [x] Define the target mental model:Wayfinder is no longer "submit repo + prompt";it is "open a workspace, attach/select a repo once, then talk to the agent naturally while it carries repo memory forward" ✅ 2026-06-09
-    - [x] Define non-goals:v1 is not a full IDE clone, not autonomous code editing, not private-repo GitHub OAuth, and not ungrounded chat over code facts ✅ 2026-06-09
-    - [x] Correct the portfolio framing:P5 MCP servers are deterministic tool/fact sources, not agents;P6 should be described as a grounded repo-aware copilot with multi-agent orchestration over deterministic MCP tools ✅ 2026-06-09
-    - [x] Detail the true P6 multi-agent shape:Conversation/Memory Agent, Supervisor Agent, Repo Cartographer Agent, Symbol Investigator Agent, Verification Agent, Final Synthesizer Agent, optional External Context Scout, shared output contracts, and UI-visible agent trace ✅ 2026-06-09
-    - [x] Draft the minimal skeleton boundary:backend schemas, store helpers, deterministic chat router, `/chat` facade, dashboard shell, first tests, and Commit 23 exclusions ✅ 2026-06-09
-  - [x] Product interaction redesign:
-    - [x] Replace the manual repo-link/question entry as the primary daily path with one persistent chat composer that always uses the active repo context ✅ 2026-06-09
-    - [x] Add an active repo/workspace context layer:current repo, branch/ref when available, last repo packet, thread memory, selected files/symbols, and known limitations ✅ 2026-06-09
-    - [x] Support natural ChatGPT-like conversation for planning, clarification, and follow-up, while preserving the current structured Wayfinder answer as an optional "grounded report" view ✅ 2026-06-09
-    - [x] Add an explicit answer-mode contract:conversational answer, structured report, evidence-first deep dive, or clarification question. The user should not need to choose a form every turn ✅ 2026-06-09
-    - [x] Keep repo facts grounded:memory can explain prior context, but new claims about files/functions/tests still need repo/AST/test evidence labels ✅ 2026-06-09
-    - [x] Make multi-agent behavior visible in the product:each substantial answer should show route metadata, contributing agents, linked tools/evidence, verifier status, and limitations ✅ 2026-06-09
-  - [x] Codex-like dashboard shell:
-    - [x] Redesign the first viewport around a Codex-style workspace:repo/sidebar on the left, central chat transcript/composer, and collapsible right rail for evidence, run timeline, selected files, and settings ✅ 2026-06-09
-    - [x] Move Metrics and old Run form out of the primary path;they become diagnostics/history surfaces, not the core user journey ✅ 2026-06-09
-    - [x] Fold old Run and Answer tabs into Threads:run progress becomes message/right-rail detail;structured answers become assistant messages with expandable grounded-report attachments ✅ 2026-06-09
-    - [x] Redesign History from a single-run table into a repo/thread activity timeline:repo attach/switch events, user messages, assistant messages, linked grounded runs, evidence views, inherited focus, clarification states, failures, and attention items ✅ 2026-06-09
-    - [x] Replace the four old metric cards (`Success`, `Runs`, `Latency`, `Cost`) with thread-native metrics:`Threads`, `Grounding`, `Context`, and `Attention`;move old latency/cost into run diagnostics ✅ 2026-06-09
-    - [x] Add a stable chat viewport:bounded transcript scroll, persistent bottom composer, no long-answer layout pushdown, and visible send-disabled reasons such as run in progress or missing repo context ✅ 2026-06-09
-    - [x] Add repo switcher / context indicator so the user always knows what codebase the agent is talking about without re-pasting the URL ✅ 2026-06-09
-    - [x] Keep current evidence chips and linked runs, but render them as assistant-message attachments or side-panel details instead of forcing a separate answer page ✅ 2026-06-09
-  - [x] Backend/API/state shape:
-    - [x] Implement a minimal `WorkspaceContext` / active repo context boundary separate from `ConversationThread` so every message can inherit repo context ✅ 2026-06-09
-    - [x] Add chat-message routing semantics:general chat, repo question, structured report request, context switch, clarification, and unsupported action ✅ 2026-06-09
-    - [x] Decide whether Commit 22 reuses `/threads/{id}/messages` with richer context or adds a higher-level `/chat` endpoint that resolves active repo/thread automatically;design note chooses a product-level `/chat` facade over existing thread/run APIs ✅ 2026-06-09
-    - [x] Add an agent-trace response shape for `/chat`:route decision, agent plan, worker contributions, tool/evidence refs, verifier labels, and final synthesizer handoff ✅ 2026-06-09
-    - [x] Keep P5 MCPs as deterministic tools in the schema;do not model them as agents or LLM callers ✅ 2026-06-09
-    - [x] Preserve backward compatibility for existing `/threads` and `/explain` routes during the transition ✅ 2026-06-09
-  - [x] Tests and verification:
-    - [x] API tests cover sending a message without repeating `repo_url` after active repo context is set ✅ 2026-06-09
-    - [x] API tests cover context switch safety:asking about repo B must not leak repo A memory or evidence ✅ 2026-06-09
-    - [x] Router tests cover conversational-only questions, repo-grounded questions, structured report requests, and ambiguous/no-active-repo clarification ✅ 2026-06-09
-    - [x] API/UI tests cover visible agent trace for a repo-grounded answer:Supervisor route, worker agent contribution, tool evidence, verifier label, and final answer attachment ✅ 2026-06-09
-    - [x] Frontend syntax smoke covers default chat-first workspace, repo context indicator, message history, evidence side rail, old Run/Answer content inside thread/message details, redesigned history timeline, new `Threads`/`Grounding`/`Context`/`Attention` metrics, stable composer layout, explicit send-disabled reasons, and agent contribution trace ✅ TS transpile smoke 2026-06-09;full Next/ESLint/tsc CLI hung locally without diagnostics.
-  - [x] Commit 22 Definition of Done:
-    - [x] A logged-in user can open Wayfinder, select/attach a repo once, and then ask multiple natural-language questions without re-entering repo URL or separate prompt fields ✅ 2026-06-09
-    - [x] The same assistant can answer in a natural ChatGPT-like style or expand into the current structured grounded output when the question needs evidence ✅ 2026-06-09
-    - [x] The UI reads like a Codex-style agent workspace, not a dashboard with a chat widget bolted on ✅ 2026-06-09
-    - [x] The user can see that a grounded answer came from multiple Project 6 agents, not from the three Project 5 MCP servers being mislabeled as agents ✅ 2026-06-09
-    - [x] Active repo context, message history, and evidence links survive refresh and are visibly scoped to the current workspace/user ✅ 2026-06-09
-    - [x] README/DESIGN/progress explain the new product as a multi-agent repo onboarding copilot with MCP-grounded verification while preserving the grounded verification differentiator ✅ 2026-06-09
+  - [X]  Design gate before code:
+    - [X]  Write `docs/design_notes/018_ambient_repo_chat_workspace.md` with problem statement, target interaction, repo-context ownership, chat routing, UI information architecture, state/API changes, failure modes, tests, and interview explanation ✅ 2026-06-09
+    - [X]  Reframe the product gap explicitly:Commit 21 still requires the user to create a repo thread from a `repo_url` + first question;Commit 22 makes the active repo/workspace context implicit in the chat, like Codex operating inside a current worktree ✅ 2026-06-09
+    - [X]  Define the target mental model:Wayfinder is no longer "submit repo + prompt";it is "open a workspace, attach/select a repo once, then talk to the agent naturally while it carries repo memory forward" ✅ 2026-06-09
+    - [X]  Define non-goals:v1 is not a full IDE clone, not autonomous code editing, not private-repo GitHub OAuth, and not ungrounded chat over code facts ✅ 2026-06-09
+    - [X]  Correct the portfolio framing:P5 MCP servers are deterministic tool/fact sources, not agents;P6 should be described as a grounded repo-aware copilot with multi-agent orchestration over deterministic MCP tools ✅ 2026-06-09
+    - [X]  Detail the true P6 multi-agent shape:Conversation/Memory Agent, Supervisor Agent, Repo Cartographer Agent, Symbol Investigator Agent, Verification Agent, Final Synthesizer Agent, optional External Context Scout, shared output contracts, and UI-visible agent trace ✅ 2026-06-09
+    - [X]  Draft the minimal skeleton boundary:backend schemas, store helpers, deterministic chat router, `/chat` facade, dashboard shell, first tests, and Commit 23 exclusions ✅ 2026-06-09
+  - [X]  Product interaction redesign:
+    - [X]  Replace the manual repo-link/question entry as the primary daily path with one persistent chat composer that always uses the active repo context ✅ 2026-06-09
+    - [X]  Add an active repo/workspace context layer:current repo, branch/ref when available, last repo packet, thread memory, selected files/symbols, and known limitations ✅ 2026-06-09
+    - [X]  Support natural ChatGPT-like conversation for planning, clarification, and follow-up, while preserving the current structured Wayfinder answer as an optional "grounded report" view ✅ 2026-06-09
+    - [X]  Add an explicit answer-mode contract:conversational answer, structured report, evidence-first deep dive, or clarification question. The user should not need to choose a form every turn ✅ 2026-06-09
+    - [X]  Keep repo facts grounded:memory can explain prior context, but new claims about files/functions/tests still need repo/AST/test evidence labels ✅ 2026-06-09
+    - [X]  Make multi-agent behavior visible in the product:each substantial answer should show route metadata, contributing agents, linked tools/evidence, verifier status, and limitations ✅ 2026-06-09
+  - [X]  Codex-like dashboard shell:
+    - [X]  Redesign the first viewport around a Codex-style workspace:repo/sidebar on the left, central chat transcript/composer, and collapsible right rail for evidence, run timeline, selected files, and settings ✅ 2026-06-09
+    - [X]  Move Metrics and old Run form out of the primary path;they become diagnostics/history surfaces, not the core user journey ✅ 2026-06-09
+    - [X]  Fold old Run and Answer tabs into Threads:run progress becomes message/right-rail detail;structured answers become assistant messages with expandable grounded-report attachments ✅ 2026-06-09
+    - [X]  Redesign History from a single-run table into a repo/thread activity timeline:repo attach/switch events, user messages, assistant messages, linked grounded runs, evidence views, inherited focus, clarification states, failures, and attention items ✅ 2026-06-09
+    - [X]  Replace the four old metric cards (`Success`, `Runs`, `Latency`, `Cost`) with thread-native metrics:`Threads`, `Grounding`, `Context`, and `Attention`;move old latency/cost into run diagnostics ✅ 2026-06-09
+    - [X]  Add a stable chat viewport:bounded transcript scroll, persistent bottom composer, no long-answer layout pushdown, and visible send-disabled reasons such as run in progress or missing repo context ✅ 2026-06-09
+    - [X]  Add repo switcher / context indicator so the user always knows what codebase the agent is talking about without re-pasting the URL ✅ 2026-06-09
+    - [X]  Keep current evidence chips and linked runs, but render them as assistant-message attachments or side-panel details instead of forcing a separate answer page ✅ 2026-06-09
+  - [X]  Backend/API/state shape:
+    - [X]  Implement a minimal `WorkspaceContext` / active repo context boundary separate from `ConversationThread` so every message can inherit repo context ✅ 2026-06-09
+    - [X]  Add chat-message routing semantics:general chat, repo question, structured report request, context switch, clarification, and unsupported action ✅ 2026-06-09
+    - [X]  Decide whether Commit 22 reuses `/threads/{id}/messages` with richer context or adds a higher-level `/chat` endpoint that resolves active repo/thread automatically;design note chooses a product-level `/chat` facade over existing thread/run APIs ✅ 2026-06-09
+    - [X]  Add an agent-trace response shape for `/chat`:route decision, agent plan, worker contributions, tool/evidence refs, verifier labels, and final synthesizer handoff ✅ 2026-06-09
+    - [X]  Keep P5 MCPs as deterministic tools in the schema;do not model them as agents or LLM callers ✅ 2026-06-09
+    - [X]  Preserve backward compatibility for existing `/threads` and `/explain` routes during the transition ✅ 2026-06-09
+  - [X]  Tests and verification:
+    - [X]  API tests cover sending a message without repeating `repo_url` after active repo context is set ✅ 2026-06-09
+    - [X]  API tests cover context switch safety:asking about repo B must not leak repo A memory or evidence ✅ 2026-06-09
+    - [X]  Router tests cover conversational-only questions, repo-grounded questions, structured report requests, and ambiguous/no-active-repo clarification ✅ 2026-06-09
+    - [X]  API/UI tests cover visible agent trace for a repo-grounded answer:Supervisor route, worker agent contribution, tool evidence, verifier label, and final answer attachment ✅ 2026-06-09
+    - [X]  Frontend syntax smoke covers default chat-first workspace, repo context indicator, message history, evidence side rail, old Run/Answer content inside thread/message details, redesigned history timeline, new `Threads`/`Grounding`/`Context`/`Attention` metrics, stable composer layout, explicit send-disabled reasons, and agent contribution trace ✅ TS transpile smoke 2026-06-09;full Next/ESLint/tsc CLI hung locally without diagnostics.
+  - [X]  Commit 22 Definition of Done:
+    - [X]  A logged-in user can open Wayfinder, select/attach a repo once, and then ask multiple natural-language questions without re-entering repo URL or separate prompt fields ✅ 2026-06-09
+    - [X]  The same assistant can answer in a natural ChatGPT-like style or expand into the current structured grounded output when the question needs evidence ✅ 2026-06-09
+    - [X]  The UI reads like a Codex-style agent workspace, not a dashboard with a chat widget bolted on ✅ 2026-06-09
+    - [X]  The user can see that a grounded answer came from multiple Project 6 agents, not from the three Project 5 MCP servers being mislabeled as agents ✅ 2026-06-09
+    - [X]  Active repo context, message history, and evidence links survive refresh and are visibly scoped to the current workspace/user ✅ 2026-06-09
+    - [X]  README/DESIGN/progress explain the new product as a multi-agent repo onboarding copilot with MCP-grounded verification while preserving the grounded verification differentiator ✅ 2026-06-09
 
-- [x] **Commit 22.5 — Chat send feedback hotfix** ✅ 2026-06-09
-  - [x] Fix empty-workspace send UX so clicking `Send` immediately shows a pending user message instead of appearing inert ✅ 2026-06-09
-  - [x] Add visible status text for in-flight and accepted chat sends, plus inline error text for failed `/chat` requests ✅ 2026-06-09
-  - [x] Keep GitHub URL / `owner/repo` attach messages sendable even when the selected thread has an active run;the API can route them to a new repo context ✅ 2026-06-09
-  - [x] Add `Cmd/Ctrl+Enter` submit for the stable composer ✅ 2026-06-09
-  - [x] Verify with local browser smoke against the Railway API:temporary empty workspace sent `Open https://github.com/pallets/click...`, created a `pallets/click` thread, updated active context, and rendered agent trace ✅ 2026-06-09
-  - [x] Record remaining UX backlog from live testing:bounded scroll containers, smaller empty state, explicit new thread action, and delete/archive thread management ✅ 2026-06-09
+- [X]  **Commit 22.5 — Chat send feedback hotfix** ✅ 2026-06-09
 
-- [x] **Commit 22.6 — Workspace scroll + thread lifecycle polish** ✅ 2026-06-12
-  - [x] Bound the Threads workspace height so the main page no longer stretches indefinitely;the transcript, thread list, and right rail scroll internally ✅ 2026-06-12
-  - [x] Add a `New` action that clears active repo context through `DELETE /workspace/context` instead of only hiding UI state ✅ 2026-06-12
-  - [x] Add soft-archive thread lifecycle through `DELETE /threads/{thread_id}`;archived threads are hidden from normal lists but remain retrievable for audit/history ✅ 2026-06-12
-  - [x] Clear active context when archiving the currently selected thread, and reject follow-up/chat/context selection against archived threads ✅ 2026-06-12
-  - [x] Add dashboard thread-list archive controls and parent-state removal so archived threads disappear immediately from the sidebar ✅ 2026-06-12
-  - [x] Add tests/smoke coverage for context clearing, thread archive hiding, archived-thread rejection, and SQLite/InMemory archive/clear behavior ✅ 2026-06-12
+  - [X]  Fix empty-workspace send UX so clicking `Send` immediately shows a pending user message instead of appearing inert ✅ 2026-06-09
+  - [X]  Add visible status text for in-flight and accepted chat sends, plus inline error text for failed `/chat` requests ✅ 2026-06-09
+  - [X]  Keep GitHub URL / `owner/repo` attach messages sendable even when the selected thread has an active run;the API can route them to a new repo context ✅ 2026-06-09
+  - [X]  Add `Cmd/Ctrl+Enter` submit for the stable composer ✅ 2026-06-09
+  - [X]  Verify with local browser smoke against the Railway API:temporary empty workspace sent `Open https://github.com/pallets/click...`, created a `pallets/click` thread, updated active context, and rendered agent trace ✅ 2026-06-09
+  - [X]  Record remaining UX backlog from live testing:bounded scroll containers, smaller empty state, explicit new thread action, and delete/archive thread management ✅ 2026-06-09
+- [X]  **Commit 22.6 — Workspace scroll + thread lifecycle polish** ✅ 2026-06-12
+
+  - [X]  Bound the Threads workspace height so the main page no longer stretches indefinitely;the transcript, thread list, and right rail scroll internally ✅ 2026-06-12
+  - [X]  Add a `New` action that clears active repo context through `DELETE /workspace/context` instead of only hiding UI state ✅ 2026-06-12
+  - [X]  Add soft-archive thread lifecycle through `DELETE /threads/{thread_id}`;archived threads are hidden from normal lists but remain retrievable for audit/history ✅ 2026-06-12
+  - [X]  Clear active context when archiving the currently selected thread, and reject follow-up/chat/context selection against archived threads ✅ 2026-06-12
+  - [X]  Add dashboard thread-list archive controls and parent-state removal so archived threads disappear immediately from the sidebar ✅ 2026-06-12
+  - [X]  Add tests/smoke coverage for context clearing, thread archive hiding, archived-thread rejection, and SQLite/InMemory archive/clear behavior ✅ 2026-06-12
 
 - [/] **Commit 23 — True multi-agent implementation deepening**
 
   Slice 1 — contracts + pure logic (additive, graph-non-invasive) ✅ code 2026-06-13 (Cowork-drafted at Haichuan's explicit request; design note `019` + reverse-explanation pass owed by Haichuan per ownership rule 16):
-  - [x] Distinct role prompts/contracts for the 6 agents (`src/wayfinder/graph/agents.py`: `AgentRole` + `AGENT_ROLES` + `get_agent_role`) ✅ 2026-06-13
-  - [x] Worker outputs as claim/evidence/limitation packets + per-agent provenance (`src/wayfinder/graph/packets.py`: `ClaimPacket`, `ClaimEvidence`, `AgentContribution`, `build_agent_trace`) ✅ 2026-06-13
-  - [x] Verifier challenge loop that can uphold / downgrade / contradict a claim (`src/wayfinder/graph/challenge.py`: `challenge_claim`, `apply_challenges`) ✅ 2026-06-13
-  - [x] Tests for distinct prompts, packet assembly, provenance grouping, and challenge behavior (`tests/test_agent_roles.py`, `tests/test_claim_packets.py`, `tests/test_verifier_challenge.py`) — 24 logic tests green in a sandbox stub; full local gate (255+24 + ruff + mypy) to be rerun by Haichuan ✅ logic 2026-06-13
+
+  - [X]  Distinct role prompts/contracts for the 6 agents (`src/wayfinder/graph/agents.py`: `AgentRole` + `AGENT_ROLES` + `get_agent_role`) ✅ 2026-06-13
+  - [X]  Worker outputs as claim/evidence/limitation packets + per-agent provenance (`src/wayfinder/graph/packets.py`: `ClaimPacket`, `ClaimEvidence`, `AgentContribution`, `build_agent_trace`) ✅ 2026-06-13
+  - [X]  Verifier challenge loop that can uphold / downgrade / contradict a claim (`src/wayfinder/graph/challenge.py`: `challenge_claim`, `apply_challenges`) ✅ 2026-06-13
+  - [X]  Tests for distinct prompts, packet assembly, provenance grouping, and challenge behavior (`tests/test_agent_roles.py`, `tests/test_claim_packets.py`, `tests/test_verifier_challenge.py`) — 24 logic tests green in a sandbox stub; full local gate (255+24 + ruff + mypy) to be rerun by Haichuan ✅ logic 2026-06-13
+
   - `docs/design_notes/019_true_multi_agent_contracts.md` written ✅ 2026-06-13
 
   Slice 2 — graph wiring (in progress; touches `state.py`/`nodes.py`/`app.py`, must be done with gates running):
-  - [x] Pure multi-worker planning policy (`src/wayfinder/graph/planning.py`: `plan_workers_for_intent` — mixed fans out to both grounding workers — `is_multi_worker_plan`, `plan_as_graph_nodes`) + tests; additive, no graph change, 29 logic tests green in sandbox ✅ 2026-06-13
-  - [/] Wire the plan into the compiled graph (2026-06-13, awaiting Haichuan gate run): `state.py` adds `pending_workers` + a `merge_summaries` reducer on `partial_summaries`; supervisor emits `pending_workers` from the plan; `app.py` `architect_mapper` edge becomes conditional (`route_after_architect`) so mixed fans out architect→entry→verifier→final while single-intent paths are byte-identical. Updated `test_mixed_or_missing_query` + added `test_architectural_intent_runs_single_worker_only` / `test_mixed_intent_fans_out_to_architect_and_entry`. py_compile clean; full gate to be run by Haichuan.
-  - [x] Provenance trace threaded into the final synthesizer (`src/wayfinder/graph/provenance.py`: `agent_trace_from_state` / `agent_trace_from_claims`; `state.py` gains a serializable `agent_trace: list[dict]`; final_writer attaches it). Built from the live `Claim` flow (not dataclass packets) to stay checkpointer-serializable; does not touch `final_output`. 6 provenance unit tests green in sandbox ✅ 2026-06-13
-  - [x] Surface the provenance through the API `/status` response (2026-06-13, Haichuan chose the persist option). Renamed the state key `agent_trace`→`claim_provenance` (distinct from the Commit 22 chat `agent_trace`). Added `claim_provenance: list[dict]` to the `RunSummary` schema and mapped it in `RunStore.mark_completed`. **No SQLite migration needed** — the `runs` table stores the whole `RunSummary` as a `run_json` blob (`model_dump_json`/`model_validate_json`), so the new field persists automatically and old rows fall back to `[]` via `default_factory`. `get_status` returns it with no `main.py` change. Added a `test_api` assertion. py_compile clean + provenance logic green in sandbox; full gate to be run by Haichuan.
-  - [x] Dashboard renders `claim_provenance` (2026-06-13): `lib/types.ts` adds `ApiClaimProvenanceRow`/`ClaimProvenanceRow` + the field on `ApiRunSummary`/`DashboardRun`; `lib/metrics.ts` `toDashboardRun` maps it; all 10 `mock-data.ts` `DashboardRun` literals updated; `current-run-console.tsx` shows a "Claim provenance" block under the verified/unverified/contradicted pills. Frontend gate (`npm run lint`/`typecheck`/`build`) to be run by Haichuan (run `npm ci` first if `@next/env` is missing).
-  - [ ] (optional) Migrate the live claim flow to `ClaimPacket`/`challenge_claim` end-to-end (larger refactor; serialization + verifier reconciliation).
 
+  - [X]  Pure multi-worker planning policy (`src/wayfinder/graph/planning.py`: `plan_workers_for_intent` — mixed fans out to both grounding workers — `is_multi_worker_plan`, `plan_as_graph_nodes`) + tests; additive, no graph change, 29 logic tests green in sandbox ✅ 2026-06-13
+
+  - [/] Wire the plan into the compiled graph (2026-06-13, awaiting Haichuan gate run): `state.py` adds `pending_workers` + a `merge_summaries` reducer on `partial_summaries`; supervisor emits `pending_workers` from the plan; `app.py` `architect_mapper` edge becomes conditional (`route_after_architect`) so mixed fans out architect→entry→verifier→final while single-intent paths are byte-identical. Updated `test_mixed_or_missing_query` + added `test_architectural_intent_runs_single_worker_only` / `test_mixed_intent_fans_out_to_architect_and_entry`. py_compile clean; full gate to be run by Haichuan.
+
+  - [X]  Provenance trace threaded into the final synthesizer (`src/wayfinder/graph/provenance.py`: `agent_trace_from_state` / `agent_trace_from_claims`; `state.py` gains a serializable `agent_trace: list[dict]`; final_writer attaches it). Built from the live `Claim` flow (not dataclass packets) to stay checkpointer-serializable; does not touch `final_output`. 6 provenance unit tests green in sandbox ✅ 2026-06-13
+  - [X]  Surface the provenance through the API `/status` response (2026-06-13, Haichuan chose the persist option). Renamed the state key `agent_trace`→`claim_provenance` (distinct from the Commit 22 chat `agent_trace`). Added `claim_provenance: list[dict]` to the `RunSummary` schema and mapped it in `RunStore.mark_completed`. **No SQLite migration needed** — the `runs` table stores the whole `RunSummary` as a `run_json` blob (`model_dump_json`/`model_validate_json`), so the new field persists automatically and old rows fall back to `[]` via `default_factory`. `get_status` returns it with no `main.py` change. Added a `test_api` assertion. py_compile clean + provenance logic green in sandbox; full gate to be run by Haichuan.
+  - [X]  Dashboard renders `claim_provenance` (2026-06-13): `lib/types.ts` adds `ApiClaimProvenanceRow`/`ClaimProvenanceRow` + the field on `ApiRunSummary`/`DashboardRun`; `lib/metrics.ts` `toDashboardRun` maps it; all 10 `mock-data.ts` `DashboardRun` literals updated; `current-run-console.tsx` shows a "Claim provenance" block under the verified/unverified/contradicted pills. Frontend gate (`npm run lint`/`typecheck`/`build`) to be run by Haichuan (run `npm ci` first if `@next/env` is missing).
+  - [ ]  (optional) Migrate the live claim flow to `ClaimPacket`/`challenge_claim` end-to-end (larger refactor; serialization + verifier reconciliation).
 - [/] **Commit 24 — Entry-point consolidation (Threads as the single surface)**
-  - [x] Retire the **Run** tab: removed from `WorkspaceTab` union + `WorkspaceTabs` list (6→5 tabs, dropped `Play` icon); deleted the `activeTab === "run"` block and `RunLauncher`/`RunBriefingPanel` imports in `agent-workbench.tsx`; cleaned the `?tab=run` URL-sync branch and `workspaceTabFromParam`. Threads now owns all input (attach repo + ask + report/evidence-mode grounded runs). ✅ 2026-06-13
-  - [x] Testing-time UI fixes folded in: contradiction-card "error" mislabel; no-active-repo send blocked with "open a repo first" (was silently wiping input); ChatGPT-style viewport-locked workspace (pinned composer, internal scroll, page no longer grows) across `page.tsx` + `agent-workbench.tsx` + `repo-conversation-workspace.tsx`. ✅ 2026-06-13
-  - [ ] Frontend gate (`npm run lint`/`typecheck`/`build`) + commit/push + redeploy + confirm Run tab gone and other tabs work — owed by Haichuan.
+
+  - [X]  Retire the **Run** tab: removed from `WorkspaceTab` union + `WorkspaceTabs` list (6→5 tabs, dropped `Play` icon); deleted the `activeTab === "run"` block and `RunLauncher`/`RunBriefingPanel` imports in `agent-workbench.tsx`; cleaned the `?tab=run` URL-sync branch and `workspaceTabFromParam`. Threads now owns all input (attach repo + ask + report/evidence-mode grounded runs). ✅ 2026-06-13
+  - [X]  Testing-time UI fixes folded in: contradiction-card "error" mislabel; no-active-repo send blocked with "open a repo first" (was silently wiping input); ChatGPT-style viewport-locked workspace (pinned composer, internal scroll, page no longer grows) across `page.tsx` + `agent-workbench.tsx` + `repo-conversation-workspace.tsx`. ✅ 2026-06-13
+  - [ ]  Frontend gate (`npm run lint`/`typecheck`/`build`) + commit/push + redeploy + confirm Run tab gone and other tabs work — owed by Haichuan.
+
   - [/] Follow-up: fold Answer into Threads (design note `020`). Step 1 done 2026-06-13 — added an `embedded` mode to `CurrentRunConsole` (drops fixed height + internal scroll, `publicApiBaseUrl` optional, API-docs button guarded) and rendered it reused inside the Threads transcript as a collapsible "Grounded report" for `activeRun` (full pills + evidence cards + provenance, zero duplicated logic). Answer tab intentionally KEPT until Haichuan visually confirms the in-thread report. Step 2 (remove Answer tab + redirect default-tab/`selectRun` to `threads`) pending that confirmation. Frontend gate + visual check owed.
-  - [ ] Optional cleanup: `git rm` orphaned `dashboard/components/run-launcher.tsx` + `run-briefing-panel.tsx`.
+
+  - [ ]  Optional cleanup: `git rm` orphaned `dashboard/components/run-launcher.tsx` + `run-briefing-panel.tsx`.
 
 ### Ship
 
-- [ ] 全部 acceptance criteria `[x]`
-- [ ] README terminal pass:tagline + demo GIF + architecture + tech stack + quickstart + API spec + 3 curl examples + eval evidence + failure modes + lessons learned
-- [ ] `DESIGN.md` v1.0:3-agent architecture, state schema, routing, verifier strategy, 8 failure modes
-- [x] Live deploy URL 写进 README ✅ 2026-06-04
-- [ ] 3-min recursive demo video 完成并链接
-- [ ] Bilingual blog post 发布
-- [ ] `final_checklist.md` Project 6 section 全部同步
-- [ ] `TASKS.md` Project 6 ship line `[x]`
+- [ ] [ ]  全部 acceptance criteria `[x]`
+- [ ] [ ]  README terminal pass:tagline + demo GIF + architecture + tech stack + quickstart + API spec + 3 curl examples + eval evidence + failure modes + lessons learned
+- [ ] [ ]  `DESIGN.md` v1.0:3-agent architecture, state schema, routing, verifier strategy, 8 failure modes
+- [ ] [X]  Live deploy URL 写进 README ✅ 2026-06-04
+- [ ] [ ]  3-min recursive demo video 完成并链接
+- [ ] [ ]  Bilingual blog post 发布
+- [ ] [ ]  `final_checklist.md` Project 6 section 全部同步
+- [ ] [ ]  `TASKS.md` Project 6 ship line `[x]`
 
 ---
 
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
+
+### 2026-06-14 — 🚀 SHIP — `Project 6 wayfinder shipped (with 2 owed follow-ups)`
+
+- **决定**:Haichuan 决定 ship wayfinder,如实记录 2 个未完成项而非假装完成。核心成功判定全部达成。
+- **Ship 依据(Stage 5 核对)**:multi-agent supervisor + 3 sub-agents + Claim/verifier 高风险触发 + reflection loop + 8 failure modes + tenacity retry + SQLite checkpointer + fault injection + FastAPI + Next.js dashboard(全部面板)+ Docker Compose + CI(4 repos)+ Railway live + README + DESIGN.md v1.2 + bilingual blog,全部 done;Mac gate 296/8;today's empty-evidence 3-layer defect 已修复 + live 验证(merge_summaries verified 3)。
+- **如实记录的 2 个 owed follow-up(非 ship blocker,但 ship 后必补)**:① 3-min recursive demo video(脚本就绪,Haichuan 录制 pending);② 反向讲解 ownership(rule 16,notes 019/021/022/023 + Commit 23 模块 Cowork-written,Haichuan 反向解释后才 interview-owned)。
+- **非阻塞**:arxiv-mcp(可选第 5 MCP,3 自研主力已全集成)· 显式 intent-interrupt UI 卡(`/refine` 已功能等价)· enterprise workflow case study(明确 post-ship 扩展,MVP 本地已完成)。
+- **下一步**:补 2 个 owed;然后 Project 7 `agent-eval-harness` 用 wayfinder 产出 eval 数字。
+- **谁写的(诚实记录)**:Commit 23 + 22.5/22.6 + 今天的 empty-evidence 三层修复均 Cowork-implemented;ship 不改变 rule 16 的 ownership 欠账。
+
+### 2026-06-14 — Defect fix (live-found) — `Empty-evidence on own repo: 3-layer routing/extraction/AST fix`
+
+- **背景**:Live-tested the deployed dashboard pointing wayfinder at its OWN repo (`LovRanRan/wayfinder`). Symbol/behaviour questions ("what does merge_summaries do?", "how does the supervisor route?") returned an **empty evidence packet** → honest refusal, verified 0. Diagnosed by reading the authenticated run records (`fetch('/api/wayfinder/threads/{id}')` from the dashboard console; the public `/status/{id}` returns "login required"). Clone + `architect_mapper` were healthy all along (74 Python files, full module graph) — the failure was upstream of the LLM, in three stacked layers.
+- **做了什么(三层修复,各带 design note)**:
+  - **Gap 1 routing** (note `021`, `routing.py` + `planning.py`): non-architectural intents (`runtime/behavioral/debug`) now route `architect_mapper → entry_explainer` (reusing the `mixed` path) instead of `entry_explainer` alone, so the symbol path always has architect_mapper's entry points as a fallback candidate. `choose_next_agent` now enters via the cartographer for all grounding intents (closed the long-standing routing TODO); `plan_workers_for_intent` fans them out to both workers. 6 routing test assertions updated.
+  - **Gap 2 symbol extraction** (note `022`, `entry.py`): `_symbol_candidate_from_query` rewritten into two tiers — Tier 1 backticked/dotted symbols (filenames excluded via new `_looks_like_filename`), Tier 2 standalone snake_case/CamelCase identifiers when no explicit symbol. A filename like `state.py` is no longer picked over the real symbol `merge_summaries`; `_src_layout_symbol_fallback` guarded against filenames. 4 extraction tests added.
+  - **Gap 3 AST resolution** (note `023`, cross-repo into `mcp-ast-explorer` Project 5): `find_definition_in_index` matched only exact `qualified_name == symbol`; on a src-layout repo `merge_summaries`'s qualified_name is `src.wayfinder.graph.state.merge_summaries`, so a bare name never matched. Now: exact match first, then unambiguous dotted-suffix / leaf-name fallback (ambiguous → None). Version `0.1.0 → 0.1.1`; 4 indexer tests added. Deployed via `Dockerfile.api` git-install (`mcp-ast-explorer @ git+...@main`) rather than a PyPI release.
+- **验证方式**:wayfinder Mac gate `uv run pytest -q` → **296 passed/8 skipped**; mcp-ast-explorer indexer tests 18 passed + ruff clean. After deploy, **live re-test**: `merge_summaries` → **verified 3** (Definition state.py:18, signature `merge_summaries(left, right)`, references state.py:101) — previously empty. `build_graph` bare → honest "not found" because it's defined twice in the repo (graph/app.py:66 + api/main.py:82) → ambiguity → None **by design**; `graph.app.build_graph` (partial-qualified) resolves uniquely → verified 3. So bare-unique resolves / bare-ambiguous refuses / partial-qualified disambiguates, exactly as designed.
+- **谁写的(诚实记录)**:Cowork diagnosed + implemented at Haichuan's explicit request ("一个一个开始改" → "直接全部完成"), using guided-design (Haichuan chose the routing fan-out policy + the git-install deploy path). Per rule 16, Haichuan still owes the reverse-explanation pass over notes `021`/`022`/`023` (12 Step-4 prompts) before this is interview-owned.
+- **下一步**:Haichuan's reverse-explanation pass (notes 021/022/023). Optional: publish mcp-ast-explorer 0.1.1 to PyPI + re-pin `Dockerfile.api` to drop the `git+@main` Docker-cache caveat. Resume the still-owed Commit 23 reverse-explanation pass.
 
 ### 2026-06-13 — Repo relocated off iCloud + Commit 24 follow-up step 2 — `Retire Answer tab`
 
@@ -1942,17 +2004,14 @@ Guided design mode:
 - **验证方式**:`uv sync --extra dev`;`uv run python -c "import fastapi, wayfinder; print(fastapi.__version__); print(wayfinder.__version__)"` returned `0.136.3` and `0.1.0`;reran backend and frontend gates green.
 - **决策**:Do not trust pytest import success alone for src-layout scaffolds;package import must be part of Commit 0 verification.
 - **明天计划**:Close Commit 0 after LEARNINGS update, then start Commit 1 repo ingestion + 5-MCP adapter foundation.
-
 - **做了什么**:Initialized Commit 0 scaffold:Python package, FastAPI `/health` / `/explain` / `/status/{job_id}` / `/refine/{job_id}` shell, LangGraph bootstrap graph, typed `WayfinderState` / `Claim` contracts, Next.js + shadcn-style dashboard shell, backend CI, frontend config, lockfiles.
 - **验证方式**:Backend: `uv sync --extra dev`, `uv run ruff check .`, `uv run mypy src tests`, `uv run pytest`(4 passed). Frontend:user ran `npm ci --cache /private/tmp/wayfinder-npm-cache`, `npm run lint`, `npm run typecheck`, `npm run build`;all passed. Next.js workspace-root warning fixed by setting `outputFileTracingRoot`.
 - **决策**:Commit 0 scaffold intentionally returns deterministic placeholder output;real repo ingestion, MCP calls, Supervisor routing, and verifier behavior begin in later commits.
 - **明天计划**:Close Commit 0 after final review and LEARNINGS update, then start Commit 1 repo ingestion + 5-MCP adapter foundation.
-
 - **做了什么**:Created `DESIGN.md` v0 with architecture sketch, state schema, routing model, verifier strategy, HITL checkpoints, resilience modes, observability, and build/deploy surface.
 - **验证方式**:Matched the v0 design sections to Commit 0 Roadmap and `final_checklist.md` P6 acceptance.
 - **决策**:`DESIGN.md` starts as a contract doc, not a polished launch doc;v1.0 will be finalized near ship after implementation proves the details.
 - **明天计划**:Initialize Python API / LangGraph / Next.js scaffold and local quality gates.
-
 - **做了什么**:Locked the first product contract draft:domain = OSS codebase onboarding for AI/devtools engineers;target user = engineer entering an unfamiliar repo;primary demo = pinned `langchain-ai/langchain`;filled differentiation and Core Principles;created README one-page pitch.
 - **验证方式**:Mapped draft back to Project 6 acceptance:Supervisor product layer, 5 MCP grounding, verifier-backed claims, HITL, dashboard/deploy/demo evidence.
 - **决策**:Keep the story verifier-first. Wayfinder should not be framed as "3 agents explain code", but as a codebase onboarding product where agents compose tool-grounded facts and tests catch high-risk claims.
