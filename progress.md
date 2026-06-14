@@ -2136,3 +2136,13 @@ WHERE file.path = this.file.path AND completed
 
 **gate**:ruff/mypy(46)clean;`pytest` 全绿(test_grounded_synthesis 8 passed,含 2 个新 token 测试;全套 300+)。
 **owed**:rule-16 反向讲解(token 计量 + 跨线程 contextvar 处理)。
+
+---
+
+### 2026-06-14 — 修:token 计量改模块级累加器(contextvar 跨 langgraph 线程失效)
+
+**问题**:上一版用 contextvar 计 token,live 测 `tokens=0` —— LLM 调用发生在 langgraph 内部 worker 线程,contextvar 不跨线程传播。
+**改法**:`graph/llm.py` 改成模块级 `_TOKEN_USAGE` dict + `threading.Lock`(`start_token_capture`/`collected_token_usage`/`stop_token_capture`/`_record_token_usage`),跨所有线程可见;`main.py._invoke` 用 `start`/`stop` 包住 graph.invoke。
+**注**:假设单次运行串行(eval harness 就是串行);并发运行会共享累加器(已在注释里标明,production 并发需后续改 per-run 累加器)。
+**验证**:重启后 live 跑 click → `trace_metadata.tokens=6357 (in 5576/out 781)`、`intent=architectural`。token 计量打通。
+**gate**:ruff/mypy(46)/pytest(test_grounded_synthesis 8 passed)全绿。

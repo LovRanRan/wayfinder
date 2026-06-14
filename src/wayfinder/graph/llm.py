@@ -2,42 +2,56 @@
 
 from __future__ import annotations
 
-import contextvars
 import json
+import threading
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-# Per-run LLM token accumulator. Set inside the graph worker thread via
-# `start_token_capture`; every OpenAI call adds its usage. Read back with
-# `collected_token_usage` to surface cost in trace_metadata.
-_TOKEN_USAGE: contextvars.ContextVar[dict[str, int] | None] = contextvars.ContextVar(
-    "wayfinder_token_usage", default=None
-)
+# Per-run LLM token accumulator. A module-level, lock-guarded dict (rather than a
+# contextvar) because LLM calls happen across LangGraph's internal worker threads,
+# which a contextvar does not reliably cross. `start_token_capture` resets it at
+# the start of a run; every OpenAI call adds its usage; `collected_token_usage`
+# reads the total. NOTE: assumes runs execute sequentially (true for the eval
+# harness); concurrent runs would share the accumulator.
+_TOKEN_LOCK = threading.Lock()
+_TOKEN_USAGE: dict[str, int] | None = None
 
 
 def start_token_capture() -> None:
-    """Begin accumulating LLM token usage in the current context."""
-    _TOKEN_USAGE.set({"input_tokens": 0, "output_tokens": 0, "total_tokens": 0})
+    """Begin (reset) accumulating LLM token usage for the current run."""
+    global _TOKEN_USAGE
+    with _TOKEN_LOCK:
+        _TOKEN_USAGE = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
 
 def collected_token_usage() -> dict[str, int] | None:
-    """Return the accumulated token usage for the current context, if capturing."""
-    return _TOKEN_USAGE.get()
+    """Return a copy of the accumulated token usage, or None if not capturing."""
+    with _TOKEN_LOCK:
+        return dict(_TOKEN_USAGE) if _TOKEN_USAGE is not None else None
+
+
+def stop_token_capture() -> dict[str, int] | None:
+    """Read the accumulated usage and stop capturing."""
+    global _TOKEN_USAGE
+    with _TOKEN_LOCK:
+        usage = dict(_TOKEN_USAGE) if _TOKEN_USAGE is not None else None
+        _TOKEN_USAGE = None
+        return usage
 
 
 def _record_token_usage(body: dict[str, object]) -> None:
-    bucket = _TOKEN_USAGE.get()
-    if bucket is None:
-        return
     usage = body.get("usage")
     if not isinstance(usage, dict):
         return
-    for key in ("input_tokens", "output_tokens", "total_tokens"):
-        value = usage.get(key)
-        if isinstance(value, (int, float)):
-            bucket[key] += int(value)
+    with _TOKEN_LOCK:
+        if _TOKEN_USAGE is None:
+            return
+        for key in ("input_tokens", "output_tokens", "total_tokens"):
+            value = usage.get(key)
+            if isinstance(value, (int, float)):
+                _TOKEN_USAGE[key] += int(value)
 
 
 class LLMCallError(Exception):

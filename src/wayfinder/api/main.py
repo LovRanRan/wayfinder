@@ -1225,14 +1225,14 @@ def _invoke_graph_with_timeout(
     config: Any,
     timeout_seconds: float,
 ) -> WayfinderState:
-    from wayfinder.graph.llm import collected_token_usage, start_token_capture
+    from wayfinder.graph.llm import start_token_capture, stop_token_capture
 
     def _invoke() -> WayfinderState:
-        # Capture LLM token usage inside the worker thread (contextvars do not
-        # cross the ThreadPoolExecutor boundary), then attach it to the state.
+        # Capture LLM token usage across the run (module-level accumulator; LLM
+        # calls span LangGraph worker threads), then attach it to the state.
         start_token_capture()
         out = cast(WayfinderState, graph.invoke(graph_input, config=config))
-        usage = collected_token_usage()
+        usage = stop_token_capture()
         if usage is not None:
             out["token_usage"] = usage
         return out
