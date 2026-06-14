@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -207,11 +208,38 @@ def claim_refs_for_pending_claims(claims: Sequence[Claim]) -> dict[str, Claim]:
 def extract_pending_claims_from_state(state: WayfinderState) -> list[Claim]:
     existing_claims = state.get("pending_claims")
     if existing_claims:
-        return [_normalize_claim(claim) for claim in existing_claims]
+        claims = [_normalize_claim(claim) for claim in existing_claims]
+    else:
+        partial_summaries = state.get("partial_summaries", {})
+        entry_summary = partial_summaries.get("entry_explainer", "")
+        claims = extract_pending_claims_from_entry_summary(entry_summary)
 
-    partial_summaries = state.get("partial_summaries", {})
-    entry_summary = partial_summaries.get("entry_explainer", "")
-    return extract_pending_claims_from_entry_summary(entry_summary)
+    # Also treat a high-risk user query as a verifiable claim, so an explicit
+    # "does X do Y / verify that ..." request can be grounded by autonomous test
+    # discovery even when no sub-agent emitted a testable summary line.
+    query_claim = _claim_from_query(state.get("query", ""))
+    if query_claim is not None and not _claims_cover_text(claims, query_claim["text"]):
+        claims.append(query_claim)
+    return claims
+
+
+def _claim_from_query(query: str) -> Claim | None:
+    text = query.strip()
+    if not text or not _is_high_risk_text(text):
+        return None
+    return {
+        "text": text,
+        "source_agent": "supervisor",
+        "risk_level": "high",
+        "test_strategy": "existing_test",
+        "test_id": _test_target_from_text(text),
+        "status": "pending",
+    }
+
+
+def _claims_cover_text(claims: Sequence[Claim], text: str) -> bool:
+    needle = text.strip()
+    return any(claim.get("text", "").strip() == needle for claim in claims)
 
 
 def extract_pending_claims_from_entry_summary(summary: str) -> list[Claim]:
@@ -279,6 +307,8 @@ def build_test_plan(
 
         target = _target_from_claim(claim)
         if target is None:
+            target = _discover_best_test(Path(repo_path), claim.get("text", ""))
+        if target is None:
             unverified_claims.append(_claim_with_status(claim, "unverified"))
             unverified_reasons[claim_ref] = "no_test_coverage"
             continue
@@ -290,9 +320,7 @@ def build_test_plan(
             continue
 
         tool_name = (
-            "run_single_test"
-            if _is_single_test_target(target)
-            else _tool_for_framework(framework)
+            "run_single_test" if _is_single_test_target(target) else _tool_for_framework(framework)
         )
         timeout_seconds = 10.0 if tool_name == "run_single_test" else 20.0
         requests.append(
@@ -476,9 +504,13 @@ def verifier_state_from_state(
         )
 
     payload = build_test_approval_payload(plan)
-    decision = approval_decision if approval_decision is not None else cast(
-        Mapping[str, object],
-        interrupt(payload),
+    decision = (
+        approval_decision
+        if approval_decision is not None
+        else cast(
+            Mapping[str, object],
+            interrupt(payload),
+        )
     )
 
     try:
@@ -721,6 +753,107 @@ def _target_from_claim(claim: Claim) -> str | None:
     return _test_target_from_text(claim.get("text", ""))
 
 
+_DISCOVERY_STOPWORDS = frozenset(
+    {
+        "does",
+        "what",
+        "when",
+        "this",
+        "that",
+        "with",
+        "from",
+        "into",
+        "test",
+        "tests",
+        "function",
+        "method",
+        "class",
+        "the",
+        "and",
+        "for",
+        "run",
+        "report",
+        "whether",
+        "verify",
+        "relevant",
+        "suite",
+        "across",
+        "using",
+        "their",
+        "there",
+        "about",
+        "http",
+        "https",
+    }
+)
+
+
+def _claim_stems(text: str) -> set[str]:
+    """Meaningful lowercase word-stems from a claim, for test-name matching."""
+    stems: set[str] = set()
+    for token in re.findall(r"[A-Za-z][A-Za-z0-9_]+", text.lower()):
+        for part in token.split("_"):
+            if len(part) >= 4 and part not in _DISCOVERY_STOPWORDS:
+                stems.add(part)
+    return stems
+
+
+def _test_function_names(repo_path: Path) -> list[str]:
+    """Collect lowercase `test_*` function names from the repo's test dirs."""
+    names: list[str] = []
+    seen: set[Path] = set()
+    for root in (repo_path / "tests", repo_path / "test"):
+        if not root.is_dir():
+            continue
+        for pattern in ("test_*.py", "*_test.py"):
+            for path in sorted(root.rglob(pattern))[:300]:
+                if path in seen:
+                    continue
+                seen.add(path)
+                try:
+                    content = path.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                names.extend(
+                    match.group(1).lower()
+                    for match in re.finditer(r"def (test_[A-Za-z0-9_]+)", content)
+                )
+    return names
+
+
+def _discover_best_test(repo_path: Path, text: str) -> str | None:
+    """Autonomously map a behavioural claim to the most relevant repo test.
+
+    Matches claim word-stems against test-function-name tokens (prefix-aware) and
+    returns the single best `test_*` name as a pytest ``-k`` filter. Requires at
+    least two shared stems so only a confidently-related test is executed.
+    """
+    stems = _claim_stems(text)
+    if not stems:
+        return None
+
+    best_name: str | None = None
+    best_score = 0
+    for name in set(_test_function_names(repo_path)):
+        name_words = {word for word in name.split("_") if word}
+        score = sum(
+            1
+            for stem in stems
+            if any(
+                stem == word
+                or (len(word) >= 4 and (stem.startswith(word) or word.startswith(stem)))
+                for word in name_words
+            )
+        )
+        if score > best_score:
+            best_score = score
+            best_name = name
+
+    if best_name is None or best_score < 2:
+        return None
+    return best_name
+
+
 def _framework_for_target(repo_path: Path, target: str) -> Framework | None:
     if target.startswith("jest:"):
         return "jest"
@@ -735,8 +868,7 @@ def _framework_for_target(repo_path: Path, target: str) -> Framework | None:
 
 def _repo_has_pytest_indicators(repo_path: Path) -> bool:
     return any(
-        (repo_path / name).exists()
-        for name in ("pyproject.toml", "pytest.ini", "tox.ini", "tests")
+        (repo_path / name).exists() for name in ("pyproject.toml", "pytest.ini", "tox.ini", "tests")
     )
 
 

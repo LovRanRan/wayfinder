@@ -163,10 +163,7 @@ def test_risk_policy_triggers_only_high_risk_or_explicit_test_id() -> None:
         "test_strategy": "skip",
         "test_id": None,
     }
-    assert (
-        risk_policy_for_claim(low_claim).should_verify
-        is False
-    )
+    assert risk_policy_for_claim(low_claim).should_verify is False
 
 
 def test_build_test_plan_uses_single_pytest_target(tmp_path: Path) -> None:
@@ -537,3 +534,61 @@ def test_graph_interrupt_resume_approves_verifier_test(tmp_path: Path) -> None:
     assert resumed["verified_claims"][0]["status"] == "verified"
     assert resumed["final_output"] is not None
     assert "Verification summary" in resumed["final_output"]
+
+
+def test_discover_best_test_matches_claim_to_test_name(tmp_path: Path) -> None:
+    from wayfinder.graph.verifier import _discover_best_test
+
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_sample.py").write_text(
+        "def test_auth_is_stripped_on_downgrade():\n    assert True\n"
+        "def test_unrelated_thing():\n    assert True\n",
+        encoding="utf-8",
+    )
+    target = _discover_best_test(
+        tmp_path, "The Authorization header is stripped on an HTTPS downgrade redirect"
+    )
+    assert target == "test_auth_is_stripped_on_downgrade"
+
+
+def test_discover_best_test_requires_two_shared_stems(tmp_path: Path) -> None:
+    from wayfinder.graph.verifier import _discover_best_test
+
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_sample.py").write_text(
+        "def test_redirect_only():\n    assert True\n", encoding="utf-8"
+    )
+    # only one stem ("redirect") overlaps -> below the precision threshold
+    assert _discover_best_test(tmp_path, "cookies persist across a redirect") is None
+
+
+def test_claim_from_query_promotes_high_risk_query() -> None:
+    from wayfinder.graph.verifier import _claim_from_query
+
+    claim = _claim_from_query("Does it validate and reject malformed input?")
+    assert claim is not None
+    assert claim["risk_level"] == "high"
+    assert _claim_from_query("What does this project do?") is None
+
+
+def test_build_test_plan_discovers_test_for_high_risk_claim(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n", encoding="utf-8")
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_sample.py").write_text(
+        "def test_parses_and_returns_value():\n    assert True\n", encoding="utf-8"
+    )
+    claim: Claim = {
+        "text": "It parses the input and returns the value",
+        "source_agent": "supervisor",
+        "risk_level": "high",
+        "test_strategy": "existing_test",
+        "test_id": None,
+        "status": "pending",
+    }
+    plan = build_test_plan(str(tmp_path), [claim])
+    assert len(plan.requests) == 1
+    assert plan.requests[0].framework == "pytest"
+    assert "parses" in plan.requests[0].test_filter or "returns" in plan.requests[0].test_filter

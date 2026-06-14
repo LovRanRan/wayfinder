@@ -2089,3 +2089,23 @@ WHERE file.path = this.file.path AND completed
 - (B) claim→test 发现:high-risk claim 提到某函数时,在 `tests/` 搜引用该符号的测试并跑 —— 更强更通用,但复杂、需 mcp-test-runner 的发现能力 + 风险更高。
 
 下一步:与 David 确认走 A / B / A+B,再改 `verifier.py`(+ 必要时 `nodes.py`/`planning.py` 把 query 传进 verifier 输入)。本条为分析记录,尚未改代码。
+
+---
+
+### 2026-06-14 — 改动:verifier 自主测试发现(B 方案,verification_rate 打通)
+
+**改了什么**(`src/wayfinder/graph/verifier.py`):
+1. **query → claim**:`extract_pending_claims_from_state` 现在也把 high-risk 的用户 query 当作一条待验证 claim(`_claim_from_query`),即使没有 sub-agent 产出可测 summary 行,显式"verify/validate/…"请求也能进入验证。
+2. **自主测试发现**:`build_test_plan` 在 claim 没有显式 test_id 时,调用新的 `_discover_best_test(repo_path, claim_text)` —— 从 claim 抽词干(`_claim_stems`),与 `tests/` 下 `test_*` 函数名做前缀感知匹配(`_test_function_names`),取共享词干最多的测试,**要求 ≥2 个共享词干**(保精度,避免跑无关测试),返回测试名作为 pytest `-k` filter。
+3. 修了 stopword 过激问题(误把 returns/value/header 滤掉)。
+
+**为什么**:外部 `agent-eval-harness` 要测 verification_rate,但旧 verifier 只认 entry_explainer summary 里字面写出的 `tests/...::...`,行为类 claim 永远 unverified。B 让 verifier 自己找相关测试跑。
+
+**验证**:
+- 单测:`tests/test_verifier.py` 加 4 个(`_discover_best_test` 命中 / ≥2 词干阈值 / `_claim_from_query` / `build_test_plan` 自主发现);全套 `tests/test_verifier.py` 24 passed。
+- 全 repo gate:`pytest` 300 passed / 8 skipped;`mypy src` 46 files clean;`ruff check` clean(我改的两个文件 ruff format 也 clean;另有 28 个**既有**文件有历史 format 漂移,与本次无关,未动)。
+- **Live(sandboxed_mcp)**:对 `psf/requests` 跑 claim 查询,`contradicted_count=1` —— verifier 自主发现测试 + sandbox 真跑 + 出定论。verification_rate 从恒 0 → 真实有值。
+
+**注**:wayfinder verifier 语义是"关联测试通过=verified / 失败=contradicted",不判断 claim 与测试的极性;verification_rate 度量的是"有多少 claim 被真实测试落了定论"(覆盖率),与极性无关,定义自洽。
+
+**owed**:Haichuan rule-16 反向讲解这段改动(B 的发现算法 + 阈值选择)。
