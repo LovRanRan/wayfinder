@@ -2119,3 +2119,20 @@ WHERE file.path = this.file.path AND completed
 **兼容**:default None,旧 run_json 重载回落 None(同 claim_provenance 模式)。
 **gate**:`mypy src` 46 clean;`pytest` 300 passed/8 skipped;ruff clean(改的两个文件)。
 **owed**:rule-16 反向讲解(intent 透出链路)。
+
+---
+
+### 2026-06-14 — 改动:LLM token 计量(给 agent-eval-harness 的 cost metric)
+
+**改了什么**:
+- `graph/llm.py`:加 contextvar `_TOKEN_USAGE` + `start_token_capture()` / `collected_token_usage()` / `_record_token_usage(body)`;`OpenAIResponsesClient.complete` 解析 body 后累加 Responses API 返回的 `usage`(input/output/total)。
+- `api/main.py` `_invoke_graph_with_timeout`:因为图在 ThreadPoolExecutor worker 里跑(contextvar 不跨线程),所以在 worker 内 `start_token_capture()`,跑完把 usage 挂到 `state["token_usage"]`。
+- `_execute_job`:把 `result["token_usage"]` 合进 `trace_metadata`(`tokens`/`input_tokens`/`output_tokens`)。
+- `graph/state.py`:`WayfinderState` 加 `token_usage: dict[str,int]`。
+
+**为什么**:wayfinder 以前 trace_metadata `tokens=0`,harness 无法算 cost。现在真实 token 出现在 `/status` 的 trace_metadata,harness `map_run_summary` 已经在读 `meta["tokens"]` → wayfinder 侧 cost 有真值(ReAct 侧 langchain 本来就有真 token)。cost($) 在 report 里用 tokens×单价统一算,两架构可比。
+
+**注**:best-effort —— 若有 LLM 调用发生在再下一层 executor 线程,contextvar 可能漏算(当前 LLM 调用都在图节点同线程内,覆盖到位)。
+
+**gate**:ruff/mypy(46)clean;`pytest` 全绿(test_grounded_synthesis 8 passed,含 2 个新 token 测试;全套 300+)。
+**owed**:rule-16 反向讲解(token 计量 + 跨线程 contextvar 处理)。

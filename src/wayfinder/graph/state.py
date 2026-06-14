@@ -104,6 +104,9 @@ class WayfinderState(TypedDict, total=False):
     # Named distinctly from the chat-layer `agent_trace` (planned UI steps).
     claim_provenance: list[dict[str, object]]
     verifier_approval_decision: dict[str, object]
+    # LLM token usage accumulated across the run (input/output/total), captured at
+    # the OpenAI client boundary. Surfaced in trace_metadata for cost accounting.
+    token_usage: dict[str, int]
     errors: list[GraphError]
     final_output: str | None
 

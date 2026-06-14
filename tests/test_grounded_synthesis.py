@@ -159,3 +159,38 @@ def test_extract_response_text_supports_output_text_and_content_items() -> None:
         )
         == "nested text"
     )
+
+
+def test_token_capture_accumulates_usage() -> None:
+    import contextvars
+
+    from wayfinder.graph.llm import (
+        _record_token_usage,
+        collected_token_usage,
+        start_token_capture,
+    )
+
+    def _run() -> dict[str, int] | None:
+        start_token_capture()
+        _record_token_usage({"usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}})
+        _record_token_usage({"usage": {"input_tokens": 2, "output_tokens": 3, "total_tokens": 5}})
+        return collected_token_usage()
+
+    # isolated context so the contextvar does not leak across tests
+    assert contextvars.copy_context().run(_run) == {
+        "input_tokens": 12,
+        "output_tokens": 8,
+        "total_tokens": 20,
+    }
+
+
+def test_record_token_usage_no_op_without_capture() -> None:
+    import contextvars
+
+    from wayfinder.graph.llm import _record_token_usage, collected_token_usage
+
+    def _run() -> dict[str, int] | None:
+        _record_token_usage({"usage": {"total_tokens": 99}})  # must not raise
+        return collected_token_usage()
+
+    assert contextvars.copy_context().run(_run) is None

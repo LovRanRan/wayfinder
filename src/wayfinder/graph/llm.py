@@ -2,11 +2,42 @@
 
 from __future__ import annotations
 
+import contextvars
 import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Protocol, cast
+
+# Per-run LLM token accumulator. Set inside the graph worker thread via
+# `start_token_capture`; every OpenAI call adds its usage. Read back with
+# `collected_token_usage` to surface cost in trace_metadata.
+_TOKEN_USAGE: contextvars.ContextVar[dict[str, int] | None] = contextvars.ContextVar(
+    "wayfinder_token_usage", default=None
+)
+
+
+def start_token_capture() -> None:
+    """Begin accumulating LLM token usage in the current context."""
+    _TOKEN_USAGE.set({"input_tokens": 0, "output_tokens": 0, "total_tokens": 0})
+
+
+def collected_token_usage() -> dict[str, int] | None:
+    """Return the accumulated token usage for the current context, if capturing."""
+    return _TOKEN_USAGE.get()
+
+
+def _record_token_usage(body: dict[str, object]) -> None:
+    bucket = _TOKEN_USAGE.get()
+    if bucket is None:
+        return
+    usage = body.get("usage")
+    if not isinstance(usage, dict):
+        return
+    for key in ("input_tokens", "output_tokens", "total_tokens"):
+        value = usage.get(key)
+        if isinstance(value, (int, float)):
+            bucket[key] += int(value)
 
 
 class LLMCallError(Exception):
@@ -70,6 +101,7 @@ class OpenAIResponsesClient:
         if not isinstance(body, dict):
             raise LLMCallError("OpenAI Responses API returned a non-object response")
 
+        _record_token_usage(cast(dict[str, object], body))
         text = extract_response_text(cast(dict[str, object], body)).strip()
         if not text:
             raise LLMCallError("OpenAI Responses API returned empty text")

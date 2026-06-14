@@ -1165,10 +1165,19 @@ def _execute_job(job_id: str, phase: str) -> None:
         )
         return
 
+    trace_metadata = finish_trace_metadata(trace_context, state=result)
+    token_usage = result.get("token_usage")
+    if token_usage:
+        trace_metadata = {
+            **trace_metadata,
+            "tokens": int(token_usage.get("total_tokens", 0)),
+            "input_tokens": int(token_usage.get("input_tokens", 0)),
+            "output_tokens": int(token_usage.get("output_tokens", 0)),
+        }
     _RUNS.mark_completed(
         job_id,
         result=result,
-        trace_metadata=finish_trace_metadata(trace_context, state=result),
+        trace_metadata=trace_metadata,
     )
 
 
@@ -1216,10 +1225,22 @@ def _invoke_graph_with_timeout(
     config: Any,
     timeout_seconds: float,
 ) -> WayfinderState:
+    from wayfinder.graph.llm import collected_token_usage, start_token_capture
+
+    def _invoke() -> WayfinderState:
+        # Capture LLM token usage inside the worker thread (contextvars do not
+        # cross the ThreadPoolExecutor boundary), then attach it to the state.
+        start_token_capture()
+        out = cast(WayfinderState, graph.invoke(graph_input, config=config))
+        usage = collected_token_usage()
+        if usage is not None:
+            out["token_usage"] = usage
+        return out
+
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="wayfinder-job")
-    future = executor.submit(graph.invoke, graph_input, config=config)
+    future = executor.submit(_invoke)
     try:
-        return cast(WayfinderState, future.result(timeout=timeout_seconds))
+        return future.result(timeout=timeout_seconds)
     except FutureTimeoutError as exc:
         future.cancel()
         raise JobExecutionTimeout(
