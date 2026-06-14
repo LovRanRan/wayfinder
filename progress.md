@@ -1,7 +1,7 @@
 ---
 project: wayfinder
 phase: P3
-status: shipped (2026-06-14, 2 owed follow-ups)
+status: building
 created: 2026-05-26
 soft_deadline: 2026-09-01
 hard_deadline: 2026-09-15
@@ -59,19 +59,16 @@ hard_deadline: 2026-09-15
 
 **成功判定**
 
-> **Ship 状态 (2026-06-14)**:核心成功判定达成,项目标记 **shipped**,带 2 个如实记录的 owed follow-up(见下方 ⏳)。
-
-- [/]  `final_checklist.md` Project 6 acceptance criteria — core 全 `[x]`;余 `[/]` demo video + `[ ]` arxiv-mcp(可选)/ enterprise case study(post-ship)
-- [X]  `WayfinderState` / `Claim` schema、Supervisor routing、3 sub-agent、verifier loop 全部可测 ✅ 2026-06-14
-- [X]  5 MCP integrations working,其中 3 个 Project 5 self-authored MCP 作为主力工具(arxiv-mcp 可选未集成) ✅ 2026-06-14
-- [X]  8 个 failure modes 都有 pytest / fault injection coverage ✅ 2026-06-14
+- [ ]  `final_checklist.md` Project 6 acceptance criteria 全部 `[x]`
+- [ ]  `WayfinderState` / `Claim` schema、Supervisor routing、3 sub-agent、verifier loop 全部可测
+- [ ]  5 MCP integrations working,其中 3 个 Project 5 self-authored MCP 作为主力工具
+- [ ]  8 个 failure modes 都有 pytest / fault injection coverage
 - [X]  FastAPI gateway + Next.js dashboard + Docker Compose + deployed URL 可用 ✅ 2026-06-04
-- [/]  LangSmith traces 可打开(✅),README 有 trace / demo evidence — demo-video 链接随录制补
-- [X]  `DESIGN.md` / README / bilingual blog post 完成 ✅ 2026-06-14
-- [X]  `TASKS.md` Project 6 ship 行 `[x]` ✅ 2026-06-14
-- ⏳ **OWED #1 — 3-min recursive demo video**:录制脚本就绪(`docs/demo/recursive_demo_script.md`),录制是 Haichuan-owned,pending
-- ⏳ **OWED #2 — 反向讲解 ownership (rule 16)**:notes 019/021/022/023 + Commit 23 模块(`agents`/`packets`/`challenge`/`planning`/`provenance` + graph wiring)由 Cowork 写,Haichuan 反向解释后才算 interview-owned
-- [ ]  (post-ship 扩展,非 ship blocker) Enterprise workflow case study — MVP 已本地完成(permission policy / approval queue / audit log / synthetic eval / docs / tests),README + resume bullet 待最终化
+- [ ]  LangSmith traces 可打开,README 有 trace / demo evidence
+- [ ]  3-min recursive demo video 完成
+- [ ]  `DESIGN.md` / README / bilingual blog post 完成
+- [ ]  Post-mainline enterprise workflow case study 完成:Haichuan-owned design note + skeleton,permission policy / approval queue / audit log / failure handling / eval report,README + resume 一条 bullet
+- [ ]  `TASKS.md` Project 6 ship 行 `[x]`
 
 ---
 
@@ -153,15 +150,15 @@ Guided design mode:
 ## 📊 Dashboard
 
 
-| Field                  | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current Commit**     | **🚀 SHIPPED 2026-06-14** (2 owed follow-ups: demo video + 反向讲解) · last code work = 2026-06-14 empty-evidence 3-layer fix (notes 021/022/023) on top of **Commit 24** — Entry-point consolidation: Run tab retired, Threads = single input surface (Answer kept as deep-view). Frontend gate + push owed. Built on **Commit 23** (true multi-agent: role contracts / claim packets / challenge logic / multi-worker planning / graph fan-out / provenance end-to-end), backend gate green 292/8 ruff/mypy clean; live B–G smoke passed; Haichuan reverse-explanation pass still owed. (22.6 shipped: 28c3f72.)                                                                                                                                       |
-| **Overall Progress**   | Pre-build**3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| **Blocker**            | None. Prior "local gates slow/hang" was root-caused 2026-06-13: iCloud-synced Desktop evicted`.venv` files to `dataless` placeholders → bulk imports hung. Fixed by relocating venv off iCloud (`UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder`). Local full gate now green (255 passed/8 skipped, ruff/mypy clean); GitHub Actions CI remains backend gate source of truth. See [[wayfinder-venv-icloud-hang]].                                                                                                                                                                                  |
-| **Last Activity**      | 2026-06-14 · **Empty-evidence defect fixed end-to-end + live-verified** (3 layers: routing note 021, symbol extraction note 022, AST resolution note 023 cross-repo into mcp-ast-explorer 0.1.1). Mac gate 296/8; deployed via git-install + live re-test: `merge_summaries` now returns verified 3, was empty. Earlier 2026-06-13: Commit 24 (Run/Answer tabs retired) + Commit 23 true multi-agent shipped (fan-out + provenance), live B–G smoke passed.                                                                                                                                                                                                                                                          |
-| **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| **Today's North Star** | Wayfinder gives grounded, non-empty answers on real repos (including its own): symbol/behaviour questions reach the AST tool with the right candidate and return verified definition evidence, with honest refusals only when truly ambiguous.                                                                                                                                                                                                                                                                                                                                                                                                             |
-| **Next Action**        | Haichuan's reverse-explanation pass over design notes 021/022/023 (12 Step-4 prompts, rule 16) — the empty-evidence fix was Cowork-implemented and isn't interview-owned yet. Optional: publish mcp-ast-explorer 0.1.1 to PyPI + re-pin `Dockerfile.api` (drop the `git+@main` Docker-cache caveat). Still owed: Commit 23 reverse-explanation pass over `agents`/`packets`/`challenge`/`planning`/`provenance` + graph wiring, and the 3-min recursive demo video. `git add/commit/push` is Haichuan's. |
+| Field                  | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Commit**     | [/]**Commit 24** — Entry-point consolidation: Run tab retired, Threads = single input surface (Answer kept as deep-view). Frontend gate + push owed. Built on **Commit 23** (true multi-agent: role contracts / claim packets / challenge logic / multi-worker planning / graph fan-out / provenance end-to-end), backend gate green 292/8 ruff/mypy clean; live B–G smoke passed; Haichuan reverse-explanation pass still owed. (22.6 shipped: 28c3f72.)                                              |
+| **Overall Progress**   | Pre-build**3 / 3 done** · build commits **22 / 22 done** + **22.5/22.6 polish done** · ship **7 / 8 core artifacts done**                                                                                                                                                                                                                                                                                                                                                                              |
+| **Blocker**            | None. Prior "local gates slow/hang" was root-caused 2026-06-13: iCloud-synced Desktop evicted`.venv` files to `dataless` placeholders → bulk imports hung. Fixed by relocating venv off iCloud (`UV_PROJECT_ENVIRONMENT=~/dev/venvs/wayfinder`). Local full gate now green (255 passed/8 skipped, ruff/mypy clean); GitHub Actions CI remains backend gate source of truth. See [[wayfinder-venv-icloud-hang]].                                                                                         |
+| **Last Activity**      | 2026-06-14 ·**Empty-evidence defect fixed end-to-end + live-verified** (3 layers: routing note 021, symbol extraction note 022, AST resolution note 023 cross-repo into mcp-ast-explorer 0.1.1). Mac gate 296/8; deployed via git-install + live re-test: `merge_summaries` now returns verified 3, was empty. Earlier 2026-06-13: Commit 24 (Run/Answer tabs retired) + Commit 23 true multi-agent shipped (fan-out + provenance), live B–G smoke passed.                                             |
+| **Working Mode**       | **Four-step ownership mode**. Haichuan owns design/skeleton/tests/explanation; Codex only assists local implementation, debug, review, verification, and tracker maintenance.                                                                                                                                                                                                                                                                                                                            |
+| **Today's North Star** | Wayfinder gives grounded, non-empty answers on real repos (including its own): symbol/behaviour questions reach the AST tool with the right candidate and return verified definition evidence, with honest refusals only when truly ambiguous.                                                                                                                                                                                                                                                           |
+| **Next Action**        | Haichuan's reverse-explanation pass over design notes 021/022/023 (12 Step-4 prompts, rule 16) — the empty-evidence fix was Cowork-implemented and isn't interview-owned yet. Optional: publish mcp-ast-explorer 0.1.1 to PyPI + re-pin`Dockerfile.api` (drop the `git+@main` Docker-cache caveat). Still owed: Commit 23 reverse-explanation pass over `agents`/`packets`/`challenge`/`planning`/`provenance` + graph wiring, and the 3-min recursive demo video. `git add/commit/push` is Haichuan's. |
 
 ---
 
@@ -618,29 +615,20 @@ Guided design mode:
 
 ### Ship
 
-- [ ] [ ]  全部 acceptance criteria `[x]`
-- [ ] [ ]  README terminal pass:tagline + demo GIF + architecture + tech stack + quickstart + API spec + 3 curl examples + eval evidence + failure modes + lessons learned
-- [ ] [ ]  `DESIGN.md` v1.0:3-agent architecture, state schema, routing, verifier strategy, 8 failure modes
-- [ ] [X]  Live deploy URL 写进 README ✅ 2026-06-04
-- [ ] [ ]  3-min recursive demo video 完成并链接
-- [ ] [ ]  Bilingual blog post 发布
-- [ ] [ ]  `final_checklist.md` Project 6 section 全部同步
-- [ ] [ ]  `TASKS.md` Project 6 ship line `[x]`
+- [ ]  [ ]  全部 acceptance criteria `[x]`
+- [ ]  [ ]  README terminal pass:tagline + demo GIF + architecture + tech stack + quickstart + API spec + 3 curl examples + eval evidence + failure modes + lessons learned
+- [ ]  [ ]  `DESIGN.md` v1.0:3-agent architecture, state schema, routing, verifier strategy, 8 failure modes
+- [ ]  [X]  Live deploy URL 写进 README ✅ 2026-06-04
+- [ ]  [ ]  3-min recursive demo video 完成并链接
+- [ ]  [ ]  Bilingual blog post 发布
+- [ ]  [ ]  `final_checklist.md` Project 6 section 全部同步
+- [ ]  [ ]  `TASKS.md` Project 6 ship line `[x]`
 
 ---
 
 ## 📝 Daily Logs
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
-
-### 2026-06-14 — 🚀 SHIP — `Project 6 wayfinder shipped (with 2 owed follow-ups)`
-
-- **决定**:Haichuan 决定 ship wayfinder,如实记录 2 个未完成项而非假装完成。核心成功判定全部达成。
-- **Ship 依据(Stage 5 核对)**:multi-agent supervisor + 3 sub-agents + Claim/verifier 高风险触发 + reflection loop + 8 failure modes + tenacity retry + SQLite checkpointer + fault injection + FastAPI + Next.js dashboard(全部面板)+ Docker Compose + CI(4 repos)+ Railway live + README + DESIGN.md v1.2 + bilingual blog,全部 done;Mac gate 296/8;today's empty-evidence 3-layer defect 已修复 + live 验证(merge_summaries verified 3)。
-- **如实记录的 2 个 owed follow-up(非 ship blocker,但 ship 后必补)**:① 3-min recursive demo video(脚本就绪,Haichuan 录制 pending);② 反向讲解 ownership(rule 16,notes 019/021/022/023 + Commit 23 模块 Cowork-written,Haichuan 反向解释后才 interview-owned)。
-- **非阻塞**:arxiv-mcp(可选第 5 MCP,3 自研主力已全集成)· 显式 intent-interrupt UI 卡(`/refine` 已功能等价)· enterprise workflow case study(明确 post-ship 扩展,MVP 本地已完成)。
-- **下一步**:补 2 个 owed;然后 Project 7 `agent-eval-harness` 用 wayfinder 产出 eval 数字。
-- **谁写的(诚实记录)**:Commit 23 + 22.5/22.6 + 今天的 empty-evidence 三层修复均 Cowork-implemented;ship 不改变 rule 16 的 ownership 欠账。
 
 ### 2026-06-14 — Defect fix (live-found) — `Empty-evidence on own repo: 3-layer routing/extraction/AST fix`
 
@@ -1129,12 +1117,12 @@ Guided design mode:
 
 ### 2026-06-02 — Commit 4 — `scanner delegation helper passed`
 
-- **做了什么**:Added the next `entry_explainer` red/green slice:`scan_symbol_for_entry()` now delegates to an injected `EntryScanner` and returns scanner evidence;also cleaned Pylance `TypedDict` access warnings in entry tests by narrowing optional keys with `.get()`.
-- **自己设计了什么**:This keeps AST evidence lookup behind the scanner boundary. Unit tests can pass a fake scanner now, while real `mcp-ast-explorer` runtime wiring remains a later slice.
-- **Codex 帮了哪里**:Codex reviewed the implementation, fixed test typing/format issues, and ran focused checks.
-- **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(6 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
-- **问题记录**:No node orchestration, default placeholder scanner, real MCP scanner, invalid AST result branch, or API/runtime wiring has been implemented yet.
-- **明天计划**:Add the next red test for `build_entry_explainer_node()` with an injected fake scanner, then wire only repo path -> symbol candidate -> scan -> state shaping.
+- [ ]  **做了什么**:Added the next `entry_explainer` red/green slice:`scan_symbol_for_entry()` now delegates to an injected `EntryScanner` and returns scanner evidence;also cleaned Pylance `TypedDict` access warnings in entry tests by narrowing optional keys with `.get()`.
+- [ ]  **自己设计了什么**:This keeps AST evidence lookup behind the scanner boundary. Unit tests can pass a fake scanner now, while real `mcp-ast-explorer` runtime wiring remains a later slice.
+- [ ]  **Codex 帮了哪里**:Codex reviewed the implementation, fixed test typing/format issues, and ran focused checks.
+- [ ]  **验证方式**:`uv run pytest tests/test_entry_explainer.py -q`(6 passed);`uv run ruff check src/wayfinder/graph/entry.py tests/test_entry_explainer.py`;`uv run mypy src/wayfinder/graph/entry.py tests/test_entry_explainer.py`.
+- [ ]  **问题记录**:No node orchestration, default placeholder scanner, real MCP scanner, invalid AST result branch, or API/runtime wiring has been implemented yet.
+- [ ]  **明天计划**:Add the next red test for `build_entry_explainer_node()` with an injected fake scanner, then wire only repo path -> symbol candidate -> scan -> state shaping.
 
 ### 2026-06-02 — Commit 4 — `ast result shaping happy path passed`
 
@@ -2081,3 +2069,23 @@ TASK
 FROM ""
 WHERE file.path = this.file.path AND completed
 ```
+
+---
+
+### 2026-06-14 — verifier 触发根因分析(为 agent-eval-harness 的 verification_rate)
+
+**背景**:外部项目 `agent-eval-harness`(评测框架)要测 wayfinder 的 verification_rate,但 claim_verification 查询从不触发真实测试执行(`test_results` 空,verified/unverified/contradicted 全 0),即使 sandbox-worker 已起且 health 通过、`WAYFINDER_VERIFIER_RUNNER=sandboxed_mcp`。
+
+**根因**(读 `src/wayfinder/graph/verifier.py`):
+- `extract_pending_claims_from_state` 在没有 `pending_claims` 时,只从 `partial_summaries["entry_explainer"]` 逐行抽 claim。
+- `extract_pending_claims_from_entry_summary` 仅保留含 runtime 关键词的行(`_is_testable_summary_line`),且只有当该行**字面包含** `tests/...::...` 这类 token 时(`_test_target_from_text` / `_looks_like_test_target`)才赋 `test_id`。
+- 没有 test_id 的 high-risk claim → `build_test_plan` 里 `_target_from_claim` 也只从 claim 文本里找 `tests/...`,找不到就标 `no_test_coverage`,**不跑测试**。
+- **verifier 不读 `state["query"]`**,也**不把"函数行为 claim"映射到相关测试**。所以用户即使在 query 里点名 `tests/test_requests.py::TestRequests::test_...`,也不会被执行 —— 因为那串在 query 里,不在 entry_explainer summary 里。
+
+**结论**:verification_rate 低不是环境问题,是 verifier 的 claim→test 触发面太窄(只认 summary 行里字面写出的 test 路径)。要让它对行为类 claim 真正跑测试,需要扩展触发来源。
+
+**两个候选修法**:
+- (A) 让 verifier 也从 `state["query"]` 抽显式 test 目标(用户说"run test X::y"就跑)—— 小改、低风险、对位"用户显式请求验证"的产品行为。
+- (B) claim→test 发现:high-risk claim 提到某函数时,在 `tests/` 搜引用该符号的测试并跑 —— 更强更通用,但复杂、需 mcp-test-runner 的发现能力 + 风险更高。
+
+下一步:与 David 确认走 A / B / A+B,再改 `verifier.py`(+ 必要时 `nodes.py`/`planning.py` 把 query 传进 verifier 输入)。本条为分析记录,尚未改代码。
