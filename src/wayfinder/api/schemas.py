@@ -124,6 +124,10 @@ class RunSummary(BaseModel):
     query: str
     status: RunStatus
     current_node: str | None = None
+    # Classified routing intent (architectural / runtime / behavioral / debug /
+    # mixed). Surfaced so external eval harnesses can score routing accuracy.
+    # Persisted in run_json; old rows without it fall back to None.
+    intent: str | None = None
     final_output: str | None = None
     error: str | None = None
     partial_summaries: dict[str, str] = Field(default_factory=dict)

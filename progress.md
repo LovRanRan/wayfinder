@@ -2109,3 +2109,13 @@ WHERE file.path = this.file.path AND completed
 **注**:wayfinder verifier 语义是"关联测试通过=verified / 失败=contradicted",不判断 claim 与测试的极性;verification_rate 度量的是"有多少 claim 被真实测试落了定论"(覆盖率),与极性无关,定义自洽。
 
 **owed**:Haichuan rule-16 反向讲解这段改动(B 的发现算法 + 阈值选择)。
+
+---
+
+### 2026-06-14 — 改动:RunSummary 暴露 intent(给 agent-eval-harness 的 routing_accuracy)
+
+**改了什么**:`RunSummary` schema 加 `intent: str | None = None`(`api/schemas.py`);`run_store` 完成态构造时 `intent=result.get("intent")`(`api/run_store.py`)。graph state 一直有 `intent`(routing.classify_intent 的结果),以前没透出到 API。
+**为什么**:`/status` 之前没有 intent/route 字段,外部 harness 无法评 routing_accuracy(只能瞎猜)。现在直接吐分类后的 intent。
+**兼容**:default None,旧 run_json 重载回落 None(同 claim_provenance 模式)。
+**gate**:`mypy src` 46 clean;`pytest` 300 passed/8 skipped;ruff clean(改的两个文件)。
+**owed**:rule-16 反向讲解(intent 透出链路)。

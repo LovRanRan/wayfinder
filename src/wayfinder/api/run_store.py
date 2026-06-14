@@ -201,6 +201,7 @@ class InMemoryRunStore:
             job_id,
             status="completed",
             current_node=None,
+            intent=result.get("intent"),
             final_output=result.get("final_output"),
             error=None,
             partial_summaries=_partial_summaries_from_state(result),
