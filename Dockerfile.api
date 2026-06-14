@@ -13,7 +13,12 @@ COPY src ./src
 COPY deploy ./deploy
 
 RUN uv sync --frozen --no-dev
-RUN uv pip install --python .venv/bin/python mcp-repo-mapper==0.1.0 mcp-ast-explorer==0.1.0
+# mcp-ast-explorer installed from git main for the bare/partial symbol-resolution
+# fix (>0.1.0, design note 023) until it is released to PyPI; repo-mapper stays
+# pinned to the published release. Editing this line busts the Docker layer cache
+# so the latest main is fetched on this build.
+RUN uv pip install --python .venv/bin/python mcp-repo-mapper==0.1.0 \
+    "mcp-ast-explorer @ git+https://github.com/LovRanRan/mcp-ast-explorer.git@main"
 
 EXPOSE 8000
 
