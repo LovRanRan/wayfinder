@@ -10,9 +10,27 @@ from wayfinder.mcp.models import MCPToolCall, MCPToolCallResult
 
 _EXPLICIT_SYMBOL_PATTERN = re.compile(r"\b[A-Za-z_]\w*(?:[.:][A-Za-z_]\w*)+\b")
 _CODE_SYMBOL_PATTERN = re.compile(r"[A-Za-z_]\w*(?:[.:][A-Za-z_]\w*)*")
-_BARE_SYMBOL_CONTEXT_PATTERN = re.compile(
-    r"\b(?:through|function|symbol|method|class|of|for)\s+([A-Za-z_]\w*)\b",
-    re.IGNORECASE,
+_BARE_IDENTIFIER_PATTERN = re.compile(r"\b[A-Za-z_]\w*\b")
+
+# Tokens ending in these suffixes (or containing a path separator) are filenames,
+# not symbols, so they must never be sent to find_definition (design note 022).
+_CODE_FILE_SUFFIXES = (
+    ".py",
+    ".pyi",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
+    ".json",
+    ".toml",
+    ".md",
+    ".yaml",
+    ".yml",
+    ".txt",
+    ".cfg",
+    ".ini",
 )
 
 
@@ -435,23 +453,41 @@ def _limitations_include_parse_error(ast_index: dict[str, object]) -> bool:
 
 
 def _symbol_candidate_from_query(query: str) -> str | None:
+    # Tier 1 (high confidence): backticked + dotted/colon symbols, filenames
+    # removed. An explicit symbol always wins, so a query like
+    # "app.service.create_user" is never polluted by its own "create_user" part.
     backtick_symbols: list[str] = [
         item.strip()
         for item in re.findall(r"`([^`]+)`", query)
         if _CODE_SYMBOL_PATTERN.fullmatch(item.strip())
+        and not _looks_like_filename(item.strip())
     ]
-    token_symbols: list[str] = _EXPLICIT_SYMBOL_PATTERN.findall(query)
-    bare_symbols = [
-        item
-        for item in _BARE_SYMBOL_CONTEXT_PATTERN.findall(query)
-        if _looks_like_bare_code_symbol(item)
+    token_symbols: list[str] = [
+        token
+        for token in _EXPLICIT_SYMBOL_PATTERN.findall(query)
+        if not _looks_like_filename(token)
     ]
-    candidates: list[str] = list(
-        dict.fromkeys([*backtick_symbols, *token_symbols, *bare_symbols])
+    explicit_candidates: list[str] = list(
+        dict.fromkeys([*backtick_symbols, *token_symbols])
     )
+    if explicit_candidates:
+        if len(explicit_candidates) == 1:
+            return explicit_candidates[0]
+        return None
 
-    if len(candidates) == 1:
-        return candidates[0]
+    # Tier 2 (only when no explicit symbol): any standalone code-looking
+    # identifier (snake_case / internal CamelCase), filenames excluded. This
+    # prefers a real symbol like `merge_summaries` over a filename `state.py`
+    # and catches symbols regardless of position in the sentence (design 022).
+    bare_candidates: list[str] = list(
+        dict.fromkeys(
+            token
+            for token in _BARE_IDENTIFIER_PATTERN.findall(query)
+            if _looks_like_bare_code_symbol(token) and not _looks_like_filename(token)
+        )
+    )
+    if len(bare_candidates) == 1:
+        return bare_candidates[0]
 
     return None
 
@@ -460,7 +496,14 @@ def _looks_like_bare_code_symbol(symbol: str) -> bool:
     return "_" in symbol or any(char.isupper() for char in symbol[1:])
 
 
+def _looks_like_filename(token: str) -> bool:
+    lowered = token.lower()
+    return "/" in token or lowered.endswith(_CODE_FILE_SUFFIXES)
+
+
 def _src_layout_symbol_fallback(symbol: str) -> str | None:
+    if _looks_like_filename(symbol):
+        return None
     if symbol.startswith("src.") or "." not in symbol or ":" in symbol:
         return None
 

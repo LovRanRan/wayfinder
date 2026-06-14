@@ -118,6 +118,36 @@ def test_symbol_candidate_from_state_rejects_ambiguous_query_symbols() -> None:
     assert result is None
 
 
+def test_symbol_candidate_prefers_real_symbol_over_filename() -> None:
+    # Live failure: the filename state.py was picked and merge_summaries missed
+    # (design note 022). The real symbol must win.
+    result = symbol_candidate_from_state(
+        {"query": "What does the merge_summaries reducer do in state.py?"}
+    )
+
+    assert result == "merge_summaries"
+
+
+def test_symbol_candidate_ignores_filename_only_query() -> None:
+    result = symbol_candidate_from_state({"query": "Explain state.py"})
+
+    assert result is None
+
+
+def test_symbol_candidate_uses_standalone_camelcase_symbol() -> None:
+    result = symbol_candidate_from_state({"query": "How does WayfinderState work?"})
+
+    assert result == "WayfinderState"
+
+
+def test_symbol_candidate_keeps_dotted_symbol_despite_filename_in_query() -> None:
+    result = symbol_candidate_from_state(
+        {"query": "Trace app.service.create_user defined in service.py"}
+    )
+
+    assert result == "app.service.create_user"
+
+
 def test_entry_explainer_missing_repo_path_returns_degraded_state() -> None:
     result = entry_explainer_missing_repo_path()
     errors = result.get("errors")
@@ -669,9 +699,12 @@ def test_graph_can_inject_entry_scanner(tmp_path: Path) -> None:
         local_path=tmp_path,
     )
 
+    # Grounding questions now run architect_mapper first (design note 021), which
+    # repopulates entry_points, so name the symbol explicitly in the query to
+    # exercise the injected entry scanner deterministically.
     result = graph.invoke(
         {
-            "query": "Where does the application start at runtime?",
+            "query": "At runtime, how does app.main:create_app start the app?",
             "repo_handle": repo_handle,
             "entry_points": ["app.main:create_app"],
         }
