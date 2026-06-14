@@ -48,9 +48,9 @@ def test_classify_intent_uses_deterministic_keyword_rules(
     ("intent", "expected_agent"),
     [
         ("architectural", "architect_mapper"),
-        ("runtime", "entry_explainer"),
-        ("behavioral", "entry_explainer"),
-        ("debug", "entry_explainer"),
+        ("runtime", "architect_mapper"),
+        ("behavioral", "architect_mapper"),
+        ("debug", "architect_mapper"),
         ("mixed", "architect_mapper"),
     ],
 )
@@ -85,7 +85,7 @@ def test_build_route_decision_uses_llm_router_for_mixed_query() -> None:
 
     assert decision == {
         "intent": "runtime",
-        "next_agent": "entry_explainer",
+        "next_agent": "architect_mapper",
         "source": "llm",
         "reason": "User asks where to start",
         "needs_human_review": False,
@@ -125,7 +125,7 @@ def test_parse_llm_route_decision_accepts_supported_intent_json() -> None:
 
     assert decision == {
         "intent": "debug",
-        "next_agent": "entry_explainer",
+        "next_agent": "architect_mapper",
         "source": "llm",
         "reason": "User mentioned traceback",
         "needs_human_review": False,
@@ -137,7 +137,7 @@ def test_parse_llm_route_decision_uses_default_reason_when_reason_is_missing() -
 
     assert decision == {
         "intent": "runtime",
-        "next_agent": "entry_explainer",
+        "next_agent": "architect_mapper",
         "source": "llm",
         "reason": "accepted LLM routing response",
         "needs_human_review": False,

@@ -52,14 +52,18 @@ def classify_intent(state: WayfinderState) -> Intent:
 
 
 def choose_next_agent(intent: Intent) -> AgentName:
-    """Map a normalized intent to the placeholder agent that should run next."""
-    # TODO: Decide whether runtime should route to entry_explainer or architect_mapper.
-    if intent == "architectural":
-        return "architect_mapper"
+    """Map a normalized intent to the first grounding agent to run.
 
-    if intent in ("runtime", "behavioral", "debug"):
-        return "entry_explainer"
-
+    Every non-architectural grounding question starts at ``architect_mapper`` so
+    the symbol path has architect_mapper's entry points as a fallback symbol
+    candidate before ``entry_explainer`` runs. ``entry_explainer`` is queued as a
+    pending worker by ``plan_workers_for_intent`` and reached via
+    ``route_after_architect`` — never as the supervisor's first hop. This is what
+    prevents empty-evidence answers on symbol/behaviour questions (design note
+    021). Architectural questions need only the cartographer, which is also the
+    first hop here, so all intents share one entry point into the grounding path.
+    """
+    del intent  # routing currently always enters via the cartographer
     return "architect_mapper"
 
 

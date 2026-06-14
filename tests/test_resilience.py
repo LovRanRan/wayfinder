@@ -161,6 +161,6 @@ def test_safe_default_route_can_be_corrected_by_user() -> None:
     )
 
     assert decision["intent"] == "behavioral"
-    assert decision["next_agent"] == "entry_explainer"
+    assert decision["next_agent"] == "architect_mapper"
     assert decision["source"] == "user_correction"
     assert decision["needs_human_review"] is False

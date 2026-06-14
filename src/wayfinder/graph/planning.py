@@ -25,8 +25,11 @@ def plan_workers_for_intent(intent: Intent) -> tuple[AgentRoleName, ...]:
     """
     if intent == "architectural":
         return (_CARTOGRAPHER,)
-    if intent in ("runtime", "behavioral", "debug"):
-        return (_INVESTIGATOR,)
+    # runtime/behavioral/debug/mixed all fan out architecture-first then symbols
+    # so the symbol path always has architect_mapper's entry points as a fallback
+    # candidate before entry_explainer runs (design note 021). Without the
+    # cartographer here a symbol-less behaviour question starves entry_explainer
+    # of any candidate and yields an empty evidence packet.
     return (_CARTOGRAPHER, _INVESTIGATOR)
 
 
