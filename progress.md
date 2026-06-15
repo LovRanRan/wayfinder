@@ -630,6 +630,14 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-15 — EXPERIMENTAL (uncommitted, hold) — synthesizer prompt: force concrete symbol naming
+
+- **改了什么**:`graph/synthesis.py` `_SYNTHESIS_INSTRUCTIONS` 加两条——(1) 引用文件/函数/类/测试时必须按 evidence(entry_points/ast_index/...)精确点名并用 backtick;(2) backtick 只包符号本身(`Command.invoke`/`self.callback`),不包整表达式(`invoke(self, ctx)`)。
+- **动机**:agent-eval-harness 实验,测 "wayfinder citation 低是模型弱还是 prompt 松"。
+- **结果**:答案确实变得符号密集(smoke 实测点出 `Command.invoke`/`src/click/core.py`/`ctx.invoke`/`_format_deprecated_suffix`)。但 small_v1 citation 的涨幅(0.37→0.81)主要来自 **harness 侧 resolver 修复**(认属性引用),不是这个 prompt;factual 没动(0.58→0.51,噪声内)。
+- **状态**:**未提交,hold**。属 architecture ownership(rule 14),且对 factual 无增益。去留待 Haichuan 反向讲解时定。详见 agent-eval-harness `LEARNINGS.md`「citation metric fix」。
+- **配方修正**:live stack 启动所有运营 env 变量需 `WAYFINDER_` 前缀(`WAYFINDER_ENTRY_SCANNER`/`WAYFINDER_FINAL_WRITER`/`WAYFINDER_ENABLE_GITHUB_INGESTION` 等);无前缀会被静默忽略 → scanner 退化 placeholder / GitHub 403。
+
 ### 2026-06-14 — Defect fix (live-found) — `Empty-evidence on own repo: 3-layer routing/extraction/AST fix`
 
 - **背景**:Live-tested the deployed dashboard pointing wayfinder at its OWN repo (`LovRanRan/wayfinder`). Symbol/behaviour questions ("what does merge_summaries do?", "how does the supervisor route?") returned an **empty evidence packet** → honest refusal, verified 0. Diagnosed by reading the authenticated run records (`fetch('/api/wayfinder/threads/{id}')` from the dashboard console; the public `/status/{id}` returns "login required"). Clone + `architect_mapper` were healthy all along (74 Python files, full module graph) — the failure was upstream of the LLM, in three stacked layers.
