@@ -7,6 +7,9 @@ import pytest
 from wayfinder.graph import build_graph
 from wayfinder.graph.entry import (
     MCPEntryScanner,
+    _console_script_symbol,
+    _is_cli_entry_query,
+    _symbol_from_script_target,
     entry_explainer_missing_repo_path,
     entry_explainer_missing_symbol_candidate,
     entry_state_from_ast_result,
@@ -146,6 +149,112 @@ def test_symbol_candidate_keeps_dotted_symbol_despite_filename_in_query() -> Non
     )
 
     assert result == "app.service.create_user"
+
+
+def test_symbol_candidate_ignores_uppercase_acronym() -> None:
+    # Live failure on CloakBrowser: "verify the exact CLI" sent "CLI" to
+    # find_definition -> "Symbol not found: CLI". All-caps acronyms must not be
+    # treated as bare symbols (design note 024).
+    assert symbol_candidate_from_state({"query": "verify the exact CLI"}) is None
+
+
+def test_symbol_candidate_ignores_multiple_acronyms_in_context() -> None:
+    assert (
+        symbol_candidate_from_state({"query": "How does the API build the URL?"})
+        is None
+    )
+
+
+def test_symbol_candidate_keeps_real_symbol_alongside_acronym() -> None:
+    # An acronym in the sentence must not block a genuine bare symbol: without
+    # the stopword the query has two bare candidates (real + acronym) and is
+    # rejected as ambiguous.
+    result = symbol_candidate_from_state(
+        {"query": "Does resolve_proxy_geo build the URL?"}
+    )
+
+    assert result == "resolve_proxy_geo"
+
+
+def test_symbol_from_script_target_converts_module_object() -> None:
+    assert (
+        _symbol_from_script_target("cloakbrowser.__main__:main")
+        == "cloakbrowser.__main__.main"
+    )
+    assert _symbol_from_script_target("pkg.cli:App.run") == "pkg.cli.App"
+    assert _symbol_from_script_target("pkg.cli:main [gui]") == "pkg.cli.main"
+    assert _symbol_from_script_target("pkg.module") == "pkg.module"
+    assert _symbol_from_script_target("   ") is None
+
+
+def test_console_script_symbol_reads_project_scripts(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "cloakbrowser"\n\n'
+        '[project.scripts]\ncloakbrowser = "cloakbrowser.__main__:main"\n',
+        encoding="utf-8",
+    )
+
+    assert _console_script_symbol(str(tmp_path)) == "cloakbrowser.__main__.main"
+
+
+def test_console_script_symbol_missing_pyproject_returns_none(tmp_path: Path) -> None:
+    assert _console_script_symbol(str(tmp_path)) is None
+
+
+def test_is_cli_entry_query_matches_cli_and_run_phrases() -> None:
+    assert _is_cli_entry_query("verify the exact CLI")
+    assert _is_cli_entry_query("how do I run this tool?")
+    assert _is_cli_entry_query("what is the entry point")
+    # Must not fire on unrelated words that merely contain the letters "cli".
+    assert not _is_cli_entry_query("explain the client connection")
+
+
+def test_symbol_candidate_resolves_cli_query_via_pyproject(tmp_path: Path) -> None:
+    # Live failure on CloakBrowser: "verify the exact CLI" fell back to a
+    # Dockerfile entry point and missed. The real CLI comes from pyproject.
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "cloakbrowser"\n\n'
+        '[project.scripts]\ncloakbrowser = "cloakbrowser.__main__:main"\n',
+        encoding="utf-8",
+    )
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = symbol_candidate_from_state(
+        {
+            "query": "verify the exact CLI",
+            "repo_handle": repo_handle,
+            "entry_points": ["Dockerfile"],
+        }
+    )
+
+    assert result == "cloakbrowser.__main__.main"
+
+
+def test_symbol_candidate_non_cli_query_ignores_pyproject(tmp_path: Path) -> None:
+    # A non-CLI query must not read pyproject; it keeps the old entry-point
+    # fallback behaviour.
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "cloakbrowser"\n\n'
+        '[project.scripts]\ncloakbrowser = "cloakbrowser.__main__:main"\n',
+        encoding="utf-8",
+    )
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = symbol_candidate_from_state(
+        {
+            "query": "give me the overall architecture",
+            "repo_handle": repo_handle,
+            "entry_points": ["Dockerfile"],
+        }
+    )
+
+    assert result == "Dockerfile"
 
 
 def test_entry_explainer_missing_repo_path_returns_degraded_state() -> None:

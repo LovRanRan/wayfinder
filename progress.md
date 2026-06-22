@@ -630,6 +630,16 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-06-22 — Live-found verify gaps on CloakBrowser — `3 grounding fixes: acronym filter / CLI pyproject / module-source fallback`
+- **背景**:David live-tested wayfinder against `CloakHQ/CloakBrowser` (52 real `.py`, flat layout). Every question returned **verified 0**. Diagnosed: NOT a deploy/env bug — scanner+verifier are live (a real symbol question `what does resolve_proxy_geo do?` in **evidence mode** returned **verified 3/unverified 1/contradicted 0**). The 0s came from the *questions* never reaching a real grounded symbol, three stacked causes.
+- **做了什么(3 个修复,均 additive,无 graph/schema/routing 改动)**:
+  - **#3 acronym filter** (note 024, `entry.py`): all-caps acronyms (`CLI`/`API`/`URL`/…) passed `_looks_like_bare_code_symbol` (CamelCase heuristic) and leaked into `find_definition` → "Symbol not found: CLI". Added `_ACRONYM_STOPWORDS`, Tier-2 only; also unblocks a real symbol that co-occurs with an acronym.
+  - **#2 CLI/entry via pyproject** (note 024, `entry.py`): CLI/entry questions fell back to `entry_points[0]` (a Dockerfile on this repo). Now `_is_cli_entry_query` → read `pyproject.toml [project.scripts]` → `cloakbrowser.__main__:main` → symbol `cloakbrowser.__main__.main`. `tomllib` stdlib (py3.11), no new dep.
+  - **#1 module-source grounding** (note 025, new `graph/module_source.py` + 2-line wire in `nodes.py`): behavioural questions ("what does geoip do?") found no symbol → dead-ended at `missing_symbol_candidate`. New deterministic fallback: `find_module_file` (query→stem/dotted, unambiguous-or-None) → `outline_module_source` (stdlib `ast`, real line numbers) → `select_symbol` (query-token match else first public fn) → reuses the existing AST/verifier path. So "what does geoip do?" now resolves to `resolve_proxy_geo` and verifies.
+- **验证方式**:Mac gate `./.venv/bin/python -m pytest -q` → **323 passed / 8 skipped** (was 296); `ruff check .` clean; `mypy src tests` clean (73 files). +27 new tests across `test_entry_explainer.py` (acronym + CLI/pyproject) and new `test_module_source.py`.
+- **谁写的(诚实记录)**:Cowork-implemented at David's explicit request ("都做了吧"). #2/#3 are bounded entry-path enhancements (same slot as note 022). #1's *single-symbol* fallback is additive; the **multi-symbol module-digest claim slice is deferred + Haichuan-owned** (rules 13–15, touches claim schema/verifier policy). Per rule 16, reverse-explanation owed over notes 024/025 (8 Step-4 prompts) before interview-owned.
+- **下一步**:David commits/pushes from `~/dev/wayfinder` (git is Haichuan's); redeploy; live re-test on CloakBrowser ("verify the exact CLI" → main; "what does geoip do?" → verified). Then reverse-explanation pass over 024/025 (+ still-open 019/021/022/023 + Commit 23). Held synthesizer change (2026-06-15) still un-decided.
+
 ### 2026-06-15 — EXPERIMENTAL (uncommitted, hold) — synthesizer prompt: force concrete symbol naming
 
 - **改了什么**:`graph/synthesis.py` `_SYNTHESIS_INSTRUCTIONS` 加两条——(1) 引用文件/函数/类/测试时必须按 evidence(entry_points/ast_index/...)精确点名并用 backtick;(2) backtick 只包符号本身(`Command.invoke`/`self.callback`),不包整表达式(`invoke(self, ctx)`)。

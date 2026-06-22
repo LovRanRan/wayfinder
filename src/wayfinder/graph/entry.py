@@ -2,8 +2,11 @@
 
 import asyncio
 import re
+import tomllib
+from pathlib import Path
 from typing import Protocol, cast
 
+from wayfinder.graph.module_source import module_symbol_candidate
 from wayfinder.graph.state import WayfinderState
 from wayfinder.mcp.adapter import MCPToolCallError
 from wayfinder.mcp.models import MCPToolCall, MCPToolCallResult
@@ -31,6 +34,21 @@ _CODE_FILE_SUFFIXES = (
     ".txt",
     ".cfg",
     ".ini",
+)
+
+# Common English/tech acronyms that read as CamelCase to the bare-symbol
+# heuristic ("CLI"[1:] contains an uppercase letter) but are almost never the
+# symbol a user wants resolved. Left unfiltered they leak into find_definition
+# and always miss (e.g. "verify the exact CLI" -> Symbol not found: CLI). Only
+# rejected on the Tier-2 bare path; an explicitly backticked/dotted symbol still
+# wins (design note 024).
+_ACRONYM_STOPWORDS = frozenset(
+    {
+        "CLI", "API", "URL", "URI", "HTTP", "HTTPS", "JSON", "YAML", "XML",
+        "SDK", "SQL", "ORM", "CSV", "HTML", "CSS", "REST", "RPC", "GRPC",
+        "TLS", "SSL", "SSH", "UUID", "ID", "IP", "DNS", "CRUD", "JWT",
+        "OOP", "ML", "AI", "OS", "IO", "CPU", "GPU", "RAM", "ENV",
+    }
 )
 
 
@@ -205,15 +223,116 @@ def repo_path_from_state(state: WayfinderState) -> str | None:
 
 
 def symbol_candidate_from_state(state: WayfinderState) -> str | None:
-    query_symbol = _symbol_candidate_from_query(state.get("query", ""))
+    query = state.get("query", "")
+    query_symbol = _symbol_candidate_from_query(query)
     if query_symbol is not None:
         return query_symbol
+
+    # CLI / entry-point questions ("how do I run this?", "verify the CLI") name
+    # no code symbol, so the old code fell back to entry_points[0] — often a
+    # Dockerfile path on a real repo, which the AST tool can't resolve. The
+    # actual console entry is declared in pyproject [project.scripts]; resolve it
+    # to a real symbol (e.g. cloakbrowser.__main__:main -> cloakbrowser.__main__.main)
+    # instead of guessing (design note 024).
+    if _is_cli_entry_query(query):
+        repo_path = repo_path_from_state(state)
+        if repo_path is not None:
+            script_symbol = _console_script_symbol(repo_path)
+            if script_symbol is not None:
+                return script_symbol
 
     entry_points = state.get("entry_points")
     if not entry_points:
         return None
 
     return entry_points[0]
+
+
+_CLI_WORD_PATTERN = re.compile(r"\bclis?\b", re.IGNORECASE)
+_CLI_INTENT_PHRASES = (
+    "command line",
+    "command-line",
+    "entry point",
+    "entrypoint",
+    "console script",
+    "console_scripts",
+    "how to run",
+    "how do i run",
+    "how do you run",
+    "how to invoke",
+    "executable",
+    "run the tool",
+)
+
+
+def _is_cli_entry_query(query: str) -> bool:
+    lowered = query.lower()
+    if _CLI_WORD_PATTERN.search(lowered):
+        return True
+    return any(phrase in lowered for phrase in _CLI_INTENT_PHRASES)
+
+
+def _console_script_symbol(repo_path: str) -> str | None:
+    pyproject = Path(repo_path) / "pyproject.toml"
+    if not pyproject.is_file():
+        return None
+    try:
+        with pyproject.open("rb") as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    for target in _console_script_targets(data):
+        symbol = _symbol_from_script_target(target)
+        if symbol is not None:
+            return symbol
+    return None
+
+
+def _console_script_targets(data: dict[str, object]) -> list[str]:
+    targets: list[str] = []
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return targets
+    scripts = project.get("scripts")
+    if isinstance(scripts, dict):
+        targets.extend(str(value) for value in scripts.values())
+    entry_points = project.get("entry-points")
+    if isinstance(entry_points, dict):
+        console = entry_points.get("console_scripts")
+        if isinstance(console, dict):
+            targets.extend(str(value) for value in console.values())
+    return targets
+
+
+def _symbol_from_script_target(target: str) -> str | None:
+    # "pkg.module:func" -> "pkg.module.func"; "pkg.module:Class.run" ->
+    # "pkg.module.Class"; "pkg.module" -> "pkg.module". Trailing extras such as
+    # "pkg:func [gui]" are dropped.
+    head = target.strip().split()
+    if not head:
+        return None
+    module, separator, obj = head[0].partition(":")
+    module = module.strip()
+    if not module:
+        return None
+    if separator and obj.strip():
+        obj_name = obj.strip().split(".", 1)[0].split("[", 1)[0]
+        if obj_name:
+            return f"{module}.{obj_name}"
+    return module
+
+
+def module_symbol_candidate_from_state(state: WayfinderState) -> str | None:
+    """Module-source fallback: resolve a module-naming query to a real symbol.
+
+    Used by the entry_explainer node only after `symbol_candidate_from_state`
+    finds no symbol, so behavioural questions ("what does geoip do?") reach the
+    AST/verifier path instead of dead-ending (design note 025).
+    """
+    repo_path = repo_path_from_state(state)
+    if repo_path is None:
+        return None
+    return module_symbol_candidate(repo_path, state.get("query", ""))
 
 
 def entry_explainer_missing_repo_path() -> WayfinderState:
@@ -493,6 +612,8 @@ def _symbol_candidate_from_query(query: str) -> str | None:
 
 
 def _looks_like_bare_code_symbol(symbol: str) -> bool:
+    if symbol.upper() in _ACRONYM_STOPWORDS:
+        return False
     return "_" in symbol or any(char.isupper() for char in symbol[1:])
 
 
