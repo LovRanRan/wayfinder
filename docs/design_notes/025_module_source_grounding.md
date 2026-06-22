@@ -39,12 +39,22 @@ entry_explainer slot, like note 022's extraction tiering.
   a query token, else first public function, then class.
 - `module_symbol_candidate(repo_path, query)` — orchestrates the three.
 
-Wiring: `entry.py:module_symbol_candidate_from_state` (state → repo path →
-candidate); `nodes.py:build_entry_explainer_node` calls it **only after**
-`symbol_candidate_from_state` returns None, before the missing-candidate dead
-end. The resolved symbol then flows through `scan_symbol_for_entry` →
-`entry_state_from_ast_result` → verifier unchanged, so a behavioural question
-now produces the same grounded/verified evidence a symbol question does.
+Wiring: the module resolution lives **inside `symbol_candidate_from_state`,
+before the `entry_points[0]` fallback** — not in the node. This ordering is the
+whole fix: once architect_mapper runs (note 021 fan-out), `entry_points` is
+populated, so the old `entry_points[0]` fallback returns a non-None guess
+(often a `Dockerfile`) and would pre-empt any module resolution placed after it.
+Priority is therefore: explicit/bare query symbol → CLI pyproject (note 024) →
+module-source symbol → `entry_points[0]`. The resolved symbol then flows through
+`scan_symbol_for_entry` → `entry_state_from_ast_result` → verifier unchanged, so
+a behavioural question produces the same grounded/verified evidence a symbol
+question does. (`module_symbol_candidate_from_state` remains as a tested helper.)
+
+> Live note: a first cut wired this as a node-level fallback gated on
+> `symbol is None` and it never fired — `symbol` was the non-None
+> `entry_points[0]` guess. Regression test
+> `test_symbol_candidate_module_query_beats_entry_point_fallback` pins the
+> ordering.
 
 ## Files
 

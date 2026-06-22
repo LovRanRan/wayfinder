@@ -17,7 +17,6 @@ from wayfinder.graph.entry import (
     entry_explainer_missing_repo_path,
     entry_explainer_missing_symbol_candidate,
     entry_state_from_ast_result,
-    module_symbol_candidate_from_state,
     scan_symbol_for_entry,
     symbol_candidate_from_state,
 )
@@ -89,11 +88,6 @@ def build_entry_explainer_node(
             return entry_explainer_missing_repo_path()
 
         symbol = symbol_candidate_from_state(state)
-        if symbol is None:
-            # Module-source fallback: a query that names a module but no symbol
-            # ("what does geoip do?") resolves to a real symbol in that module so
-            # it still reaches the AST/verifier path (design note 025).
-            symbol = module_symbol_candidate_from_state(state)
         if symbol is None:
             return entry_explainer_missing_symbol_candidate()
 

@@ -228,18 +228,28 @@ def symbol_candidate_from_state(state: WayfinderState) -> str | None:
     if query_symbol is not None:
         return query_symbol
 
+    repo_path = repo_path_from_state(state)
+
     # CLI / entry-point questions ("how do I run this?", "verify the CLI") name
-    # no code symbol, so the old code fell back to entry_points[0] — often a
-    # Dockerfile path on a real repo, which the AST tool can't resolve. The
-    # actual console entry is declared in pyproject [project.scripts]; resolve it
-    # to a real symbol (e.g. cloakbrowser.__main__:main -> cloakbrowser.__main__.main)
-    # instead of guessing (design note 024).
-    if _is_cli_entry_query(query):
-        repo_path = repo_path_from_state(state)
-        if repo_path is not None:
-            script_symbol = _console_script_symbol(repo_path)
-            if script_symbol is not None:
-                return script_symbol
+    # no code symbol. The actual console entry is declared in pyproject
+    # [project.scripts]; resolve it to a real symbol (e.g.
+    # cloakbrowser.__main__:main -> cloakbrowser.__main__.main) instead of
+    # guessing (design note 024).
+    if repo_path is not None and _is_cli_entry_query(query):
+        script_symbol = _console_script_symbol(repo_path)
+        if script_symbol is not None:
+            return script_symbol
+
+    # A behavioural question that names a module but no symbol
+    # ("what does geoip do?") resolves to a real symbol in that module's source.
+    # This MUST run before the entry_points[0] fallback below: once
+    # architect_mapper has populated entry_points (note 021 fan-out), that
+    # fallback is non-None (often a Dockerfile) and would otherwise pre-empt the
+    # module resolution and starve the AST path (design note 025).
+    if repo_path is not None:
+        module_symbol = module_symbol_candidate(repo_path, query)
+        if module_symbol is not None:
+            return module_symbol
 
     entry_points = state.get("entry_points")
     if not entry_points:

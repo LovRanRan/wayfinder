@@ -257,6 +257,37 @@ def test_symbol_candidate_non_cli_query_ignores_pyproject(tmp_path: Path) -> Non
     assert result == "Dockerfile"
 
 
+def test_symbol_candidate_module_query_beats_entry_point_fallback(
+    tmp_path: Path,
+) -> None:
+    # Regression (live miss on CloakBrowser 2026-06-22): architect_mapper
+    # populates entry_points (often a Dockerfile), so symbol_candidate_from_state
+    # returned that fallback and the module-source resolution never ran. A
+    # module-naming behavioural query must resolve to the real symbol BEFORE the
+    # entry_points[0] fallback (design note 025).
+    pkg = tmp_path / "cloakbrowser"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "geoip.py").write_text(
+        "def resolve_proxy_geo(proxy_url):\n    return None, None\n",
+        encoding="utf-8",
+    )
+    repo_handle = RepoHandle(
+        source=RepoSource(kind="local", original_ref=str(tmp_path)),
+        local_path=tmp_path,
+    )
+
+    result = symbol_candidate_from_state(
+        {
+            "query": "what does geoip do?",
+            "repo_handle": repo_handle,
+            "entry_points": ["Dockerfile"],
+        }
+    )
+
+    assert result == "resolve_proxy_geo"
+
+
 def test_entry_explainer_missing_repo_path_returns_degraded_state() -> None:
     result = entry_explainer_missing_repo_path()
     errors = result.get("errors")
