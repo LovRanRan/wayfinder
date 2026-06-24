@@ -12,6 +12,8 @@ Verifier-backed codebase onboarding copilot for engineers entering an unfamiliar
 - Docker/Compose: deploy-ready and Railway-smoked
 - Public live URL: deployed on Railway
 - Public smoke evidence: recorded in docs
+- Multi-agent: role contracts, typed claim packets, verifier challenge, and end-to-end claim provenance (Commit 23)
+- Grounding: NL-to-symbol resolution hardened on real third-party repos — symbol, CLI, and behavioural questions return `verified` file:line evidence (design notes 021–025)
 - Demo video: script ready; recording is a user-owned handoff
 
 ## Why This Exists
@@ -57,6 +59,46 @@ final_writer + resilience/reflection layer
 RunSummary + trace metadata + dashboard panels
 ConversationThread + bounded memory + message history
 ```
+
+The agents are genuinely distinct (Commit 23): each worker has a role contract
+(mission, least-privilege tools, output contract) and emits typed `ClaimPacket`s
+carrying their evidence. The verifier can *challenge* a claim — a failing test
+makes it `contradicted`, AST/repo evidence makes it `verified`, and a high-risk
+claim with no grounding is downgraded to `unverified`; community context never
+upgrades a claim. The resulting per-claim provenance is persisted on the
+`RunSummary`, returned by `GET /status/{job_id}`, and rendered as a dashboard
+panel.
+
+## Grounding And Symbol Resolution
+
+Verification only works if the agent looks up the *right* real symbol, so
+wayfinder turns a natural-language question into a concrete symbol before
+calling the AST tool, in priority order:
+
+1. **Explicit symbol in the query** — backticked or dotted
+   (`graph.app.build_graph`), with filenames excluded so `state.py` never wins
+   over the real `merge_summaries`.
+2. **CLI / entry-point questions** ("how do I run this?", "verify the CLI") —
+   read `pyproject.toml [project.scripts]` and resolve the real console entry
+   (e.g. `cloakbrowser.__main__:main`) instead of treating "CLI" as a symbol.
+3. **Module-naming behavioural questions** ("what does geoip do?") — read the
+   named module's source, parse it with `ast`, and pick the most relevant public
+   symbol, so the question still reaches the AST/verifier path instead of
+   dead-ending on the module dependency graph.
+4. **Architect_mapper entry-point fallback** — last resort.
+
+Two guards keep this honest: all-caps acronyms (`CLI` / `API` / `URL` / ...) are
+never sent to `find_definition`, and an ambiguous name resolves to nothing
+rather than a guess — the AST resolver refuses a bare name that matches multiple
+definitions, resolves a unique bare/leaf name, and disambiguates a
+partially-qualified name. The effect: symbol, CLI, and behavioural questions on a
+real third-party repo return grounded `verified` evidence with real `file:line`
+citations, while genuinely unprovable sub-claims stay `unverified` instead of
+being hidden.
+
+See design notes 021–025 for routing fan-out, symbol extraction, AST bare-symbol
+resolution (`mcp-ast-explorer` 0.1.1), CLI/pyproject resolution, and
+module-source grounding.
 
 ## Tech Stack
 
