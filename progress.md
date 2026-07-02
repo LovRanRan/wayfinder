@@ -630,6 +630,13 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-07-02 (final) — UX 决策落地 + Railway Postgres 上线 — `repo attach 输入框 / 全站 sans 字体 / PostgresRunStore live`
+
+- **Haichuan 拍板的两项 UX**:(1) **repo attach 输入框**——Active repo 卡片加 URL 输入 + Attach 按钮,协调器抽出 `submitChatContent` 让表单和聊天命令走同一 `/chat` 路径,空值/发送中禁用;(2) **字体统一**(委派 subagent 按保留/替换规则扫 24 个文件)——标题/按钮/正文/提示/时间戳转 Inter,repo URL/thread-run ID/file:line 证据/代码输出/trace 摘录保留 font-mono。gates 绿 + 截图验收。
+- **Railway Postgres 切换上线**:Haichuan `railway login` 后 Cowork 全程 CLI 完成——旧 CLI 4.36 写操作报 Unauthorized,升级 5.23 后成功;`railway add -d postgres` 建库;`WAYFINDER_RUN_STORE=postgres` + `WAYFINDER_DATABASE_URL=${{Postgres.DATABASE_URL}}`(引用变量);删除 `WAYFINDER_RUN_STORE_PATH`;redeploy。**线上验证:`/ready` → `{"status":"ready","run_store":"PostgresRunStore"}`,`/health` commit 7f1d404**。注意:SQLite 历史未迁移(旧卷数据保留,线上全新开始);回滚路径见 `docs/deploy/railway_postgres.md`。
+- **测试环境备忘**:preview eval 跑在隔离世界,看得到 DOM 但摸不到 React 内部对象,合成 input 事件进不了受控组件(click 可以)——此前所有「Send 不亮」都是这个,非产品 bug。
+- **谁写的(诚实记录)**:Cowork 实现/委派/部署,Haichuan 决策两项 UX 方向并完成 Railway OAuth 登录。
+
 ### 2026-07-02 (night) — Phase 4 收尾 + UX 走查 — `starter prompts / mode tooltips / dark toggle / '.' repo name / 2 组件拆分 / Railway Postgres 准备`
 
 - **UX 走查(全流程实测:登录→附 repo→提问→报告→History/Metrics/Settings)**,修了 4 个摩擦点:(1) repo 名显示裸 `.`(后端 `_repo_name_from_ref` 现解析相对路径为真实目录名,+4 断言);(2) 空聊天页无引导 → 可点击 starter prompt chips(无 repo 给 Open URL 示例,有 repo 给问题示例,点击填入 composer,实测 Send 解锁);(3) answer-mode chips 黑话 → hover tooltip(含 `clarify`,漏了会 TS 报错——被拆分 agent 抓到,已补);(4) 暗色切换(顶栏 toggle + pre-paint 脚本 + localStorage)。**遗留结构性摩擦(待 Haichuan 决策)**:附 repo 只能在聊天框打「Open <url>」命令,Active repo 卡片应加专门的 URL 输入框;次要:工作台内容区 font-mono 与 SaaS 外壳风格割裂。
