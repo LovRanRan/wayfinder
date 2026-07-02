@@ -14,9 +14,9 @@ export function ClaimPill({
     <div className="rounded-md border border-border bg-muted/60 px-3 py-2">
       <div className="flex items-center gap-2">
         <Icon className={claimIconClass(tone)} aria-hidden="true" />
-        <span className="font-mono text-lg font-semibold">{value}</span>
+        <span className="text-lg font-semibold">{value}</span>
       </div>
-      <div className="mt-1 font-mono text-[10px] uppercase text-muted-foreground">{label}</div>
+      <div className="mt-1 text-[10px] uppercase text-muted-foreground">{label}</div>
     </div>
   );
 }

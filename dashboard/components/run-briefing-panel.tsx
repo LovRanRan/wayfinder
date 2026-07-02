@@ -83,11 +83,11 @@ export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: Ru
       <section className="overflow-hidden rounded-lg border border-border bg-card">
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-muted/60 px-4 py-3">
           <div>
-            <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+            <div className="flex items-center gap-2 text-sm font-semibold">
               <Terminal className="h-4 w-4 text-primary" aria-hidden="true" />
               Run briefing
             </div>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">selected job · runtime boundary</p>
+            <p className="mt-1 text-xs text-muted-foreground">selected job · runtime boundary</p>
           </div>
           <Badge variant={activeRunCount > 0 ? "warning" : "outline"}>
             {activeRunCount > 0 ? `${activeRunCount} active` : `${runs.length} recent`}
@@ -123,7 +123,7 @@ export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: Ru
                 />
               </div>
               <div className="rounded-md border border-border bg-muted/40 p-4">
-                <div className="flex items-center gap-2 font-mono text-[10px] uppercase text-muted-foreground">
+                <div className="flex items-center gap-2 text-[10px] uppercase text-muted-foreground">
                   <Terminal className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                   query
                 </div>
@@ -137,7 +137,7 @@ export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: Ru
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-4 font-mono text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
               Ready
             </div>
@@ -147,11 +147,11 @@ export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: Ru
 
       <section className="overflow-hidden rounded-lg border border-border bg-card">
         <header className="border-b border-border bg-muted/60 px-4 py-3">
-          <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+          <div className="flex items-center gap-2 text-sm font-semibold">
             <ShieldAlert className="h-4 w-4 text-primary" aria-hidden="true" />
             Verification boundary
           </div>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">reader facts · test execution policy</p>
+          <p className="mt-1 text-xs text-muted-foreground">reader facts · test execution policy</p>
         </header>
         <div className="grid gap-3 p-4 md:grid-cols-2">
           <BriefingTile icon={Database} label="repo reader" value="mcp_http" detail="repo_mapper + ast_explorer" tone="success" />
@@ -175,11 +175,11 @@ export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: Ru
 
       <section className="overflow-hidden rounded-lg border border-border bg-card">
         <header className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-3">
-          <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+          <div className="flex items-center gap-2 text-sm font-semibold">
             <History className="h-4 w-4 text-primary" aria-hidden="true" />
             Recent answer links
           </div>
-          <span className="font-mono text-xs text-muted-foreground">{recentRuns.length}</span>
+          <span className="text-xs text-muted-foreground">{recentRuns.length}</span>
         </header>
         <div className="divide-y divide-border">
           {recentRuns.length > 0 ? (
@@ -195,16 +195,16 @@ export function RunBriefingPanel({ runs, selectedRun, source, onOpenAnswer }: Ru
                     <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
                     <span className="truncate font-mono text-xs font-semibold text-foreground">{run.repoName}</span>
                   </div>
-                  <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{run.query}</p>
+                  <p className="mt-1 truncate text-[11px] text-muted-foreground">{run.query}</p>
                 </div>
-                <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{run.verifiedCount} / {run.unverifiedCount} / {run.contradictedCount}</span>
                   <PanelRightOpen className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                 </div>
               </button>
             ))
           ) : (
-            <div className="px-4 py-3 font-mono text-sm text-muted-foreground">No runs yet.</div>
+            <div className="px-4 py-3 text-sm text-muted-foreground">No runs yet.</div>
           )}
         </div>
       </section>
@@ -229,10 +229,10 @@ function BriefingTile({
     <div className="min-w-0 rounded-md border border-border bg-muted/40 p-3">
       <div className="flex items-center gap-2">
         <Icon className={tileIconClass(tone)} aria-hidden="true" />
-        <span className="font-mono text-[10px] uppercase text-muted-foreground">{label}</span>
+        <span className="text-[10px] uppercase text-muted-foreground">{label}</span>
       </div>
       <p className="mt-2 truncate font-mono text-sm font-semibold text-foreground">{value}</p>
-      {detail ? <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-5 text-muted-foreground">{detail}</p> : null}
+      {detail ? <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-muted-foreground">{detail}</p> : null}
     </div>
   );
 }

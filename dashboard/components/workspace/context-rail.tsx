@@ -30,11 +30,11 @@ function ContextPanel({
 }) {
   return (
     <section className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+      <div className="flex items-center gap-2 text-sm font-semibold">
         <PanelRight className="h-4 w-4 text-primary" aria-hidden="true" />
         Context
       </div>
-      <div className="mt-3 grid gap-3 font-mono text-xs">
+      <div className="mt-3 grid gap-3 text-xs">
         <ContextRow label="repo" value={context?.repoName ?? "none"} />
         <ContextRow label="focus" value={context?.activeFocus ?? "none"} />
         <ContextRow label="thread" value={context?.defaultThreadId ?? "none"} />
@@ -59,14 +59,14 @@ function AgentTracePanel({
   return (
     <section className="min-h-0 overflow-hidden rounded-lg border border-border bg-card">
       <header className="border-b border-border bg-muted/60 px-4 py-3">
-        <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           <BrainCircuit className="h-4 w-4 text-primary" aria-hidden="true" />
           Agent trace
         </div>
       </header>
       <div className="max-h-full overflow-y-auto p-4">
         {trace === null ? (
-          <p className="font-mono text-xs leading-5 text-muted-foreground">
+          <p className="text-xs leading-5 text-muted-foreground">
             Grounded chat responses will attach route, agents, tools, verifier status, and run evidence here.
           </p>
         ) : (
@@ -107,7 +107,7 @@ function AgentTracePanel({
         )}
         {selectedRun !== null ? (
           <div className="mt-4 rounded-md border border-border bg-background p-3">
-            <div className="font-mono text-xs font-semibold">Selected run</div>
+            <div className="text-xs font-semibold">Selected run</div>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge variant={runStatusVariant(selectedRun.status)}>{selectedRun.status}</Badge>
               <Badge variant="success">verified {selectedRun.verifiedCount}</Badge>
@@ -124,7 +124,7 @@ function ContextRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-background p-2">
       <span className="shrink-0 uppercase text-muted-foreground">{label}</span>
-      <span className="min-w-0 break-all text-right text-foreground">{value}</span>
+      <span className="min-w-0 break-all text-right font-mono text-foreground">{value}</span>
     </div>
   );
 }

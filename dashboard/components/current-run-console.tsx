@@ -64,7 +64,7 @@ export function CurrentRunConsole({
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
               <span className="font-mono text-xs text-muted-foreground">job {run.jobId.slice(0, 8)}</span>
-              <span className="font-mono text-xs text-muted-foreground">{source}</span>
+              <span className="text-xs text-muted-foreground">{source}</span>
             </div>
             <h2 className="truncate font-mono text-sm font-semibold text-foreground">{run.repoName}</h2>
           </div>
@@ -114,7 +114,7 @@ export function CurrentRunConsole({
 
             {run.claimProvenance.length > 0 ? (
               <div className="rounded-md border border-border bg-background/60 p-3">
-                <div className="mb-2 font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                   Claim provenance
                 </div>
                 <ul className="space-y-1">

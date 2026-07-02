@@ -124,17 +124,17 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
     <section className="overflow-hidden rounded-lg border border-border bg-card">
       <header className="flex items-start justify-between gap-3 border-b border-border bg-muted/60 px-4 py-3">
         <div>
-          <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+          <div className="flex items-center gap-2 text-sm font-semibold">
             <Play className="h-4 w-4 text-primary" aria-hidden="true" />
             Run composer
           </div>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">repo + question to agent trace</p>
+          <p className="mt-1 text-xs text-muted-foreground">repo + question to agent trace</p>
         </div>
         {run ? <Badge variant={statusVariant(run.status)}>{run.status}</Badge> : null}
       </header>
       <div className="space-y-4 p-4">
         <form className="grid gap-3" onSubmit={submitRun}>
-          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+          <label className="grid gap-1.5 text-xs uppercase text-muted-foreground">
             repo
             <input
               className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
@@ -143,10 +143,10 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
               placeholder="https://github.com/owner/repo"
             />
           </label>
-          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+          <label className="grid gap-1.5 text-xs uppercase text-muted-foreground">
             prompt
             <textarea
-              className="min-h-28 resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-sm normal-case leading-6 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
+              className="min-h-28 resize-y rounded-md border border-border bg-background px-3 py-2 text-sm normal-case leading-6 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Map architecture and explain runnable entry points"
@@ -213,10 +213,10 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
               <ClaimCount label="Contradicted" value={run.contradictedCount} />
             </div>
             <form className="grid gap-2" onSubmit={submitRefine}>
-              <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+              <label className="grid gap-1.5 text-xs uppercase text-muted-foreground">
                 correction
                 <input
-                  className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
+                  className="h-10 rounded-md border border-border bg-background px-3 text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
                   value={correction}
                   onChange={(event) => setCorrection(event.target.value)}
                   placeholder="Focus on runtime entry points"
@@ -233,7 +233,7 @@ export function RunLauncher({ initialRun = null, onRunChange }: RunLauncherProps
             </form>
           </div>
         ) : (
-          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-3 font-mono text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             <span>Ready</span>
           </div>
@@ -287,7 +287,7 @@ function statusVariant(status: RunStatus) {
 function KeyValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="font-mono text-[10px] uppercase text-muted-foreground">{label}</p>
+      <p className="text-[10px] uppercase text-muted-foreground">{label}</p>
       <p className="mt-1 truncate font-mono text-xs font-medium">{value}</p>
     </div>
   );
@@ -296,8 +296,8 @@ function KeyValue({ label, value }: { label: string; value: string }) {
 function ClaimCount({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md border border-border bg-background/70 p-2 text-center">
-      <p className="font-mono text-lg font-semibold">{value}</p>
-      <p className="mt-0.5 font-mono text-[10px] uppercase text-muted-foreground">{label}</p>
+      <p className="text-lg font-semibold">{value}</p>
+      <p className="mt-0.5 text-[10px] uppercase text-muted-foreground">{label}</p>
     </div>
   );
 }

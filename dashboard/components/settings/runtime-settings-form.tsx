@@ -61,11 +61,11 @@ export function RuntimeSettingsForm({
     <form className="overflow-hidden rounded-lg border border-border bg-card" onSubmit={onSubmit}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/60 px-4 py-3">
         <div>
-          <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+          <div className="flex items-center gap-2 text-sm font-semibold">
             <SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden="true" />
             Runtime settings
           </div>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             workspace provider · routing · synthesis
           </p>
         </div>
@@ -80,7 +80,7 @@ export function RuntimeSettingsForm({
         {isLoading ? <LoadingPanel /> : null}
 
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+          <label className="grid gap-1.5 text-xs uppercase text-muted-foreground">
             OpenAI key
             <input
               className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
@@ -91,19 +91,19 @@ export function RuntimeSettingsForm({
               autoComplete="off"
             />
           </label>
-          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+          <label className="grid gap-1.5 text-xs uppercase text-muted-foreground">
             Model
             <input
-              className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm normal-case text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
               value={model}
               onChange={(event) => setModel(event.target.value)}
               placeholder="gpt-5.5"
             />
           </label>
-          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+          <label className="grid gap-1.5 text-xs uppercase text-muted-foreground">
             Routing
             <select
-              className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition focus:border-primary"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm normal-case text-foreground outline-none transition focus:border-primary"
               value={llmRouting}
               onChange={(event) => setLlmRouting(event.target.value as WorkspaceLLMRouting)}
             >
@@ -111,10 +111,10 @@ export function RuntimeSettingsForm({
               <option value="openai">openai</option>
             </select>
           </label>
-          <label className="grid gap-1.5 font-mono text-xs uppercase text-muted-foreground">
+          <label className="grid gap-1.5 text-xs uppercase text-muted-foreground">
             Final writer
             <select
-              className="h-10 rounded-md border border-border bg-background px-3 font-mono text-sm normal-case text-foreground outline-none transition focus:border-primary"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm normal-case text-foreground outline-none transition focus:border-primary"
               value={finalWriter}
               onChange={(event) => setFinalWriter(event.target.value as WorkspaceFinalWriter)}
             >
@@ -169,7 +169,7 @@ export function RuntimeSettingsForm({
 function LoadingPanel() {
   return (
     <div className="grid gap-2 rounded-md border border-border bg-muted/40 p-4">
-      <div className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
         Loading workspace settings
       </div>

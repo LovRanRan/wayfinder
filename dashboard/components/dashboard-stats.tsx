@@ -95,16 +95,16 @@ export function DashboardStats({ metrics, threads, onOpenMetrics }: DashboardSta
           <div>
             <div className="flex items-center gap-2">
               <SelectedIcon className="h-4 w-4 text-primary" aria-hidden="true" />
-              <span className="font-mono text-xs font-medium uppercase text-muted-foreground">
+              <span className="text-xs font-medium uppercase text-muted-foreground">
                 {selected.eyebrow}
               </span>
             </div>
-            <div className="mt-3 font-mono text-3xl font-semibold">{selected.value}</div>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">{selected.detail}</p>
+            <div className="mt-3 text-3xl font-semibold">{selected.value}</div>
+            <p className="mt-1 text-xs text-muted-foreground">{selected.detail}</p>
           </div>
           <button
             type="button"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 font-mono text-xs font-semibold uppercase text-muted-foreground transition hover:border-primary/60 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-xs font-semibold uppercase text-muted-foreground transition hover:border-primary/60 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             onClick={onOpenMetrics}
           >
             <BarChart3 className="h-4 w-4" aria-hidden="true" />
@@ -136,7 +136,7 @@ function MetricTabButton({ icon: Icon, label, isActive, onClick }: MetricTabButt
   return (
     <button
       type="button"
-      className={`inline-flex h-12 items-center justify-center gap-2 rounded-md border px-3 font-mono text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-ring ${
+      className={`inline-flex h-12 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-ring ${
         isActive
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border bg-background/50 text-muted-foreground hover:border-primary/60 hover:text-foreground"

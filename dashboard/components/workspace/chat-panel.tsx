@@ -89,7 +89,7 @@ export function ChatPanel({
                 {activeContext?.repoName ?? selectedThread?.repoName ?? "ambient chat"}
               </Badge>
             </div>
-            <h2 className="mt-2 truncate font-mono text-lg font-semibold">
+            <h2 className="mt-2 truncate text-lg font-semibold">
               {selectedThread?.title ?? "Wayfinder repo workspace"}
             </h2>
             <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
@@ -140,7 +140,7 @@ export function ChatPanel({
 
           {activeRun !== null ? (
             <details className="rounded-lg border border-border bg-background">
-              <summary className="cursor-pointer px-4 py-3 font-mono text-sm font-semibold text-muted-foreground">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-muted-foreground">
                 Grounded report
               </summary>
               <div className="border-t border-border p-2">
@@ -170,7 +170,7 @@ export function ChatPanel({
         ) : null}
         <form className="mx-auto grid max-w-4xl gap-2" onSubmit={onSendChat}>
           <textarea
-            className="min-h-24 resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-sm leading-6 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
+            className="min-h-24 resize-y rounded-md border border-border bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
             value={chatDraft}
             onChange={(event) => onChatDraftChange(event.target.value)}
             onKeyDown={(event) => {
@@ -194,8 +194,8 @@ export function ChatPanel({
                   title={answerModeHint[mode]}
                   className={
                     answerMode === mode
-                      ? "h-8 rounded-md bg-primary px-3 font-mono text-xs font-semibold text-primary-foreground"
-                      : "h-8 rounded-md border border-border bg-background px-3 font-mono text-xs text-muted-foreground hover:text-foreground"
+                      ? "h-8 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                      : "h-8 rounded-md border border-border bg-background px-3 text-xs text-muted-foreground hover:text-foreground"
                   }
                   onClick={() => onAnswerModeChange(mode)}
                 >
@@ -204,7 +204,7 @@ export function ChatPanel({
               ))}
             </div>
             <div className="flex items-center justify-between gap-3">
-              <p className="font-mono text-[11px] leading-5 text-muted-foreground">
+              <p className="text-[11px] leading-5 text-muted-foreground">
                 {sendBlocker ?? "Ambient repo context and bounded memory are attached."}
               </p>
               <Button type="submit" disabled={!canSend}>
@@ -287,12 +287,12 @@ function ThreadMessageRow({
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
-        <span className="font-mono text-xs uppercase text-muted-foreground">{message.role}</span>
-        <span className="font-mono text-[11px] text-muted-foreground">
+        <span className="text-xs uppercase text-muted-foreground">{message.role}</span>
+        <span className="text-[11px] text-muted-foreground">
           {formatDate(message.createdAt)}
         </span>
       </div>
-      <div className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-foreground">
+      <div className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
         {message.content}
       </div>
       {linkedRun !== null ? (
@@ -321,10 +321,10 @@ function PendingMessageRow({ content }: { content: string }) {
     <article className="ml-auto max-w-[86%] rounded-lg border border-primary/40 bg-primary/10 p-3 opacity-80">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <User className="h-4 w-4 text-primary" aria-hidden="true" />
-        <span className="font-mono text-xs uppercase text-muted-foreground">user</span>
+        <span className="text-xs uppercase text-muted-foreground">user</span>
         <Badge variant="warning">sending</Badge>
       </div>
-      <div className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-foreground">
+      <div className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
         {content}
       </div>
     </article>

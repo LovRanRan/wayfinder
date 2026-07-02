@@ -25,8 +25,8 @@ export function WorkspaceAccount({ user }: WorkspaceAccountProps) {
         <UserRound className="h-5 w-5" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-mono text-sm font-semibold">{user.displayName}</p>
-        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">workspace @{user.workspaceId}</p>
+        <p className="truncate text-sm font-semibold">{user.displayName}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">workspace <span className="font-mono">@{user.workspaceId}</span></p>
       </div>
       <Button variant="outline" type="button" onClick={() => void logout()} disabled={isLoggingOut}>
         {isLoggingOut ? (

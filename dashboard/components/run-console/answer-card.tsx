@@ -12,7 +12,7 @@ export function AnswerCard({ block }: { block: OutputBlock }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={answerLabelClass(block.tone)}>{block.label}</span>
-            <h3 className="font-mono text-sm font-semibold text-foreground">{block.title}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{block.title}</h3>
           </div>
           <StructuredText text={block.body} />
         </div>
@@ -57,7 +57,7 @@ function StructuredLine({ line }: { line: string }) {
   if (numbered) {
     return (
       <div className="flex gap-2 text-sm leading-6 text-foreground" style={{ paddingLeft: `${indent * 14}px` }}>
-        <span className="mt-0.5 flex h-5 min-w-5 shrink-0 items-center justify-center rounded-sm border border-border bg-muted px-1 font-mono text-[10px] text-muted-foreground">
+        <span className="mt-0.5 flex h-5 min-w-5 shrink-0 items-center justify-center rounded-sm border border-border bg-muted px-1 text-[10px] text-muted-foreground">
           {numbered[1]}
         </span>
         <span className="min-w-0 break-words">
@@ -125,7 +125,7 @@ function answerIconClass(tone: OutputTone) {
 }
 
 function answerLabelClass(tone: OutputTone) {
-  const base = "rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase";
+  const base = "rounded-sm border px-1.5 py-0.5 text-[10px] uppercase";
   if (tone === "success") {
     return `${base} border-success/30 bg-success/10 text-success`;
   }

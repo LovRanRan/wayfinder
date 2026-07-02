@@ -17,7 +17,7 @@ export function SettingTile({
     <div className="rounded-md border border-border bg-muted/40 p-3">
       <div className="flex items-center gap-2">
         <Icon className={tileIconClass(tone)} aria-hidden="true" />
-        <span className="font-mono text-[10px] uppercase text-muted-foreground">{label}</span>
+        <span className="text-[10px] uppercase text-muted-foreground">{label}</span>
       </div>
       <p className="mt-2 truncate font-mono text-sm font-semibold text-foreground">{value}</p>
     </div>

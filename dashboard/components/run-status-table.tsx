@@ -22,15 +22,15 @@ export function RunStatusTable({
   return (
     <section className="overflow-hidden rounded-lg border border-border bg-card">
       <header className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-3">
-        <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           <History className="h-4 w-4 text-primary" aria-hidden="true" />
           Recent runs
         </div>
-        <span className="font-mono text-xs text-muted-foreground">{runs.length}</span>
+        <span className="text-xs text-muted-foreground">{runs.length}</span>
       </header>
       <div className={compact ? "p-2" : "p-4"}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-left font-mono text-xs">
+          <table className="w-full min-w-[760px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-border uppercase text-muted-foreground">
                 <th className="py-3 pr-4 font-medium">Repo</th>
@@ -59,13 +59,13 @@ export function RunStatusTable({
                     {onSelectRun ? (
                       <button
                         type="button"
-                        className="max-w-52 truncate text-left text-foreground hover:text-primary"
+                        className="max-w-52 truncate text-left font-mono text-foreground hover:text-primary"
                         onClick={() => onSelectRun(run)}
                       >
                         {run.repoName}
                       </button>
                     ) : (
-                      <span>{run.repoName}</span>
+                      <span className="font-mono">{run.repoName}</span>
                     )}
                   </td>
                   <td className="py-3 pr-4">

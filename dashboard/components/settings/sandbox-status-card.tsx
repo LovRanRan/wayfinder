@@ -13,11 +13,11 @@ export function SandboxStatusCard({ settings }: SandboxStatusCardProps) {
   return (
     <section className="overflow-hidden rounded-lg border border-border bg-card">
       <header className="border-b border-border bg-muted/60 px-4 py-3">
-        <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           <ShieldAlert className="h-4 w-4 text-primary" aria-hidden="true" />
           Verification sandbox
         </div>
-        <p className="mt-1 font-mono text-xs text-muted-foreground">test runner policy · public boundary</p>
+        <p className="mt-1 text-xs text-muted-foreground">test runner policy · public boundary</p>
       </header>
       <div className="grid gap-3 p-4">
         <SettingTile
@@ -33,7 +33,7 @@ export function SandboxStatusCard({ settings }: SandboxStatusCardProps) {
           tone={sandboxTone(settings?.sandboxStatus)}
         />
         <div className="rounded-md border border-border bg-muted/40 p-4">
-          <p className="font-mono text-xs leading-6 text-muted-foreground">
+          <p className="text-xs leading-6 text-muted-foreground">
             {settings?.sandboxMessage ?? "Loading sandbox policy."}
           </p>
         </div>

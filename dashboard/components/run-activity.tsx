@@ -44,7 +44,7 @@ export function RunActivity({ status, startedAt, label = "Agent run in progress"
 
   return (
     <div className="rounded-md border border-primary/30 bg-primary/10 p-3" aria-live="polite">
-      <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-primary">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-primary">
         <div className="flex items-center gap-2">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
@@ -70,7 +70,7 @@ export function RunActivity({ status, startedAt, label = "Agent run in progress"
               style={{ animationDelay: `${index * 140}ms` }}
             >
               <Icon className="h-3.5 w-3.5 shrink-0 animate-pulse text-primary" aria-hidden="true" />
-              <span className="truncate font-mono text-[10px] uppercase text-muted-foreground">
+              <span className="truncate text-[10px] uppercase text-muted-foreground">
                 {step.label}
               </span>
             </div>

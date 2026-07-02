@@ -86,7 +86,7 @@ export function HistoryView({ threads, runs, source }: HistoryViewProps) {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{thread.status}</Badge>
                       {latestRun !== null ? (
-                        <span className="font-mono text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           <span className="text-success">{latestRun.verifiedCount}✓</span>{" "}
                           <span className="text-warning">{latestRun.unverifiedCount}⚠</span>{" "}
                           <span className="text-danger">{latestRun.contradictedCount}✗</span>

@@ -73,11 +73,11 @@ export function WorkspaceMetrics({ runs }: WorkspaceMetricsProps) {
     <section className="grid gap-4">
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="flex items-center gap-2 font-mono text-sm font-semibold">
+          <div className="flex items-center gap-2 text-sm font-semibold">
             <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
             Metrics window
           </div>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             {filteredRuns.length} runs · {formatPercent(metrics.successRate)} success · latest{" "}
             {formatSeconds(metrics.latestCompletedLatency)} · P95 completed {formatSeconds(metrics.p95Latency)}
           </p>
@@ -89,8 +89,8 @@ export function WorkspaceMetrics({ runs }: WorkspaceMetricsProps) {
               type="button"
               className={
                 timeRange === range.id
-                  ? "h-9 rounded-md bg-primary px-3 font-mono text-sm font-medium text-primary-foreground"
-                  : "h-9 rounded-md border border-border bg-background px-3 font-mono text-sm text-muted-foreground hover:text-foreground"
+                  ? "h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+                  : "h-9 rounded-md border border-border bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
               }
               onClick={() => setTimeRange(range.id)}
             >
@@ -226,7 +226,7 @@ function LatencyTrend({ runs }: { runs: DashboardRun[] }) {
               })}
             </svg>
           ) : (
-            <div className="flex h-full items-center justify-center font-mono text-sm text-muted-foreground">
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               No completed latency samples
             </div>
           )}
@@ -235,7 +235,7 @@ function LatencyTrend({ runs }: { runs: DashboardRun[] }) {
           {points.slice(-3).map((point, index) => (
             <div key={`${point.label}-${index}`} className="rounded-md border border-border bg-muted/50 p-3">
               <div className="truncate font-mono text-xs text-muted-foreground">{point.label}</div>
-              <div className="mt-1 font-mono text-lg font-semibold">{formatSeconds(point.value)}</div>
+              <div className="mt-1 text-lg font-semibold">{formatSeconds(point.value)}</div>
             </div>
           ))}
         </div>
@@ -258,13 +258,13 @@ function BarPanel({ icon, title, rows }: { icon: ReactNode; title: string; rows:
           <div key={row.label} className="grid gap-1.5">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="truncate font-medium">{row.label}</span>
-              <span className="shrink-0 font-mono text-muted-foreground">{row.value}</span>
+              <span className="shrink-0 text-muted-foreground">{row.value}</span>
             </div>
             <div className="h-7 rounded-md bg-muted">
               <div
                 className={
                   row.share > 0
-                    ? "flex h-7 min-w-8 items-center justify-end rounded-md bg-primary px-2 font-mono text-[11px] text-primary-foreground"
+                    ? "flex h-7 min-w-8 items-center justify-end rounded-md bg-primary px-2 text-[11px] text-primary-foreground"
                     : "h-7 rounded-md bg-transparent"
                 }
                 style={{ width: `${Math.max(row.share > 0 ? 8 : 0, row.share * 100)}%` }}
