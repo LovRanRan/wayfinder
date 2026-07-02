@@ -25,6 +25,14 @@ import type {
   DashboardThreadMessage,
 } from "@/lib/types";
 
+const answerModeHint: Record<ChatAnswerMode, string> = {
+  auto: "Let Wayfinder pick the best response shape for your question.",
+  conversation: "A short conversational answer.",
+  report: "A structured grounded report with sections.",
+  evidence: "Evidence-first: file:line citations and verification labels.",
+  clarify: "Ask Wayfinder to clarify what it needs before running.",
+};
+
 type ChatPanelProps = {
   selectedThread: DashboardThread | null;
   activeContext: ActiveRepoContext | null;
@@ -112,9 +120,10 @@ export function ChatPanel({
       <div className="min-h-0 overflow-y-auto px-4 py-4">
         <div className="mx-auto grid max-w-4xl gap-3">
           {!hasVisibleMessages ? (
-            <div className="rounded-lg border border-dashed border-border bg-background p-6 font-mono text-sm leading-6 text-muted-foreground">
-              Paste a repo URL, say `Use owner/repo`, or ask a repo question once a repo is active.
-            </div>
+            <EmptyChatState
+              hasActiveRepo={Boolean(activeContext?.repoUrl)}
+              onPickPrompt={onChatDraftChange}
+            />
           ) : (
             <>
               {selectedThread?.messages.map((message) => (
@@ -182,6 +191,7 @@ export function ChatPanel({
                 <button
                   key={mode}
                   type="button"
+                  title={answerModeHint[mode]}
                   className={
                     answerMode === mode
                       ? "h-8 rounded-md bg-primary px-3 font-mono text-xs font-semibold text-primary-foreground"
@@ -210,6 +220,50 @@ export function ChatPanel({
         </form>
       </div>
     </section>
+  );
+}
+
+function EmptyChatState({
+  hasActiveRepo,
+  onPickPrompt,
+}: {
+  hasActiveRepo: boolean;
+  onPickPrompt: (value: string) => void;
+}) {
+  const prompts = hasActiveRepo
+    ? [
+        "Map the architecture and entry points",
+        "How do I run this project?",
+        "What are the main modules and how do they depend on each other?",
+      ]
+    : [
+        "Open https://github.com/pallets/click and map the architecture",
+        "Open https://github.com/tiangolo/fastapi",
+      ];
+
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-background p-6">
+      <h3 className="text-heading font-semibold">
+        {hasActiveRepo ? "Ask about this repo" : "Attach a repository to start"}
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {hasActiveRepo
+          ? "Wayfinder grounds every answer in AST and repository evidence, and labels what it cannot verify."
+          : "Paste a GitHub URL or say Use owner/repo. Try one of these:"}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {prompts.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => onPickPrompt(prompt)}
+            className="rounded-full border border-border bg-card px-3 py-1.5 text-left text-xs text-foreground transition-colors hover:border-primary hover:bg-accent hover:text-accent-foreground"
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

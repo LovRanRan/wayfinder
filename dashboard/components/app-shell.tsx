@@ -5,6 +5,7 @@ import { BarChart3, Compass, ExternalLink, History, MessageSquare, Settings } fr
 
 import { WorkspaceAccount } from "@/components/workspace-account";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ToastProvider } from "@/components/ui/toast";
 import type { DashboardUser } from "@/lib/types";
 
@@ -98,6 +99,7 @@ export function AppShell({
             </Badge>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <WorkspaceAccount user={user} />
           </div>
         </header>
