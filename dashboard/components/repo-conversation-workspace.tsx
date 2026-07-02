@@ -196,13 +196,7 @@ export function RepoConversationWorkspace({
     };
   }, [activeRunStatus, onRunChange, onThreadChange, selectedThread, source]);
 
-  async function sendChat(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canSend) {
-      return;
-    }
-
-    const nextContent = chatDraft.trim();
+  async function submitChatContent(nextContent: string) {
     setIsSending(true);
     setError(null);
     setStatusMessage("Sending message to Wayfinder...");
@@ -233,6 +227,24 @@ export function RepoConversationWorkspace({
       setIsSending(false);
       setPendingUserMessage(null);
     }
+  }
+
+  async function sendChat(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSend) {
+      return;
+    }
+    await submitChatContent(chatDraft.trim());
+  }
+
+  async function attachRepo(repoRef: string) {
+    const trimmed = repoRef.trim();
+    if (trimmed === "" || isSending) {
+      return;
+    }
+    // Reuse the chat routing that already understands "Open <repo>" so the
+    // dedicated input and the typed command take the identical backend path.
+    await submitChatContent(`Open ${trimmed}`);
   }
 
   async function refreshSelectedThread() {
@@ -305,6 +317,8 @@ export function RepoConversationWorkspace({
         selectedThreadId={selectedThread?.threadId ?? null}
         isClearingContext={isClearingContext}
         archivingThreadId={archivingThreadId}
+        isAttachingRepo={isSending}
+        onAttachRepo={(repoRef) => void attachRepo(repoRef)}
         onStartNewThread={() => void startNewThread()}
         onSelectThread={(thread) => {
           onThreadChange(thread);
