@@ -2,7 +2,7 @@
 
 import os
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -42,6 +42,7 @@ def resolve_repo_source(
     source: RepoSource,
     cache_root: Path | None = None,
     git_runner: GitRunner | None = None,
+    allowed_roots: Sequence[Path] | None = None,
 ) -> RepoHandle:
     if source.kind == "github":
         return resolve_github_repo_source(
@@ -58,10 +59,39 @@ def resolve_repo_source(
     if not repo_path.is_dir():
         raise ValueError(f"Repo path is not a directory: {repo_path}")
 
+    _enforce_local_repo_root(repo_path, allowed_roots)
+
     return RepoHandle(
         source=source,
         local_path=repo_path,
         file_count=count_files(repo_path),
+    )
+
+
+def _enforce_local_repo_root(
+    repo_path: Path,
+    allowed_roots: Sequence[Path] | None,
+) -> None:
+    """Reject local repo paths outside an operator-configured allowlist.
+
+    Without this, a request such as ``repo_url=../../../etc`` would resolve and be
+    read by downstream scanners. When ``allowed_roots`` is None the caller has
+    opted out of the guard (single-user dev/tests); when it is an empty sequence
+    all local paths are denied, which is the safe default for a multi-tenant
+    deployment that should only read cloned GitHub repos.
+    """
+
+    if allowed_roots is None:
+        return
+
+    resolved_roots = [root.expanduser().resolve() for root in allowed_roots]
+    for root in resolved_roots:
+        if repo_path == root or repo_path.is_relative_to(root):
+            return
+
+    raise PermissionError(
+        f"Local repo path {repo_path} is outside the allowed roots. "
+        "Set WAYFINDER_LOCAL_REPO_ROOTS to permit local filesystem ingestion."
     )
 
 

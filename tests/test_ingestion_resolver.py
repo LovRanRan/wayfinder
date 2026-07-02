@@ -42,6 +42,40 @@ def test_file_path_raises(tmp_path: Path) -> None:
         resolve_repo_source(source)
 
 
+def test_allowed_roots_permits_path_inside_root(tmp_path: Path) -> None:
+    repo_dir = tmp_path / "workspaces" / "repo"
+    repo_dir.mkdir(parents=True)
+    (repo_dir / "app.py").write_text("print('hello')\n")
+
+    handle = resolve_repo_source(
+        RepoSource(kind="local", original_ref=str(repo_dir)),
+        allowed_roots=[tmp_path / "workspaces"],
+    )
+
+    assert handle.local_path == repo_dir.resolve()
+
+
+def test_allowed_roots_rejects_path_outside_root(tmp_path: Path) -> None:
+    allowed = tmp_path / "workspaces"
+    allowed.mkdir()
+    outside = tmp_path / "secrets"
+    outside.mkdir()
+
+    source = RepoSource(kind="local", original_ref=str(outside))
+
+    with pytest.raises(PermissionError, match="outside the allowed roots"):
+        resolve_repo_source(source, allowed_roots=[allowed])
+
+
+def test_empty_allowed_roots_denies_all_local_paths(tmp_path: Path) -> None:
+    (tmp_path / "app.py").write_text("print('hello')\n")
+
+    source = RepoSource(kind="local", original_ref=str(tmp_path))
+
+    with pytest.raises(PermissionError):
+        resolve_repo_source(source, allowed_roots=[])
+
+
 def test_count_files_skips_generated_dirs(tmp_path: Path) -> None:
     (tmp_path / "app.py").write_text("print('hello')\n")
 
