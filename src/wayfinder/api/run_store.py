@@ -33,6 +33,75 @@ from wayfinder.api.schemas import (
 
 WayfinderState = dict[str, Any]
 
+# Shared schema DDL for every SQL backend. Written in the intersection of SQLite
+# and PostgreSQL DDL (TEXT/INTEGER columns, PRIMARY KEY, REFERENCES, indexes) so
+# a single source of truth backs both the SQLite and Postgres run stores.
+SCHEMA_DDL = """
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL UNIQUE,
+                    display_name TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token_hash TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL REFERENCES users(user_id),
+                    expires_at TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS runs (
+                    job_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL REFERENCES users(user_id),
+                    run_json TEXT NOT NULL,
+                    graph_input_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_runs_user_updated
+                    ON runs(user_id, updated_at DESC);
+                CREATE TABLE IF NOT EXISTS workspace_settings (
+                    user_id TEXT PRIMARY KEY,
+                    settings_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS conversation_threads (
+                    thread_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL REFERENCES users(user_id),
+                    repo_url TEXT NOT NULL,
+                    repo_name TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    last_run_id TEXT,
+                    summary_memory TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_conversation_threads_user_updated
+                    ON conversation_threads(user_id, updated_at DESC);
+                CREATE TABLE IF NOT EXISTS thread_messages (
+                    message_id TEXT PRIMARY KEY,
+                    thread_id TEXT NOT NULL REFERENCES conversation_threads(thread_id),
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    source_run_id TEXT,
+                    evidence_refs_json TEXT NOT NULL,
+                    verified_count INTEGER NOT NULL,
+                    unverified_count INTEGER NOT NULL,
+                    contradicted_count INTEGER NOT NULL,
+                    trace_metadata_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_thread_messages_thread_created
+                    ON thread_messages(thread_id, created_at ASC);
+                CREATE TABLE IF NOT EXISTS active_repo_contexts (
+                    user_id TEXT PRIMARY KEY REFERENCES users(user_id),
+                    context_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                """
+
 
 class InMemoryRunStore:
     def __init__(self) -> None:
@@ -48,6 +117,11 @@ class InMemoryRunStore:
         self._thread_messages: dict[str, list[ThreadMessage]] = {}
         self._active_contexts: dict[str, ActiveRepoContext] = {}
         self._lock = RLock()
+
+    def ping(self) -> bool:
+        """Cheap readiness check; overridden by backends with real storage."""
+
+        return True
 
     def create_user(
         self,
@@ -538,75 +612,14 @@ class SQLiteRunStore(InMemoryRunStore):
         self._lock = RLock()
         self._init_schema()
 
+    def ping(self) -> bool:
+        with self._lock, self._connection:
+            self._connection.execute("SELECT 1").fetchone()
+        return True
+
     def _init_schema(self) -> None:
         with self._lock, self._connection:
-            self._connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id TEXT PRIMARY KEY,
-                    workspace_id TEXT NOT NULL UNIQUE,
-                    display_name TEXT NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS sessions (
-                    token_hash TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL REFERENCES users(user_id),
-                    expires_at TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS runs (
-                    job_id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL REFERENCES users(user_id),
-                    run_json TEXT NOT NULL,
-                    graph_input_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_runs_user_updated
-                    ON runs(user_id, updated_at DESC);
-                CREATE TABLE IF NOT EXISTS workspace_settings (
-                    user_id TEXT PRIMARY KEY,
-                    settings_json TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS conversation_threads (
-                    thread_id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL REFERENCES users(user_id),
-                    repo_url TEXT NOT NULL,
-                    repo_name TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    last_run_id TEXT,
-                    summary_memory TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_conversation_threads_user_updated
-                    ON conversation_threads(user_id, updated_at DESC);
-                CREATE TABLE IF NOT EXISTS thread_messages (
-                    message_id TEXT PRIMARY KEY,
-                    thread_id TEXT NOT NULL REFERENCES conversation_threads(thread_id),
-                    role TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    source_run_id TEXT,
-                    evidence_refs_json TEXT NOT NULL,
-                    verified_count INTEGER NOT NULL,
-                    unverified_count INTEGER NOT NULL,
-                    contradicted_count INTEGER NOT NULL,
-                    trace_metadata_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_thread_messages_thread_created
-                    ON thread_messages(thread_id, created_at ASC);
-                CREATE TABLE IF NOT EXISTS active_repo_contexts (
-                    user_id TEXT PRIMARY KEY REFERENCES users(user_id),
-                    context_json TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                """
-            )
+            self._connection.executescript(SCHEMA_DDL)
 
     def create_user(
         self,

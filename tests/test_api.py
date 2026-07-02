@@ -181,6 +181,68 @@ def test_auth_required_blocks_anonymous_runs(monkeypatch: pytest.MonkeyPatch) ->
     assert response.json()["detail"] == "login required"
 
 
+def test_ready_probe_reports_run_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
+
+    client = TestClient(app)
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    assert body["run_store"] == "InMemoryRunStore"
+
+
+def test_response_carries_request_id_header() -> None:
+    client = TestClient(app)
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.headers.get("x-request-id")
+
+
+def test_rate_limit_returns_429_when_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WAYFINDER_RATE_LIMIT_PER_MINUTE", "2")
+
+    client = TestClient(app)
+    statuses = [client.get("/health").status_code for _ in range(4)]
+
+    assert statuses[:2] == [200, 200]
+    assert 429 in statuses[2:]
+
+
+def test_local_repo_roots_denies_local_paths_in_auth_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from wayfinder.api.main import _local_repo_roots
+
+    monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")
+    monkeypatch.delenv("WAYFINDER_LOCAL_REPO_ROOTS", raising=False)
+
+    assert _local_repo_roots({"WAYFINDER_REQUIRE_AUTH": "1"}) == []
+    # Single-user dev mode opts out of the guard entirely.
+    assert _local_repo_roots({}) is None
+
+
+def test_local_repo_handle_rejects_path_outside_allowlist(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fastapi import HTTPException
+
+    from wayfinder.api.main import _local_repo_handle_from_ref
+
+    (tmp_path / "app.py").write_text("print('hi')\n")
+    allowed = tmp_path / "workspaces"
+    allowed.mkdir()
+    env = {"WAYFINDER_LOCAL_REPO_ROOTS": str(allowed)}
+
+    with pytest.raises(HTTPException) as excinfo:
+        _local_repo_handle_from_ref(str(tmp_path), env)
+
+    assert excinfo.value.status_code == 403
+
+
 def test_workspace_auth_scopes_runs_to_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
     monkeypatch.setenv("WAYFINDER_REQUIRE_AUTH", "1")

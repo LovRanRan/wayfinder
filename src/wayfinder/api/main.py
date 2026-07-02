@@ -12,9 +12,11 @@ from typing import Annotated, Any, cast
 from urllib.parse import urlparse
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from wayfinder.api.auth import AuthenticatedUser, issue_session_token
 from wayfinder.api.chat_routing import decide_chat_route, extract_repo_ref
+from wayfinder.api.middleware import install_middleware
 from wayfinder.api.observability import (
     finish_trace_metadata,
     runnable_config_for_trace,
@@ -58,6 +60,25 @@ app = FastAPI(
     version="0.1.0",
     description="Verifier-backed codebase onboarding copilot.",
 )
+
+
+def _cors_allow_origins(env: Mapping[str, str]) -> list[str]:
+    raw = env.get("WAYFINDER_CORS_ALLOW_ORIGINS", "").strip()
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+_cors_origins = _cors_allow_origins(os.environ)
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["x-request-id"],
+    )
+
+install_middleware(app, env=dict(os.environ), env_provider=lambda: _runtime_env())
 
 _CHECKPOINTER: Any | None = None
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -270,8 +291,18 @@ def _checkpointer() -> Any:
     return _CHECKPOINTER
 
 
-def _run_store_from_env(env: Mapping[str, str]) -> InMemoryRunStore | SQLiteRunStore:
+def _run_store_from_env(env: Mapping[str, str]) -> InMemoryRunStore:
     store_mode = env.get("WAYFINDER_RUN_STORE", "").strip().lower()
+    database_url = env.get("WAYFINDER_DATABASE_URL", "").strip()
+    if store_mode in ("postgres", "postgresql") or database_url:
+        if not database_url:
+            raise RuntimeError(
+                "WAYFINDER_RUN_STORE=postgres requires WAYFINDER_DATABASE_URL."
+            )
+        from wayfinder.api.postgres_store import PostgresRunStore
+
+        return PostgresRunStore(database_url)
+
     sqlite_path = env.get("WAYFINDER_RUN_STORE_PATH", "").strip()
     if store_mode == "sqlite" or sqlite_path:
         return SQLiteRunStore(Path(sqlite_path or ".wayfinder/runs.sqlite").expanduser())
@@ -352,6 +383,25 @@ def health() -> dict[str, str]:
         "runtime_build_timeout_seconds": f"{_runtime_build_timeout_seconds(env):g}",
         "graph_node_timeout_seconds": env.get("WAYFINDER_GRAPH_NODE_TIMEOUT_SECONDS", "30"),
     }
+
+
+@app.get("/ready")
+def ready() -> dict[str, str]:
+    """Readiness probe: verifies the run store backend is reachable.
+
+    Distinct from ``/health`` (liveness): an orchestrator should only route
+    traffic once this returns 200, so a container with an unreachable SQLite
+    volume is kept out of rotation instead of serving 500s.
+    """
+
+    try:
+        _RUNS.ping()
+    except Exception as exc:  # pragma: no cover - defensive readiness boundary
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="run store not ready",
+        ) from exc
+    return {"status": "ready", "run_store": type(_RUNS).__name__}
 
 
 @app.get("/runs", response_model=list[RunSummary])
@@ -964,7 +1014,7 @@ def _graph_input_from_request(request: ExplainRequest) -> WayfinderState:
 
 
 def _repo_handle_from_ref(repo_ref: str, env: Mapping[str, str]) -> RepoHandle | None:
-    local_handle = _local_repo_handle_from_ref(repo_ref)
+    local_handle = _local_repo_handle_from_ref(repo_ref, env)
     if local_handle is not None:
         return local_handle
 
@@ -974,14 +1024,39 @@ def _repo_handle_from_ref(repo_ref: str, env: Mapping[str, str]) -> RepoHandle |
     return None
 
 
-def _local_repo_handle_from_ref(repo_ref: str) -> RepoHandle | None:
+def _local_repo_handle_from_ref(repo_ref: str, env: Mapping[str, str]) -> RepoHandle | None:
     candidate = Path(repo_ref).expanduser()
     if not candidate.exists():
         return None
 
     from wayfinder.ingestion.models import RepoSource
 
-    return resolve_repo_source(RepoSource(kind="local", original_ref=repo_ref))
+    try:
+        return resolve_repo_source(
+            RepoSource(kind="local", original_ref=repo_ref),
+            allowed_roots=_local_repo_roots(env),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+def _local_repo_roots(env: Mapping[str, str]) -> list[Path] | None:
+    """Resolve the local-repo ingestion allowlist for the current env.
+
+    ``WAYFINDER_LOCAL_REPO_ROOTS`` (os.pathsep-separated) pins the directories a
+    request may read. When it is unset we deny all local paths in
+    auth-required (multi-tenant/public) mode and allow them in single-user dev
+    mode, matching the existing GitHub-ingestion gating posture.
+    """
+
+    raw = env.get("WAYFINDER_LOCAL_REPO_ROOTS", "").strip()
+    if raw:
+        return [Path(item.strip()) for item in raw.split(os.pathsep) if item.strip()]
+
+    if _auth_required(env):
+        return []
+
+    return None
 
 
 def _github_repo_handle_from_ref(repo_ref: str, env: Mapping[str, str]) -> RepoHandle:
