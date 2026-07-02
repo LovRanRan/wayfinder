@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { CurrentRunConsole } from "@/components/current-run-console";
 import { RunActivity } from "@/components/run-activity";
 import { toActiveRepoContext, toChatResponse } from "@/lib/chat";
+import { formatDate } from "@/lib/format";
 import { toDashboardThread, upsertThread } from "@/lib/threads";
 import type {
   ActiveRepoContext,
@@ -943,19 +944,6 @@ function runStatusVariant(status: RunStatus): "success" | "warning" | "danger" |
     return "danger";
   }
   return "outline";
-}
-
-function formatDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "unknown time";
-  }
-  return parsed.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function mergeThreadList(

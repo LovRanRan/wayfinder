@@ -5,12 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { DashboardStats } from "@/components/dashboard-stats";
 import { RepoConversationWorkspace } from "@/components/repo-conversation-workspace";
-import { RunStatusTable } from "@/components/run-status-table";
-import { WorkspaceTabs, type WorkspaceTab } from "@/components/workspace-tabs";
-import { WorkspaceMetrics } from "@/components/workspace-metrics";
-import { WorkspaceSettingsPanel } from "@/components/workspace-settings";
-import { Badge } from "@/components/ui/badge";
 import { buildDashboardMetrics, toDashboardRun } from "@/lib/metrics";
+import { timestamp } from "@/lib/format";
 import { upsertThread } from "@/lib/threads";
 import type { ApiRunSummary, DashboardRun, DashboardThread, RunStatus } from "@/lib/types";
 
@@ -28,10 +24,6 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
   const searchParams = useSearchParams();
   const selectedJobId = searchParams.get("job");
   const selectedThreadId = searchParams.get("thread");
-  const requestedTab = workspaceTabFromParam(searchParams.get("tab"));
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() =>
-    requestedTab ?? "threads",
-  );
   const [liveRuns, setLiveRuns] = useState<DashboardRun[]>(runs);
   const [liveThreads, setLiveThreads] = useState<DashboardThread[]>(threads);
   const [selectedRun, setSelectedRun] = useState<DashboardRun | null>(() =>
@@ -46,7 +38,7 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
   );
 
   const updateUrl = useCallback(
-    (updates: { job?: string | null; thread?: string | null; tab?: WorkspaceTab | null }) => {
+    (updates: { job?: string | null; thread?: string | null }) => {
       const params = new URLSearchParams(searchParams.toString());
       if (updates.job !== undefined) {
         if (updates.job === null) {
@@ -62,31 +54,10 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
           params.set("thread", updates.thread);
         }
       }
-      if (updates.tab !== undefined) {
-        if (updates.tab === null) {
-          params.delete("tab");
-        } else {
-          params.set("tab", updates.tab);
-        }
-      }
       const suffix = params.toString();
       router.replace(suffix ? `${pathname}?${suffix}` : pathname, { scroll: false });
     },
     [pathname, router, searchParams],
-  );
-
-  const selectRun = useCallback(
-    (run: DashboardRun | null) => {
-      setSelectedRun(run);
-      if (run !== null) {
-        setLiveRuns((currentRuns) => upsertRun(currentRuns, run));
-      }
-      updateUrl({ job: run?.jobId ?? null, tab: run === null ? null : "threads" });
-      if (run !== null) {
-        setActiveTab("threads");
-      }
-    },
-    [updateUrl],
   );
 
   const syncRun = useCallback((run: DashboardRun | null) => {
@@ -100,16 +71,14 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
     (thread: DashboardThread) => {
       setLiveThreads((currentThreads) => upsertThread(currentThreads, thread));
       setSelectedRun(null);
-      updateUrl({ job: null, thread: thread.threadId, tab: "threads" });
-      setActiveTab("threads");
+      updateUrl({ job: null, thread: thread.threadId });
     },
     [updateUrl],
   );
 
   const startNewThread = useCallback(() => {
     setSelectedRun(null);
-    updateUrl({ job: null, thread: null, tab: "threads" });
-    setActiveTab("threads");
+    updateUrl({ job: null, thread: null });
   }, [updateUrl]);
 
   const archiveThread = useCallback(
@@ -123,9 +92,8 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
       );
       if (selectedThreadId === threadId) {
         setSelectedRun(null);
-        updateUrl({ job: null, thread: null, tab: "threads" });
+        updateUrl({ job: null, thread: null });
       }
-      setActiveTab("threads");
     },
     [selectedThreadId, updateUrl],
   );
@@ -152,16 +120,6 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
       return liveRuns.find((run) => run.jobId === currentRun.jobId) ?? currentRun;
     });
   }, [liveRuns, selectedJobId]);
-
-  useEffect(() => {
-    if (requestedTab !== null) {
-      setActiveTab(requestedTab);
-      return;
-    }
-    if (selectedJobId !== null || selectedThreadId !== null) {
-      setActiveTab("threads");
-    }
-  }, [requestedTab, selectedJobId, selectedThreadId]);
 
   useEffect(() => {
     if (
@@ -270,22 +228,6 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
     };
   }, [activeRunCount, source]);
 
-  const changeTab = useCallback(
-    (tab: WorkspaceTab) => {
-      setActiveTab(tab);
-      updateUrl({ tab });
-    },
-    [updateUrl],
-  );
-
-  const visibleRuns = useMemo(() => {
-    if (selectedRun === null) {
-      return liveRuns;
-    }
-
-    return [selectedRun, ...liveRuns.filter((run) => run.jobId !== selectedRun.jobId)];
-  }, [liveRuns, selectedRun]);
-
   const metrics = useMemo(() => buildDashboardMetrics(liveRuns), [liveRuns]);
 
   return (
@@ -294,56 +236,22 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
         <DashboardStats
           metrics={metrics}
           threads={liveThreads}
-          onOpenMetrics={() => changeTab("metrics")}
+          onOpenMetrics={() => router.push("/metrics")}
         />
       </div>
-      <div className="shrink-0">
-        <WorkspaceTabs activeTab={activeTab} onTabChange={changeTab} />
+
+      <div className="min-h-0 flex-1">
+        <RepoConversationWorkspace
+          threads={liveThreads}
+          selectedThreadId={selectedThreadId}
+          source={source}
+          externalRun={selectedRun}
+          onNewThread={startNewThread}
+          onThreadChange={selectThread}
+          onThreadArchived={archiveThread}
+          onRunChange={syncRun}
+        />
       </div>
-
-      {activeTab === "threads" ? (
-        <div className="min-h-0 flex-1">
-          <RepoConversationWorkspace
-            threads={liveThreads}
-            selectedThreadId={selectedThreadId}
-            source={source}
-            externalRun={selectedRun}
-            onNewThread={startNewThread}
-            onThreadChange={selectThread}
-            onThreadArchived={archiveThread}
-            onRunChange={syncRun}
-          />
-        </div>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {activeTab === "history" ? (
-            <div className="grid gap-4">
-              <ThreadActivityTimeline
-                threads={liveThreads}
-                onSelectRun={selectRun}
-                onOpenThread={selectThread}
-              />
-              <details className="rounded-lg border border-border bg-card p-4">
-                <summary className="cursor-pointer font-mono text-sm font-semibold text-muted-foreground">
-                  Run diagnostics
-                </summary>
-                <div className="mt-4">
-                  <RunStatusTable
-                    runs={visibleRuns}
-                    source={source}
-                    onSelectRun={selectRun}
-                    selectedJobId={selectedRun?.jobId ?? null}
-                  />
-                </div>
-              </details>
-            </div>
-          ) : null}
-
-          {activeTab === "metrics" ? <WorkspaceMetrics runs={liveRuns} /> : null}
-
-          {activeTab === "settings" ? <WorkspaceSettingsPanel /> : null}
-        </div>
-      )}
     </section>
   );
 }
@@ -353,170 +261,9 @@ function upsertRun(runs: DashboardRun[], nextRun: DashboardRun): DashboardRun[] 
   return [nextRun, ...withoutRun].sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt));
 }
 
-function timestamp(value: string): number {
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function runFromJobId(runs: DashboardRun[], jobId: string | null): DashboardRun | null {
   if (jobId === null) {
     return null;
   }
   return runs.find((run) => run.jobId === jobId) ?? null;
-}
-
-function workspaceTabFromParam(value: string | null): WorkspaceTab | null {
-  if (
-    value === "threads" ||
-    value === "history" ||
-    value === "metrics" ||
-    value === "settings"
-  ) {
-    return value;
-  }
-  return null;
-}
-
-function ThreadActivityTimeline({
-  threads,
-  onSelectRun,
-  onOpenThread,
-}: {
-  threads: DashboardThread[];
-  onSelectRun: (run: DashboardRun | null) => void;
-  onOpenThread: (thread: DashboardThread) => void;
-}) {
-  const [showArchived, setShowArchived] = useState(false);
-  const archivedCount = threads.filter((thread) => thread.status === "archived").length;
-  const ordered = [...threads]
-    .filter((thread) => showArchived || thread.status !== "archived")
-    .sort((a, b) => timestamp(b.updatedAt) - timestamp(a.updatedAt));
-
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <header className="flex items-center justify-between gap-2 border-b border-border bg-muted/60 px-4 py-3">
-        <div className="font-mono text-sm font-semibold">Repo activity timeline</div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-muted-foreground">
-            {ordered.length} thread{ordered.length === 1 ? "" : "s"}
-          </span>
-          {archivedCount > 0 ? (
-            <button type="button" onClick={() => setShowArchived((value) => !value)}>
-              <Badge variant={showArchived ? "warning" : "outline"}>
-                {showArchived ? "Hide archived" : `Show archived (${archivedCount})`}
-              </Badge>
-            </button>
-          ) : null}
-        </div>
-      </header>
-      <div className="grid gap-2 p-4">
-        {ordered.length === 0 ? (
-          <div className="rounded-md border border-border bg-background p-3 font-mono text-sm text-muted-foreground">
-            No repo conversation activity yet.
-          </div>
-        ) : (
-          ordered.map((thread) => {
-            const latestRun =
-              thread.activeRun ?? thread.runs[thread.runs.length - 1] ?? null;
-            const events = [
-              ...thread.messages.map((message) => ({
-                id: message.messageId,
-                createdAt: message.createdAt,
-                title: `${message.role} message`,
-                detail: message.content,
-                run: message.sourceRunId
-                  ? (thread.runs.find((run) => run.jobId === message.sourceRunId) ?? null)
-                  : null,
-              })),
-              {
-                id: `${thread.threadId}:created`,
-                createdAt: thread.createdAt,
-                title: "Repo context attached",
-                detail: thread.repoUrl,
-                run: null as DashboardRun | null,
-              },
-            ].sort((a, b) => timestamp(b.createdAt) - timestamp(a.createdAt));
-
-            return (
-              <details
-                key={thread.threadId}
-                className="rounded-md border border-border bg-background"
-              >
-                <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-3 py-3">
-                  <div className="min-w-0">
-                    <span className="font-mono text-sm font-semibold">{thread.repoName}</span>
-                    <span className="ml-2 font-mono text-xs text-muted-foreground">
-                      {thread.messages.length} msg · {formatDate(thread.updatedAt)}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{thread.status}</Badge>
-                    {latestRun !== null ? (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        <span className="text-success">{latestRun.verifiedCount}✓</span>{" "}
-                        <span className="text-warning">{latestRun.unverifiedCount}⚠</span>{" "}
-                        <span className="text-danger">{latestRun.contradictedCount}✗</span>
-                      </span>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onOpenThread(thread);
-                      }}
-                    >
-                      <Badge variant="success">Open</Badge>
-                    </button>
-                  </div>
-                </summary>
-                <div className="grid gap-2 border-t border-border px-3 py-2">
-                  {events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-md border border-border bg-card/50 p-2"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-mono text-xs font-semibold">{event.title}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] text-muted-foreground">
-                            {formatDate(event.createdAt)}
-                          </span>
-                          {event.run !== null ? (
-                            <button type="button" onClick={() => onSelectRun(event.run)}>
-                              <Badge
-                                variant={event.run.status === "failed" ? "danger" : "outline"}
-                              >
-                                view report
-                              </Badge>
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-5 text-muted-foreground">
-                        {event.detail}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            );
-          })
-        )}
-      </div>
-    </section>
-  );
-}
-
-function formatDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "unknown time";
-  }
-  return parsed.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
