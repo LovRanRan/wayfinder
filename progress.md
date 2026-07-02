@@ -630,6 +630,14 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-07-02 (night) — Phase 4 收尾 + UX 走查 — `starter prompts / mode tooltips / dark toggle / '.' repo name / 2 组件拆分 / Railway Postgres 准备`
+
+- **UX 走查(全流程实测:登录→附 repo→提问→报告→History/Metrics/Settings)**,修了 4 个摩擦点:(1) repo 名显示裸 `.`(后端 `_repo_name_from_ref` 现解析相对路径为真实目录名,+4 断言);(2) 空聊天页无引导 → 可点击 starter prompt chips(无 repo 给 Open URL 示例,有 repo 给问题示例,点击填入 composer,实测 Send 解锁);(3) answer-mode chips 黑话 → hover tooltip(含 `clarify`,漏了会 TS 报错——被拆分 agent 抓到,已补);(4) 暗色切换(顶栏 toggle + pre-paint 脚本 + localStorage)。**遗留结构性摩擦(待 Haichuan 决策)**:附 repo 只能在聊天框打「Open <url>」命令,Active repo 卡片应加专门的 URL 输入框;次要:工作台内容区 font-mono 与 SaaS 外壳风格割裂。
+- **组件拆分(委派 subagent,纯抽取)**:`workspace-settings.tsx` 376→174(+`settings/` 3 文件);`current-run-console.tsx` 518→165(+`run-console/` 5 文件 + `lib/run-output.ts` 纯解析函数原样搬移)。className 逐字保留,gates 绿。
+- **Railway Postgres 准备**:`Dockerfile.api` 补 `--extra postgres`(线上镜像装 psycopg);新 `docs/deploy/railway_postgres.md` runbook(加 DB 插件 → `WAYFINDER_RUN_STORE=postgres` + `WAYFINDER_DATABASE_URL=${{Postgres.DATABASE_URL}}` → `/ready` 验证 `PostgresRunStore` → 回滚路径)。**卡点:Railway CLI token 过期(invalid_grant),`railway login` 是浏览器 OAuth,需 Haichuan 本机登录**;登录后 Cowork 可用 CLI 完成,或按 runbook 在 UI 点两下。
+- **验证方式**:后端 336 passed/ruff/mypy 绿;dashboard lint/typecheck 绿;live 冒烟(settings 表单+sandbox 卡、空状态 chips 填入 composer、暗色切换、`.dark` token 全套协调)。
+- **谁写的(诚实记录)**:Cowork 实现/委派,UX 走查结论已交 Haichuan;两项遗留 UX 决策归 Haichuan。
+
 ### 2026-07-02 (even later) — Phase 4 slice 2 — `Toast + usePolling + RepoConversationWorkspace 拆分 (954→353)`
 
 - **做了什么**:(a) 新 `ui/toast.tsx`(ToastProvider/useToast,auto-dismiss + aria-live,挂在 AppShell),run 完成/失败现在弹 toast 带 verified/contradicted 计数;(b) 新 `lib/use-polling.ts` hook 收敛 AgentWorkbench 两个手写轮询循环——self-scheduled 变速节奏保留,清理时取消 pending timer 并 **AbortController 中止在途 fetch**(修掉 unmount 后晚到响应摸 state 的隐患),callback 走 ref 避免 re-render 重启循环;(c) 954 行 `RepoConversationWorkspace` 纯抽取拆分:353 行协调器(全部 state/轮询/handler 原样)+ `workspace/thread-rail|chat-panel|context-rail.tsx`(纯展示)+ `lib/workspace-api.ts`(fetch 包装)+ `lib/workspace-format.ts`(status variant 等纯函数,去重完成)。
