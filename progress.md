@@ -630,6 +630,13 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-07-02 (later) — Phase 4 slice 1 — `AppShell + real multi-page routes (/history /metrics /settings)`
+
+- **做了什么**:dashboard 从单页 tab 状态机升级为真实多页应用。新 `components/app-shell.tsx`(持久侧边栏导航 + 顶栏面包屑 + Live API 徽章 + 账户区 + 移动端横向导航);`/history`、`/metrics`、`/settings` 拆成独立 server-component 路由(各自 `getDashboardData` + 未登录 `redirect("/")`);`AgentWorkbench` 精简(拆掉 tab 机器、timeline、重复 helper,只留 stats + threads 工作台 + 轮询状态机,`?job/?thread` URL 契约不变);History timeline 抽成 `history-view.tsx`,跨页动作从回调改为 `router.push("/?thread=...")` 链接语义;新基元 `ui/skeleton.tsx`(+`app/loading.tsx` 路由级骨架屏)、`ui/empty-state.tsx`;`lib/format.ts` 去重 3 处 `formatDate`;删除 `workspace-tabs.tsx`。同批修 CI:backend job 补 `--extra postgres`(mypy 找不到 psycopg 的 import-not-found,本地过是因为本地装了 extra)。
+- **验证方式**:dashboard `lint + typecheck + build` 全绿(7 routes);本地起 API+dashboard 实测截图验证 AppShell/三个路由/空状态;**端到端冒烟**:POST /threads(repo_url=`.`)→ run `completed` → thread 内 user+assistant 消息落库,重构后的首页实时渲染正常。CI re-run 全绿(backend+dashboard)。
+- **谁写的(诚实记录)**:Cowork 实现,Haichuan 授权推进 Phase 4。
+- **剩余**:Toast 通知、表单基元(Input/Dialog)、拆 966 行 `RepoConversationWorkspace` + `usePolling` hook、暗色切换开关。
+
 ### 2026-07-02 — Enterprise hardening sprint (Phases 1–3 + UI 基础) — `2 real bugs fixed / CORS+ready+logging+ratelimit / Postgres run store / light SaaS tokens`
 
 - **背景**:Haichuan 要求把项目"更企业化 + 前端更网页化 + 修 bug"。Cowork 先派 3 个探索 agent 全面排查(后端 bug hunt / 前端 UX 审计 / 全库综述),然后按 Haichuan 选定的优先级(先 bug → 再加固 → Postgres → UI)分四个 Phase 推进。
