@@ -5,6 +5,7 @@ import { BarChart3, Compass, ExternalLink, History, MessageSquare, Settings } fr
 
 import { WorkspaceAccount } from "@/components/workspace-account";
 import { Badge } from "@/components/ui/badge";
+import { ToastProvider } from "@/components/ui/toast";
 import type { DashboardUser } from "@/lib/types";
 
 export type AppSection = "threads" | "history" | "metrics" | "settings";
@@ -37,6 +38,7 @@ export function AppShell({
   const activeLabel = navItems.find((item) => item.id === active)?.label ?? "Workspace";
 
   return (
+    <ToastProvider>
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
         <div className="flex items-center gap-2 border-b border-border px-5 py-4">
@@ -136,5 +138,6 @@ export function AppShell({
         </main>
       </div>
     </div>
+    </ToastProvider>
   );
 }

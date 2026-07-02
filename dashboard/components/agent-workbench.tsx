@@ -5,9 +5,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { DashboardStats } from "@/components/dashboard-stats";
 import { RepoConversationWorkspace } from "@/components/repo-conversation-workspace";
+import { useToast } from "@/components/ui/toast";
 import { buildDashboardMetrics, toDashboardRun } from "@/lib/metrics";
 import { timestamp } from "@/lib/format";
 import { upsertThread } from "@/lib/threads";
+import { usePolling } from "@/lib/use-polling";
 import type { ApiRunSummary, DashboardRun, DashboardThread, RunStatus } from "@/lib/types";
 
 const activeStatuses: RunStatus[] = ["queued", "running"];
@@ -22,6 +24,7 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const selectedJobId = searchParams.get("job");
   const selectedThreadId = searchParams.get("thread");
   const [liveRuns, setLiveRuns] = useState<DashboardRun[]>(runs);
@@ -121,87 +124,69 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
     });
   }, [liveRuns, selectedJobId]);
 
-  useEffect(() => {
-    if (
-      source !== "api" ||
-      selectedRunJobId === null ||
-      selectedRunStatus === null ||
-      !activeStatuses.includes(selectedRunStatus)
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-    let timer: number | null = null;
-    const schedulePoll = (delayMs: number) => {
-      timer = window.setTimeout(() => {
-        void pollRun();
-      }, delayMs);
-    };
-    const pollRun = async () => {
+  usePolling(
+    async ({ schedule, isCancelled, signal }) => {
+      if (selectedRunJobId === null) {
+        return;
+      }
       try {
-        const response = await fetch(`/api/wayfinder/status/${encodeURIComponent(selectedRunJobId)}`, {
-          headers: { "content-type": "application/json" },
-        });
+        const response = await fetch(
+          `/api/wayfinder/status/${encodeURIComponent(selectedRunJobId)}`,
+          { headers: { "content-type": "application/json" }, signal },
+        );
         const payload = await response.json().catch(() => null);
-        if (cancelled) {
+        if (isCancelled()) {
           return;
         }
         if (!response.ok || payload === null) {
-          schedulePoll(2500);
+          schedule(2500);
           return;
         }
         const nextRun = toDashboardRun(payload as ApiRunSummary);
         setSelectedRun(nextRun);
         setLiveRuns((currentRuns) => upsertRun(currentRuns, nextRun));
         if (activeStatuses.includes(nextRun.status)) {
-          schedulePoll(1400);
+          schedule(1400);
           return;
         }
 
         if (!refreshedCompletedJobsRef.current.has(nextRun.jobId)) {
           refreshedCompletedJobsRef.current.add(nextRun.jobId);
+          toast({
+            variant: nextRun.status === "failed" ? "error" : "success",
+            title: nextRun.status === "failed" ? "Run failed" : "Run completed",
+            description: `${nextRun.repoUrl} · ${nextRun.verifiedCount} verified · ${nextRun.contradictedCount} contradicted`,
+          });
           router.refresh();
         }
       } catch {
         // Keep the last known active run visible; manual refresh still reports request errors.
-        if (!cancelled) {
-          schedulePoll(2500);
+        if (!isCancelled()) {
+          schedule(2500);
         }
       }
-    };
+    },
+    {
+      enabled:
+        source === "api" &&
+        selectedRunJobId !== null &&
+        selectedRunStatus !== null &&
+        activeStatuses.includes(selectedRunStatus),
+      initialDelayMs: 1400,
+    },
+  );
 
-    schedulePoll(1400);
-
-    return () => {
-      cancelled = true;
-      if (timer !== null) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [router, selectedRunJobId, selectedRunStatus, source]);
-
-  useEffect(() => {
-    if (source !== "api" || activeRunCount === 0) {
-      return;
-    }
-
-    let cancelled = false;
-    let timer: number | null = null;
-    const schedulePoll = (delayMs: number) => {
-      timer = window.setTimeout(() => {
-        void pollRuns();
-      }, delayMs);
-    };
-    const pollRuns = async () => {
+  usePolling(
+    async ({ schedule, isCancelled, signal }) => {
       try {
         const response = await fetch("/api/wayfinder/runs?limit=10", {
           headers: { "content-type": "application/json" },
+          signal,
         });
         const payload = await response.json().catch(() => null);
-        if (cancelled || !response.ok || !Array.isArray(payload)) {
-          if (!cancelled) {
-            schedulePoll(3000);
+        if (isCancelled() || !response.ok || !Array.isArray(payload)) {
+          if (!isCancelled()) {
+            schedule(3000);
           }
           return;
         }
@@ -209,24 +194,16 @@ export function AgentWorkbench({ runs, threads, source }: AgentWorkbenchProps) {
         const nextRuns = (payload as ApiRunSummary[]).map(toDashboardRun);
         setLiveRuns(nextRuns);
         if (nextRuns.some((run) => activeStatuses.includes(run.status))) {
-          schedulePoll(2500);
+          schedule(2500);
         }
       } catch {
-        if (!cancelled) {
-          schedulePoll(3000);
+        if (!isCancelled()) {
+          schedule(3000);
         }
       }
-    };
-
-    schedulePoll(2500);
-
-    return () => {
-      cancelled = true;
-      if (timer !== null) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [activeRunCount, source]);
+    },
+    { enabled: source === "api" && activeRunCount > 0, initialDelayMs: 2500 },
+  );
 
   const metrics = useMemo(() => buildDashboardMetrics(liveRuns), [liveRuns]);
 
