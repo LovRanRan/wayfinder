@@ -415,6 +415,32 @@ For Railway, mount a persistent volume at `/data` before relying on
 `/data/wayfinder/runs.sqlite`;otherwise the SQLite database is container-local
 and can be lost on rebuild.
 
+For multi-replica deploys, use PostgreSQL instead of SQLite so every API
+instance shares run/thread state:
+
+```env
+WAYFINDER_RUN_STORE=postgres
+WAYFINDER_DATABASE_URL=postgresql://user:pass@host:5432/wayfinder
+```
+
+Install the driver with `uv sync --extra postgres`. Both stores share one schema
+DDL, so the Postgres backend is behaviour-compatible with SQLite; the run-store
+round trip is covered by an env-gated integration test
+(`WAYFINDER_RUN_POSTGRES_INTEGRATION=1` + `WAYFINDER_TEST_DATABASE_URL`).
+
+Enterprise hardening env (all optional, safe no-op defaults):
+
+```env
+WAYFINDER_CORS_ALLOW_ORIGINS=https://dashboard.example.com
+WAYFINDER_RATE_LIMIT_PER_MINUTE=120
+WAYFINDER_LOG_FORMAT=json
+WAYFINDER_LOCAL_REPO_ROOTS=/srv/repos
+```
+
+`GET /ready` is a readiness probe (distinct from `/health` liveness) that checks
+the run-store backend is reachable; every response carries an `x-request-id`
+header for log correlation.
+
 Optional grounded LLM synthesis:
 
 ```env
