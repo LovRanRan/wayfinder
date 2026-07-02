@@ -181,6 +181,15 @@ def test_auth_required_blocks_anonymous_runs(monkeypatch: pytest.MonkeyPatch) ->
     assert response.json()["detail"] == "login required"
 
 
+def test_repo_name_from_ref_resolves_dot_to_directory_name() -> None:
+    from wayfinder.api.run_store import _repo_name_from_ref
+
+    assert _repo_name_from_ref(".") == Path.cwd().name
+    assert _repo_name_from_ref("https://github.com/pallets/click") == "pallets/click"
+    assert _repo_name_from_ref("/tmp/some-repo") == "some-repo"
+    assert _repo_name_from_ref("") == "repo"
+
+
 def test_ready_probe_reports_run_store(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("wayfinder.api.main._RUNS", InMemoryRunStore())
 

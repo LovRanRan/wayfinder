@@ -1477,8 +1477,14 @@ def _repo_name_from_ref(repo_ref: str) -> str:
         if len(parts) >= 2:
             return "/".join(parts[-2:])
     path = Path(stripped)
-    if path.name:
+    if path.name and path.name not in (".", ".."):
         return path.name
+    # Relative refs like "." or ".." have no usable basename; resolve against
+    # the API cwd (the same base ingestion uses) so the UI shows a real
+    # directory name instead of a bare dot.
+    resolved_name = path.resolve().name
+    if resolved_name:
+        return resolved_name
     parts = [part for part in stripped.split("/") if part]
     return parts[-1] if parts else stripped
 

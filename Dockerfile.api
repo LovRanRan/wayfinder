@@ -12,7 +12,9 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 COPY deploy ./deploy
 
-RUN uv sync --frozen --no-dev
+# Include the postgres extra so WAYFINDER_RUN_STORE=postgres works on a
+# multi-replica deploy (psycopg is an optional dependency locally).
+RUN uv sync --frozen --no-dev --extra postgres
 # mcp-ast-explorer installed from git main for the bare/partial symbol-resolution
 # fix (>0.1.0, design note 023) until it is released to PyPI; repo-mapper stays
 # pinned to the published release. Editing this line busts the Docker layer cache
