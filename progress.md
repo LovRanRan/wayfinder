@@ -630,6 +630,14 @@ Guided design mode:
 
 > 每个 commit / 每个工作日加一条,**倒序**(最新在最上)。
 
+### 2026-07-02 (even later) — Phase 4 slice 2 — `Toast + usePolling + RepoConversationWorkspace 拆分 (954→353)`
+
+- **做了什么**:(a) 新 `ui/toast.tsx`(ToastProvider/useToast,auto-dismiss + aria-live,挂在 AppShell),run 完成/失败现在弹 toast 带 verified/contradicted 计数;(b) 新 `lib/use-polling.ts` hook 收敛 AgentWorkbench 两个手写轮询循环——self-scheduled 变速节奏保留,清理时取消 pending timer 并 **AbortController 中止在途 fetch**(修掉 unmount 后晚到响应摸 state 的隐患),callback 走 ref 避免 re-render 重启循环;(c) 954 行 `RepoConversationWorkspace` 纯抽取拆分:353 行协调器(全部 state/轮询/handler 原样)+ `workspace/thread-rail|chat-panel|context-rail.tsx`(纯展示)+ `lib/workspace-api.ts`(fetch 包装)+ `lib/workspace-format.ts`(status variant 等纯函数,去重完成)。
+- **验证方式**:lint/typecheck/build 全绿;拆分前后 className 多重集合逐一比对一致;本地 live 冒烟:三栏渲染、历史消息、composer、toast 容器就位,控制台零错误。拆分由 Cowork 委派 subagent 机械执行(带关卡与回滚指令),Cowork 亲自验收。
+- **备注**:dev server 与 `npm run build` 共享 `.next` 目录会互相踩(预先存在的坑,本次两次撞上),开发时避免同时跑。
+- **谁写的(诚实记录)**:Cowork 实现/委派,Haichuan 确认方向("方向对")后授权继续。
+- **Phase 4 收尾状态**:主线完成(设计 token/AppShell/多页路由/Toast/骨架屏/空状态/轮询 hook/大组件拆分)。可选残留:Input/Dialog 表单基元、暗色切换开关、`WorkspaceSettingsPanel`(376 行)与 `CurrentRunConsole`(518 行)的同款拆分。
+
 ### 2026-07-02 (later) — Phase 4 slice 1 — `AppShell + real multi-page routes (/history /metrics /settings)`
 
 - **做了什么**:dashboard 从单页 tab 状态机升级为真实多页应用。新 `components/app-shell.tsx`(持久侧边栏导航 + 顶栏面包屑 + Live API 徽章 + 账户区 + 移动端横向导航);`/history`、`/metrics`、`/settings` 拆成独立 server-component 路由(各自 `getDashboardData` + 未登录 `redirect("/")`);`AgentWorkbench` 精简(拆掉 tab 机器、timeline、重复 helper,只留 stats + threads 工作台 + 轮询状态机,`?job/?thread` URL 契约不变);History timeline 抽成 `history-view.tsx`,跨页动作从回调改为 `router.push("/?thread=...")` 链接语义;新基元 `ui/skeleton.tsx`(+`app/loading.tsx` 路由级骨架屏)、`ui/empty-state.tsx`;`lib/format.ts` 去重 3 处 `formatDate`;删除 `workspace-tabs.tsx`。同批修 CI:backend job 补 `--extra postgres`(mypy 找不到 psycopg 的 import-not-found,本地过是因为本地装了 extra)。
