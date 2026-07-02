@@ -16,6 +16,7 @@ from wayfinder.graph.verifier import (
     build_test_plan,
     extract_pending_claims_from_entry_summary,
     risk_policy_for_claim,
+    verification_state_from_test_results,
     verifier_state_from_state,
 )
 from wayfinder.graph.verifier import (
@@ -324,6 +325,58 @@ def test_verifier_state_from_state_marks_failed_test_contradicted(tmp_path: Path
     assert result["verified_claims"] == []
     assert result["contradicted_claims"][0]["status"] == "contradicted"
     assert "1 contradicted" in result["partial_summaries"]["verifier"]
+
+
+def test_verification_dedupes_claim_verified_via_ast_and_failing_test() -> None:
+    # Same claim text can be both AST-verified and selected for a test run; a
+    # failing test must not double-count it as verified AND unverified.
+    shared: Claim = {
+        "text": "build_graph has AST definition evidence",
+        "source_agent": "entry_explainer",
+        "risk_level": "high",
+        "test_strategy": "existing_test",
+        "test_id": "tests/test_app.py::test_build_graph",
+        "status": "verified",
+    }
+    pending: Claim = {**shared, "status": "pending"}
+    claims_by_ref: dict[str, Claim] = {"claim-0": pending}
+    request = VerifierRunRequest(
+        test_ref="test-0",
+        claim_refs=("claim-0",),
+        framework="pytest",
+        tool_name="run_pytest",
+        path=".",
+        test_filter="tests/test_app.py::test_build_graph",
+        timeout_seconds=30.0,
+        estimated_runtime_seconds=5,
+    )
+    observation = VerifierRunObservation(
+        test_ref="test-0",
+        status="failed",
+        output="assertion failed",
+        passed=0,
+        failed=1,
+    )
+
+    result = verification_state_from_test_results(
+        claims_by_ref,
+        {"test-0": observation},
+        [request],
+        initial_verified_claims=[shared],
+    )
+
+    texts_verified = [claim["text"] for claim in result["verified_claims"]]
+    texts_contradicted = [claim["text"] for claim in result["contradicted_claims"]]
+    assert shared["text"] in texts_contradicted
+    assert shared["text"] not in texts_verified
+    assert texts_verified.count(shared["text"]) == 0
+    # The claim appears in exactly one bucket, so counts stay consistent.
+    total = (
+        len(result["verified_claims"])
+        + len(result["unverified_claims"])
+        + len(result["contradicted_claims"])
+    )
+    assert total == 1
 
 
 def test_verifier_state_from_state_marks_skip_unverified(tmp_path: Path) -> None:

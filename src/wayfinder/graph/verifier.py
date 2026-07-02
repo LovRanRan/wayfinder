@@ -1225,6 +1225,62 @@ def _error_from_observation(
     }
 
 
+_CLAIM_STATUS_RANK: dict[str, int] = {
+    "contradicted": 3,
+    "verified": 2,
+    "unverified": 1,
+}
+
+
+def _dedupe_claims_by_precedence(
+    verified_claims: Sequence[Claim],
+    unverified_claims: Sequence[Claim],
+    contradicted_claims: Sequence[Claim],
+) -> tuple[list[Claim], list[Claim], list[Claim]]:
+    """Ensure each claim text lands in exactly one status bucket.
+
+    The same claim can be both AST-verified and selected for a test run (e.g. a
+    symbol-existence fact that a failing suite would otherwise mark unverified).
+    Without this guard it would be counted twice, so the verification summary
+    would over- or under-report grounding. Precedence is
+    ``contradicted > verified > unverified`` so a directly conflicting test wins,
+    then real evidence beats missing coverage. Claims without text are treated as
+    unique and never merged.
+    """
+
+    best: dict[str, tuple[int, str, Claim]] = {}
+    order: list[str] = []
+    unkeyed: list[tuple[str, Claim]] = []
+    for bucket, claims in (
+        ("contradicted", contradicted_claims),
+        ("verified", verified_claims),
+        ("unverified", unverified_claims),
+    ):
+        rank = _CLAIM_STATUS_RANK[bucket]
+        for claim in claims:
+            text = claim.get("text", "")
+            if not text:
+                unkeyed.append((bucket, claim))
+                continue
+            existing = best.get(text)
+            if existing is None:
+                best[text] = (rank, bucket, claim)
+                order.append(text)
+            elif rank > existing[0]:
+                best[text] = (rank, bucket, claim)
+
+    verified: list[Claim] = []
+    unverified: list[Claim] = []
+    contradicted: list[Claim] = []
+    buckets = {"verified": verified, "unverified": unverified, "contradicted": contradicted}
+    for text in order:
+        _rank, bucket, claim = best[text]
+        buckets[bucket].append(claim)
+    for bucket, claim in unkeyed:
+        buckets[bucket].append(claim)
+    return verified, unverified, contradicted
+
+
 def _verification_state(
     *,
     verified_claims: Sequence[Claim] = (),
@@ -1236,6 +1292,11 @@ def _verification_state(
     errors: Sequence[GraphError] = (),
     summary_override: str | None = None,
 ) -> WayfinderState:
+    verified_claims, unverified_claims, contradicted_claims = _dedupe_claims_by_precedence(
+        verified_claims,
+        unverified_claims,
+        contradicted_claims,
+    )
     partial_summaries = dict(existing_partial_summaries or {})
     partial_summaries["verifier"] = summary_override or _verification_summary(
         verified_count=len(verified_claims),
