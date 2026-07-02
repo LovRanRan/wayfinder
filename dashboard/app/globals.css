@@ -3,18 +3,50 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 6%;
-  --foreground: 42 18% 92%;
-  --muted: 0 0% 10%;
-  --muted-foreground: 36 8% 60%;
-  --card: 0 0% 8%;
-  --card-foreground: 42 18% 92%;
-  --border: 30 5% 20%;
-  --primary: 42 89% 66%;
-  --primary-foreground: 0 0% 8%;
-  --success: 151 61% 50%;
+  /* Light-first SaaS palette (professional indigo accent on slate neutrals). */
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 215 16% 47%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 243 75% 59%;
+  --primary: 243 75% 59%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 243 75% 96%;
+  --accent-foreground: 243 75% 40%;
+  --success: 142 71% 40%;
+  --warning: 32 95% 44%;
+  --danger: 0 72% 51%;
+
+  --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
+  --shadow-md: 0 4px 12px -2px hsl(222 47% 11% / 0.08), 0 2px 4px -2px hsl(222 47% 11% / 0.05);
+  --shadow-lg: 0 12px 32px -8px hsl(222 47% 11% / 0.12);
+}
+
+.dark {
+  --background: 222 30% 7%;
+  --foreground: 210 20% 92%;
+  --muted: 222 20% 13%;
+  --muted-foreground: 215 15% 60%;
+  --card: 222 24% 10%;
+  --card-foreground: 210 20% 92%;
+  --border: 222 16% 20%;
+  --input: 222 16% 20%;
+  --ring: 243 75% 66%;
+  --primary: 243 75% 66%;
+  --primary-foreground: 222 47% 11%;
+  --accent: 243 40% 20%;
+  --accent-foreground: 243 75% 85%;
+  --success: 151 55% 52%;
   --warning: 38 92% 58%;
   --danger: 0 72% 62%;
+
+  --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+  --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+  --shadow-lg: 0 12px 32px -8px hsl(0 0% 0% / 0.5);
 }
 
 * {
@@ -28,9 +60,16 @@ body {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: hsl(var(--primary) / 0.3);
+  background: hsl(var(--primary) / 0.18);
   color: hsl(var(--foreground));
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }
